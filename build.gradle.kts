@@ -23,6 +23,7 @@ subprojects {
 
     dependencies {
         testImplementation(rootProject.libs.kotlin.test)
+        implementation(rootProject.libs.kotlin.jvm)
         implementation(rootProject.libs.kotlinx.coroutines.core)
     }
 
