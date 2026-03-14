@@ -1,10 +1,12 @@
 # Configuration Files
 
-## Queue Config (duels.yml)
+## Queue Config (minekart.yml)
 ```yml
 ---
-name: duels
+name: minekart
 
-tags:
-  - pvp
+group: duels
+min-capacity: 6
+max-capacity: 12
+
 ```

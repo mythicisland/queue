@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package mythicisland.queue.v1;
+
+option java_package = "net.mythicisland.queue.v1";
+option java_multiple_files = true;
+
+message Queue {
+  string unique_id = 1;
+  string type = 2;
+  QueueStatus status = 3;
+  repeated string player_ids = 5;
+}
+
+message QueueType {
+  string name = 1;
+  string group = 2;
+  uint32 min_capacity = 3;
+  uint32 max_capacity = 4;
+  optional int64 waiting_countdown_millis = 5;
+  optional int64 countdown_millis = 6;
+}
+
+enum QueueStatus {
+  NOT_ENOUGH_PLAYERS = 0;
+  SEARCHING_SERVER = 1;
+  WAITING_FOR_SERVER = 2;
+  SERVER_READY = 3;
+  COUNTDOWN = 4;
+  TELEPORTING = 5;
+  FINISHED = 6;
+}

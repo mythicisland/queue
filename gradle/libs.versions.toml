@@ -23,6 +23,11 @@ caffeine = "3.2.3"
 velocity = "3.5.0-SNAPSHOT"
 run-velocity = "3.0.2"
 
+# Proto Buf
+protobuf = "4.34.0"
+grpc = "1.79.0"
+grpc-kotlin = "1.5.0"
+
 # JOOQ
 jooq = "3.20.11"
 
@@ -61,11 +66,20 @@ jooq-meta = { module = "org.jooq:jooq-meta", version.ref = "jooq" }
 jooq-meta-extensions = { module = "org.jooq:jooq-meta-extensions", version.ref = "jooq" }
 jooq-kotlin-coroutines = { module = "org.jooq:jooq-kotlin-coroutines", version.ref = "jooq" }
 
+# Proto Buf
+protobuf-kotlin = { module = "com.google.protobuf:protobuf-kotlin", version.ref = "protobuf" }
+
+grpc-stub = { module = "io.grpc:grpc-stub", version.ref = "grpc" }
+grpc-kotlin-stub = { module = "io.grpc:grpc-kotlin-stub", version.ref = "grpc-kotlin" }
+grpc-protobuf = { module = "io.grpc:grpc-protobuf", version.ref = "grpc" }
+grpc-netty-shaded = { module = "io.grpc:grpc-netty-shaded", version.ref = "grpc" }
+
 [bundles]
 logging = ["log4j-core", "log4j-api", "log4j-slf4j-impl", "slf4j-api"]
 adventure = ["adventure-text-serializer-gson", "adventure-api", "adventure-text-minimessage"]
 configurate = ["configurate-yaml", "configurate-extra-kotlin"]
 jooq = ["jooq-kotlin-coroutines", "jooq", "jooq-meta-extensions", "jooq-meta"]
+grpc = ["grpc-stub", "grpc-netty-shaded", "grpc-kotlin-stub", "grpc-protobuf", "protobuf-kotlin"]
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
