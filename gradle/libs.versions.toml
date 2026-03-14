@@ -1,6 +1,6 @@
 [versions]
 # Kotlin
-kotlin = "2.1.20"
+kotlin = "2.2.20"
 
 # Logging
 log4j = "2.25.3"
@@ -28,6 +28,7 @@ jooq = "3.20.11"
 
 [libraries]
 # Kotlin
+kotlin-jvm = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 
