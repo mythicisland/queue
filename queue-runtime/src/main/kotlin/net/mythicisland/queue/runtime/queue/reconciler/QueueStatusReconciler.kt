@@ -281,7 +281,8 @@ class QueueStatusReconciler(
             return queue
         }
 
-        logger.info("Queue {} teleporting {} players to server {}", queue.id, queue.players.size, server.serverId)
+        val serverName = "${server.group.name}-${server.numericalId}"
+        logger.info("Queue {} teleporting {} players to server {} ({})", queue.id, queue.players.size, serverName, server.serverId)
 
         queue.players.forEach { playerId ->
             try {
@@ -291,7 +292,7 @@ class QueueStatusReconciler(
                     return@forEach
                 }
 
-                val result = player.connect(server.serverId).await()
+                val result = player.connect(serverName).await()
                 logger.info("Queue {} player {} connect result: {}", queue.id, playerId, result)
             } catch (e: Exception) {
                 logger.error("Failed to teleport player {} to server {}", playerId, server.serverId, e)
