@@ -12,6 +12,45 @@ queue/
 └── queue-shared     # Shared utilities
 ```
 
+## Architecture Diagram
+```mermaid
+flowchart TB
+    subgraph Plugin["Velocity Plugin"]
+        CMD["/queue & /leavequeue"]
+    end
+
+    subgraph Runtime["Queue Runtime (Droplet)"]
+        Reconciler["Status Reconciler"]
+        Visualizer["Visualizer Loop\n(actionbar every 1s)"]
+    end
+
+    Plugin -->|gRPC| Runtime
+    Runtime -->|NATS| SC["SimpleCloud API\n(server discovery & transfers)"]
+
+    subgraph Lifecycle["Queue Lifecycle"]
+        NEP["NOT_ENOUGH_PLAYERS"]
+        WC["WAITING_COUNTDOWN"]
+        SS["SEARCHING_SERVER"]
+        WFS["WAITING_FOR_SERVER"]
+        SR["SERVER_READY"]
+        CD["COUNTDOWN"]
+        TP["TELEPORTING"]
+        FIN["FINISHED"]
+
+        NEP --> WC
+        WC -->|countdown expired / full| SS
+        WC -.->|players drop below min| NEP
+        SS --> SR
+        SS -->|no server free| WFS
+        WFS -->|server becomes available| SR
+        SR --> CD
+        CD --> TP
+        TP --> FIN
+    end
+
+    Runtime --> Lifecycle
+```
+
 ### How it works
 
 The runtime manages queues through a **status reconciler** that drives each queue through its lifecycle:
