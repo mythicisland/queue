@@ -11,6 +11,6 @@ val defaultMessages: Messages = mapOf(
     QueueStatus.SEARCHING_SERVER to "<color:#cbd5e1>Searching for a <queue_type> server (<queue_players>/<queue_max_capacity>)".toMiniFont(),
     QueueStatus.WAITING_FOR_SERVER to "<color:#cbd5e1>Waiting for a <queue_type> server (<queue_players>/<queue_max_capacity>)".toMiniFont(),
     QueueStatus.SERVER_READY to ("<color:#22c55e>Server found!</color> <color:#cbd5e1>(<queue_players>/<queue_max_capacity>)").toMiniFont(),
-    QueueStatus.COUNTDOWN to "<color:##cbd5e1>Game starting in <queue_countdown_seconds> seconds (<queue_players>/<queue_max_capacity>)".toMiniFont(),
-    QueueStatus.TELEPORTING to "<color:##cbd5e1>Teleporting to <server_name>...".toMiniFont(),
+    QueueStatus.COUNTDOWN to "<color:#cbd5e1>Game starting in <queue_countdown_seconds> seconds (<queue_players>/<queue_max_capacity>)".toMiniFont(),
+    QueueStatus.TELEPORTING to "<color:#cbd5e1>Teleporting to <server_name>...".toMiniFont(),
 )

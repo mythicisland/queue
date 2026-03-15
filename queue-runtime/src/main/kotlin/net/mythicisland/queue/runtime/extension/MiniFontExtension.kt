@@ -39,4 +39,24 @@ private val chars = mutableMapOf(
     '9' to '₉'
 )
 
-fun String.toMiniFont() = this.lowercase().map { chars[it] ?: it }.joinToString("")
+fun String.toMiniFont(): String {
+    val result = StringBuilder()
+    var insideTag = false
+
+    for (char in this) {
+        when {
+            char == '<' -> {
+                insideTag = true
+                result.append(char)
+            }
+            char == '>' -> {
+                insideTag = false
+                result.append(char)
+            }
+            insideTag -> result.append(char)
+            else -> result.append(chars[char.lowercaseChar()] ?: char)
+        }
+    }
+
+    return result.toString()
+}
