@@ -12,19 +12,19 @@ java {
 }
 
 dependencies {
-    implementation(libs.caffeine)
+    implementation(libs.queue.proto)
+    implementation(libs.bundles.grpc)
     implementation(libs.jnats)
-}
-
-tasks.named<Jar>("jar") {
-    archiveClassifier.set("thin")
 }
 
 tasks.named<ShadowJar>("shadowJar") {
     mergeServiceFiles()
+
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+
+    relocate("io.grpc", "net.mythicisland.queue.api.shaded.grpc")
     relocate("io.nats", "net.mythicisland.queue.api.shaded.nats")
     relocate("build.buf", "net.mythicisland.queue.api.shaded.buf")
-    relocate("com.github.benmanes.caffeine", "net.mythicisland.queue.api.shaded.caffeine")
     archiveClassifier.set("")
 }
 

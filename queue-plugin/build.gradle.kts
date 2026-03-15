@@ -2,6 +2,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
     alias(libs.plugins.run.velocity)
+    kotlin("kapt")
 }
 
 java {
@@ -12,8 +13,8 @@ java {
 
 dependencies {
     compileOnly(libs.velocity.api)
-    annotationProcessor(libs.velocity.api)
-    implementation(project(":queue-shared"))
+    kapt(libs.velocity.api)
+    implementation(libs.bundles.configurate)
     implementation(project(":queue-api"))
 }
 
@@ -21,4 +22,11 @@ tasks {
     runVelocity {
         velocityVersion("3.5.0-SNAPSHOT")
     }
+}
+
+tasks.named<ShadowJar>("shadowJar") {
+    mergeServiceFiles()
+
+    relocate("org.spongepowered", "net.mythicisland.queue.plugin.shaded.configurate")
+    archiveClassifier.set("")
 }
