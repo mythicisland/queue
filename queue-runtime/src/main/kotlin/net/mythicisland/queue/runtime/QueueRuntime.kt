@@ -10,6 +10,11 @@ import net.mythicisland.queue.runtime.launcher.QueueStartCommand
 import net.mythicisland.queue.runtime.nats.NatsConnectionHandler
 import net.mythicisland.queue.runtime.nats.NatsErrorListener
 import net.mythicisland.queue.runtime.nats.NatsFailoverConnectionManager
+import net.mythicisland.queue.runtime.queue.reconciler.QueueStatusReconciler
+import net.mythicisland.queue.runtime.queue.repository.QueueRepository
+import net.mythicisland.queue.runtime.queue.repository.QueueTypeRepository
+import net.mythicisland.queue.runtime.queue.server.ServerFinder
+import net.mythicisland.queue.runtime.queue.visualizer.ActionbarVisualizer
 import org.apache.logging.log4j.LogManager
 
 class QueueRuntime(
@@ -20,19 +25,43 @@ class QueueRuntime(
     private val config = YamlConfig(args.configPath.toString())
     private val messages = config.load<MessageConfig>("messages")
 
+    private val api = connectToController()
+
     private val natsConnectionHandler = NatsConnectionHandler()
     private val natsErrorListener = NatsErrorListener()
     private val manager = createNatsConnectionManager()
 
     private var natsConnection: Connection? = null
 
+    private val queueTypeRepository = QueueTypeRepository
+    private val queueRepository = QueueRepository(queueTypeRepository, api.player())
+    private val finder = ServerFinder(api, queueTypeRepository)
+    private val visualizer = ActionbarVisualizer(api.player())
+    private val reconciler = QueueStatusReconciler(
+        queueRepository,
+        queueTypeRepository,
+        api.event(),
+        api.player(),
+        finder,
+        visualizer
+    )
+
     suspend fun start() {
         logger.info("Starting QueueRuntime...")
 
+        logger.info("Loading queue messages...")
         config.save("messages", messages)
 
-        val api = connectToController()
         connectNats()
+
+        logger.info("Setting up queue reconciler...")
+        queueRepository.setReconciler(reconciler)
+
+        logger.info("Starting queue reconciler...")
+        reconciler.startPeriodicReconciliation()
+        reconciler.startCountdownReconciliation()
+        reconciler.startWaitingCountdownReconciliation()
+        reconciler.registerServerRegistrationSubscriber()
 
         logger.info("Friends started successfully")
 

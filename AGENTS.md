@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Queue management system for Minecraft server networks. Handles player queuing, dynamic server provisioning,
-and automatic transfers via SimpleCloud API integration. Built with Kotlin, coroutines, and gRPC.
+and automatic transfers via SimpleCloud API integration. Built with Kotlin, coroutine, Using gRPC and NATS.
 
 **Key context**: Players join queues → system allocates/provisions servers → handles transfers and status updates in real-time.
 
@@ -14,7 +14,6 @@ and automatic transfers via SimpleCloud API integration. Built with Kotlin, coro
 ./gradlew :queue-runtime:test      # Test specific module
 
 # Protobuf
-cd queue-proto && buf generate     # Regenerate protobuf code
 cd queue-proto && buf publish      # Publish to Buf registry
 ```
 
@@ -115,19 +114,6 @@ queue/
 - Re-plan immediately if stuck or approach proves wrong
 - Use `/plan` mode for complex features
 
-### Before Committing
-- ✅ Run tests: `./gradlew test`
-- ✅ Verify functionality (check logs, demonstrate correctness)
-- ✅ All new code has KDoc
-- ✅ No compiler warnings
-- ✅ Follow existing patterns
-
-### Pull Requests
-- Describe what changed and why
-- Include testing steps
-- If protobuf changed: note that `buf publish` was run
-- Link to related issues/tickets
-
 ### Problem Solving
 - Fix bugs autonomously: find root cause, resolve completely
 - No band-aids or temporary fixes
@@ -146,22 +132,6 @@ queue/
 - **Async Everything**: This is a Kotlin project—embrace coroutines fully.
 - **Type Safety**: Use Kotlin's type system to prevent bugs at compile time.
 - **Document Intent**: Code should be self-explanatory, but complex logic needs KDoc.
-
-## SimpleCloud API Usage
-
-All SimpleCloud API calls follow this pattern:
-
-```kotlin
-// ✅ Correct - Modern API with await()
-val servers = api.server().getServersByGroup("lobby").await()
-val group = api.group().getGroupByName("lobby").await()
-val player = api.player().get(uuid).await()
-
-// ❌ Wrong - Old API patterns
-val servers = api.getServers().getServersByGroup("lobby")  // Don't use
-```
-
-See [docs/docs.txt](docs/docs.txt) for full API reference.
 
 ## Testing
 
@@ -182,33 +152,6 @@ See [docs/docs.txt](docs/docs.txt) for full API reference.
 Tests use:
 - JUnit 5 for test framework
 - `kotlinx-coroutines-test` for coroutine testing
-- Mockk for mocking (if needed)
-
-## Common Tasks
-
-**Add a new queue type:**
-1. Define in protobuf (`queue_types.proto`)
-2. Update `QueueTypeRepository` if needed
-3. Add to config/database
-4. Test with `QueueService`
-
-**Add player UI element:**
-1. Create visualizer in `queue-runtime/.../visualizer/`
-2. Implement with Adventure API
-3. Add tag resolvers for placeholders
-4. Register in appropriate service
-
-**Modify API:**
-1. Update proto files in `queue-proto/`
-2. Run `./gradlew build` to regenerate
-3. Update implementations
-4. Run tests to verify
-
-**Debug issues:**
-1. Check logs (Log4j2 in runtime)
-2. Verify API calls with `.await()`
-3. Check SimpleCloud server states
-4. Validate queue repository state
 
 ---
 

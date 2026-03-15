@@ -25,7 +25,7 @@ message DequeueResponse {
 }
 
 
-service QueueInteraction {
+service QueueService {
   rpc Enqueue(EnqueueRequest) returns (EnqueueResponse);
   rpc Dequeue(DequeueRequest) returns (DequeueResponse);
 }
