@@ -1,53 +1,74 @@
 # AGENTS.md
 
-Queue management system for Minecraft server networks. Handles player queuing, dynamic server provisioning,
-and automatic transfers via SimpleCloud API integration. Built with Kotlin, coroutine, Using gRPC and NATS.
+Queue management system for Minecraft server networks built as a SimpleCloud droplet.
+Handles player queuing, server reservation, countdowns, and automatic transfers.
+Built with Kotlin coroutines, gRPC, and NATS.
 
-**Key context**: Players join queues → system allocates/provisions servers → handles transfers and status updates in real-time.
+**Key context**: Players join queues via `/queue <type>` → reconciler manages lifecycle
+(countdown → server reservation → game countdown → teleport) → players transferred to game server.
 
 ## Commands
 
 ```bash
-./gradlew build                    # Build all modules
-./gradlew test                     # Run all tests
-./gradlew :queue-runtime:build     # Build specific module
-./gradlew :queue-runtime:test      # Test specific module
-
-# Protobuf
-cd queue-proto && buf publish      # Publish to Buf registry
+./gradlew build                        # Build all modules
+./gradlew test                         # Run all tests
+./gradlew :queue-runtime:run           # Run the runtime
+./gradlew :queue-plugin:runVelocity    # Run the Velocity plugin
+./gradlew :queue-api:publish           # Publish the API
 ```
 
 ## Architecture
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| Runtime | `queue-runtime/` | Core queue logic, server management, reconciliation |
-| Services | `queue-runtime/.../service/` | Business logic (QueueService) |
-| Repositories | `queue-runtime/.../repository/` | Data access and caching |
-| Server Finder | `queue-runtime/.../server/` | Server discovery and provisioning |
-| Visualizers | `queue-runtime/.../visualizer/` | Player UI (actionbar, messages, titles) |
-| Reconcilers | `queue-runtime/.../reconciler/` | State synchronization loops |
-| Extensions | `queue-runtime/.../extension/` | Kotlin extension functions |
-| Messages | `queue-runtime/.../message/` | Templated messages |
-| Proto | `queue-proto/` | gRPC/Protobuf definitions |
-| Plugin | `queue-plugin/` | Spigot/Paper plugin wrapper |
-| API | `queue-api/` | Public API for other plugins |
+| Runtime | `queue-runtime/` | Standalone droplet: queue lifecycle, gRPC server, NATS |
+| Reconciler | `queue-runtime/.../reconciler/` | Core lifecycle manager driving queue status transitions |
+| Services | `queue-runtime/.../service/` | gRPC service layer (QueueService) |
+| Repositories | `queue-runtime/.../repository/` | In-memory queue storage, YAML-based queue type configs |
+| Server Finder | `queue-runtime/.../server/` | SimpleCloud server discovery, reservation, provisioning |
+| Visualizers | `queue-runtime/.../visualizer/` | Actionbar UI with MiniMessage templates and tag resolvers |
+| Extensions | `queue-runtime/.../extension/` | Kotlin extension functions (PlayerExtension) |
+| Messages | `queue-runtime/.../message/` | Default MiniMessage templates per queue status |
+| Config | `queue-runtime/.../config/` | YAML config loading (MessageConfig, YamlConfig) |
+| Launcher | `queue-runtime/.../launcher/` | CLI entry point with Clikt (QueueStartCommand) |
+| Plugin | `queue-plugin/` | Velocity proxy plugin (/queue, /leavequeue commands) |
+| API | `queue-api/` | Java client library (gRPC stub, NATS failover) |
+| Shared | `queue-shared/` | Shared utilities (YAML directory repository, NATS failover) |
+
+## Queue Lifecycle
+
+```
+NOT_ENOUGH_PLAYERS → WAITING_COUNTDOWN → SEARCHING_SERVER → WAITING_FOR_SERVER/SERVER_READY → COUNTDOWN → TELEPORTING → FINISHED
+```
+
+The `QueueStatusReconciler` is the heart of the system. It uses:
+- **Delta-time countdown tracking** with `System.currentTimeMillis()` deltas
+- **Per-queue Mutex** synchronization via `ConcurrentHashMap`
+- **Do-while cascading** reconcile loop for immediate status transitions
+- **500ms tick loops** for WAITING_COUNTDOWN and COUNTDOWN states
+- **1s visualizer loop** for continuous actionbar sending
+- **30s periodic reconciliation** as a safety net
+- **SimpleCloud event subscriber** for server state changes (WAITING_FOR_SERVER)
 
 ## Module Structure
 
 ```
 queue/
-├── queue-runtime/     # Core implementation
-│   ├── service/       # Business logic layer
-│   ├── repository/    # Data access layer
-│   ├── server/        # Server management
-│   ├── visualizer/    # Player UI components
-│   ├── reconciler/    # State reconciliation
-│   └── extension/     # Kotlin extensions
-├── queue-proto/       # Protobuf definitions
-├── queue-plugin/      # Spigot plugin
-├── queue-api/         # Public API
-└── queue-shared/      # Shared types
+├── queue-runtime/     # Standalone runtime (the droplet)
+│   ├── launcher/      # CLI entry point (Clikt)
+│   ├── config/        # YAML config loading
+│   ├── queue/
+│   │   ├── reconciler/  # QueueStatusReconciler (lifecycle manager)
+│   │   ├── repository/  # QueueRepository, QueueTypeRepository
+│   │   ├── server/      # ServerFinder (discovery, reservation)
+│   │   ├── visualizer/  # ActionbarVisualizer, tag resolvers
+│   │   ├── message/     # Default MiniMessage templates
+│   │   └── service/     # QueueService (gRPC endpoints)
+│   ├── extension/     # Kotlin extensions
+│   └── nats/          # NATS connection management
+├── queue-plugin/      # Velocity proxy plugin
+├── queue-api/         # Java/Kotlin client library
+└── queue-shared/      # Shared utilities
 ```
 
 ## File Placement
@@ -57,12 +78,16 @@ queue/
 | Services | `queue-runtime/.../service/` | `QueueService.kt` |
 | Repositories | `queue-runtime/.../repository/` | `QueueRepository.kt`, `QueueTypeRepository.kt` |
 | Server Logic | `queue-runtime/.../server/` | `ServerFinder.kt` |
-| Visualizers | `queue-runtime/.../visualizer/` | `ActionbarVisualizer.kt`, `QueueVisualizer.kt` |
+| Visualizers | `queue-runtime/.../visualizer/` | `ActionbarVisualizer.kt`, `QueueVisualizer.kt`, `QueueTagResolver.kt`, `ServerTagResolver.kt` |
 | Reconcilers | `queue-runtime/.../reconciler/` | `QueueStatusReconciler.kt` |
-| Extensions | `queue-runtime/.../extension/` | `PlayerExtension.kt`, `UUIDExtension.kt` |
+| Extensions | `queue-runtime/.../extension/` | `PlayerExtension.kt` |
 | Messages | `queue-runtime/.../message/` | `Messages.kt` |
-| Proto files | `queue-proto/mythicisland/queue/v1/` | `queue_types.proto`, `queue_api.proto` |
-| Tests | `queue-runtime/src/test/kotlin/` | Mirror main package structure |
+| Config | `queue-runtime/.../config/` | `MessageConfig.kt`, `YamlConfig.kt` |
+| Launcher | `queue-runtime/.../launcher/` | `Launcher.kt`, `QueueStartCommand.kt` |
+| Plugin Commands | `queue-plugin/.../command/` | `QueueCommandHandler.kt`, `LeaveQueueCommandHandler.kt` |
+| API Interfaces | `queue-api/.../api/` | `QueueApi.java`, `QueuePlayerApi.java` |
+| API Internals | `queue-api/.../api/internal/` | `QueueApiImpl.java`, `QueuePlayerApiImpl.java` |
+| Tests | `*/src/test/kotlin/` | Mirror main package structure |
 
 ## Quality Philosophy
 
@@ -75,6 +100,17 @@ queue/
 - **Single source of truth**: Define behavior in ONE place (sealed classes, maps), not scattered if/switch statements
 - **Continuous refactoring**: If you find old patterns while working, refactor them to current standards
 - **Proper error handling**: Use `Result<T>` for expected failures, proper logging on errors
+
+## Key Implementation Details
+
+- **Queue type configs** are YAML files loaded by `QueueTypeRepository` (extends `YamlDirectoryRepository`)
+- **Countdown fields** in `QueueType` are in **seconds** (`waitingCountdownSeconds`, `countdownSeconds`), converted to millis in reconciler
+- **Server names** in SimpleCloud follow `{groupName}-{numericalId}` format (e.g. `dev-1`). Use this for `player.connect()`, NOT `server.serverId` (which is a UUID)
+- **`player.connect(serverName)`** returns `CompletableFuture<ConnectResult>` — must `.await()` and handle result
+- **Actionbar** fades after ~2 seconds in Minecraft — requires continuous sending via dedicated loop
+- **gRPC errors** map to: `NOT_FOUND` (unknown queue type), `FAILED_PRECONDITION` (already queued), `INTERNAL` (unexpected)
+- **`queue-api`** is Java (not Kotlin) for broader compatibility — uses `CompletableFuture`, not coroutines
+- **`queue-plugin`** is a Velocity plugin (not Spigot/Paper) — uses `SimpleCommand`, `ProxyServer`, Velocity's `@Plugin` annotation
 
 ## Conventions
 
