@@ -50,7 +50,17 @@ class QueueCommandHandler(
     }
 
     override fun suggest(invocation: SimpleCommand.Invocation): List<String> {
-        return emptyList()
+        if (invocation.arguments().size > 1) return emptyList()
+
+        val types = try {
+            api.data().getAllQueueTypes().get()
+                .queueTypesList.map { it.name }
+        } catch (e: Exception) {
+            return emptyList()
+        }
+
+        val prefix = invocation.arguments().firstOrNull()?.lowercase() ?: ""
+        return types.filter { it.lowercase().startsWith(prefix) }
     }
 
     override fun hasPermission(invocation: SimpleCommand.Invocation): Boolean {
