@@ -12,9 +12,9 @@ java {
 }
 
 dependencies {
-    implementation(libs.queue.proto)
-    implementation(libs.bundles.grpc)
-    implementation(libs.jnats)
+    api(libs.queue.proto)
+    api(libs.bundles.grpc)
+    api(libs.jnats)
 }
 
 tasks.named<ShadowJar>("shadowJar") {

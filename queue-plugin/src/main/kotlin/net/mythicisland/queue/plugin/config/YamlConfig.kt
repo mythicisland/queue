@@ -3,7 +3,7 @@ package net.mythicisland.queue.plugin.config
 import kotlinx.coroutines.*
 import net.mythicisland.queue.plugin.config.reactive.ReactiveConfig
 import net.mythicisland.queue.plugin.config.reactive.ReactiveConfigInfo
-import org.apache.logging.log4j.LogManager
+import org.slf4j.LoggerFactory
 import org.spongepowered.configurate.CommentedConfigurationNode
 import org.spongepowered.configurate.kotlin.objectMapperFactory
 import org.spongepowered.configurate.loader.ParsingException
@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 open class YamlConfig(private val dirPath: String) {
 
-    private val logger = LogManager.getLogger(YamlConfig::class.java)
+    private val logger = LoggerFactory.getLogger(YamlConfig::class.java)
     private val watchService = FileSystems.getDefault().newWatchService()
     private val configCache = ConcurrentHashMap<String, Any>()
     private val reactiveConfigs = ConcurrentHashMap<String, MutableList<ReactiveConfigInfo<*>>>()

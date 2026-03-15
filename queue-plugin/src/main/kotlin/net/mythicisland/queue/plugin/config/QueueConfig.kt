@@ -27,6 +27,4 @@ data class ServiceConfig(
     val natsUser: String = "admin",
     @Comment("The NATS secret to connect with the user.")
     val natsSecret: String = "your-super-secret-password",
-    @Comment("The internal duration to reconnect with NATS.")
-    val natsFailoverReconnectAfter: Duration = Duration.ofSeconds(30)
 )

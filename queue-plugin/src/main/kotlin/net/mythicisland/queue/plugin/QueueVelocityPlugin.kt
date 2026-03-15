@@ -83,7 +83,6 @@ class QueueVelocityPlugin @Inject constructor(
                     .natsSecret(config.natsSecret)
                     .grpcPort(config.grpcPort)
                     .grpcHost(config.grpcHost)
-                    .natsFailoverReconnectAfter(config.natsFailoverReconnectAfter)
                     .build()
             )
 

@@ -27,6 +27,7 @@ tasks {
 tasks.named<ShadowJar>("shadowJar") {
     mergeServiceFiles()
 
+    relocate("io.grpc", "net.mythicisland.queue.plugin.shaded.grpc")
     relocate("org.spongepowered", "net.mythicisland.queue.plugin.shaded.configurate")
     archiveClassifier.set("")
 }
