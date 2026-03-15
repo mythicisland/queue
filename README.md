@@ -1,6 +1,6 @@
-# MythicIsland Queue
+# Queue
 
-A [SimpleCloud](https://simplecloud.app) droplet for queuing players into minigame matches with automatic server provisioning and player transfers.
+A [SimpleCloud](https://simplecloud.app) droplet for queuing players into minigames with automatic server provisioning and player transfers.
 
 ## Architecture
 
@@ -9,7 +9,7 @@ queue/
 ├── queue-api        # Java client library (gRPC + NATS) for interacting with the queue
 ├── queue-plugin     # Velocity proxy plugin providing /queue and /leavequeue commands
 ├── queue-runtime    # Standalone runtime (the droplet) managing the queue lifecycle
-└── queue-shared     # Shared utilities (YAML config, NATS failover, proto definitions)
+└── queue-shared     # Shared utilities
 ```
 
 ### How it works
@@ -165,17 +165,10 @@ The runtime is configured via CLI options, environment variables, or a `queue.pr
 ./gradlew :queue-plugin:runVelocity
 ```
 
-### Building distribution archives
-
-```bash
-./gradlew :queue-runtime:distTar
-./gradlew :queue-runtime:distZip
-```
-
 ### Publishing the API
 
 ```bash
-./gradlew :queue-api:publish -PrepoUser=user -PrepoPassword=pass
+./gradlew :queue-api:publish
 ```
 
 ## Player Commands
