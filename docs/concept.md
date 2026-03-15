@@ -10,8 +10,8 @@ group: minekart
 min-capacity: 6
 max-capacity: 12
 
-waiting-countdown-millis: 30s
-countdown-millis: 10s
+waiting-countdown-millis: 30
+countdown-millis: 10
 ```
 
 ### QueueVisualizer
@@ -43,6 +43,9 @@ class ActionbarVisualizer(
 ```
 
 Die nachrichten für den Queue Visualizer für die verschiedenen Statuses befinden sich in C:\Dev\mythicisland\queue\queue-runtime\src\main\kotlin\net\mythicisland\queue\runtime\queue\message\Messages.kt
+
+### Queue Reconciler
+Der QueueStatusReconciler ist das Herz vom Queue Droplet er managed den lifecylce von queues also deren statues usw managed countdowns cleannupt das ganze also wirklich das herzstückt
 
 ### Workflow
 Für den Workflow nutze ich einfach mal den Queue Type minekart wie oben beschrieben.

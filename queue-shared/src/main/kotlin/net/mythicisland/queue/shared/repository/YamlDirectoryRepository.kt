@@ -52,6 +52,17 @@ abstract class YamlDirectoryRepository<E, I>(
         return entities.values.map { it.entity }
     }
 
+    /**
+     * Finds an entity by its identifier using the [getFileName] mapping.
+     *
+     * @param identifier The identifier to look up
+     * @return The entity, or null if not found
+     */
+    fun find(identifier: I): E? {
+        val fileName = getFileName(identifier).removeSuffix(".yml")
+        return findByFileName(fileName)
+    }
+
     fun getAllWithFiles(): List<EntityWithFile<E>> {
         return entities.values.toList()
     }

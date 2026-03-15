@@ -2,7 +2,12 @@ package net.mythicisland.queue.runtime
 
 import app.simplecloud.api.CloudApi
 import app.simplecloud.api.CloudApiOptions
+import io.grpc.Server
+import io.grpc.ServerBuilder
 import io.nats.client.Connection
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import net.mythicisland.queue.runtime.config.MessageConfig
 import net.mythicisland.queue.runtime.config.YamlConfig
@@ -14,6 +19,7 @@ import net.mythicisland.queue.runtime.queue.reconciler.QueueStatusReconciler
 import net.mythicisland.queue.runtime.queue.repository.QueueRepository
 import net.mythicisland.queue.runtime.queue.repository.QueueTypeRepository
 import net.mythicisland.queue.runtime.queue.server.ServerFinder
+import net.mythicisland.queue.runtime.queue.service.QueueService
 import net.mythicisland.queue.runtime.queue.visualizer.ActionbarVisualizer
 import org.apache.logging.log4j.LogManager
 
@@ -34,7 +40,7 @@ class QueueRuntime(
     private var natsConnection: Connection? = null
 
     private val queueTypeRepository = QueueTypeRepository
-    private val queueRepository = QueueRepository(queueTypeRepository, api.player())
+    private val queueRepository = QueueRepository(queueTypeRepository)
     private val finder = ServerFinder(api, queueTypeRepository)
     private val visualizer = ActionbarVisualizer(api.player())
     private val reconciler = QueueStatusReconciler(
@@ -48,6 +54,9 @@ class QueueRuntime(
 
     suspend fun start() {
         logger.info("Starting QueueRuntime...")
+
+        logger.info("Loading queue types...")
+        queueTypeRepository.load()
 
         logger.info("Loading queue messages...")
         config.save("messages", messages)
@@ -63,12 +72,16 @@ class QueueRuntime(
         reconciler.startWaitingCountdownReconciliation()
         reconciler.registerServerRegistrationSubscriber()
 
-        logger.info("Friends started successfully")
+        val server = createGrpcServer()
+        startGrpcServer(server)
+
+        logger.info("Queue started successfully")
 
         suspendCancellableCoroutine<Unit> { continuation ->
             Runtime.getRuntime().addShutdownHook(Thread {
                 manager.shutdown()
                 config.close()
+                server.shutdown()
                 continuation.resume(Unit) { cause, _, _ ->
                     logger.info("runtime shutdown due to: $cause")
                 }
@@ -107,6 +120,26 @@ class QueueRuntime(
             logger.error("Failed to connect to NATS", e)
             throw e
         }
+    }
+
+    private fun startGrpcServer(server: Server) {
+        logger.info("Starting gRPC server on port {}...", args.grpcPort)
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                server.start()
+                logger.info("gRPC server started on port {}", args.grpcPort)
+                server.awaitTermination()
+            } catch (e: Exception) {
+                logger.error("Error in gRPC server", e)
+                throw e
+            }
+        }
+    }
+
+    private fun createGrpcServer(): Server {
+        return ServerBuilder.forPort(args.grpcPort)
+            .addService(QueueService(queueRepository))
+            .build()
     }
 
     private fun createNatsConnectionManager(): NatsFailoverConnectionManager {

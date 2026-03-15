@@ -160,13 +160,15 @@ class ServerFinder(
     /**
      * Requests a new server to be started for the given queue.
      *
+     * NOTE: Currently, not avivable in the simplecloud api (controller)
+     *
      * Creates a new server instance in the queue type's group with the queue ID
      * pre-assigned. The server will go through the startup lifecycle asynchronously.
      *
      * @param queue The queue to start a new server for
      * @return The newly created server instance, or null if the request failed or queue type doesn't exist
      */
-    suspend fun requestNewServer(queue: Queue): Server? {
+    suspend fun requestNewServer(queue: Queue): Server {
         /*val type = types.find(queue.type) ?: return null
 
         val result = try {

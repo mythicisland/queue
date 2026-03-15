@@ -6,6 +6,7 @@ import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.path
 import com.github.ajalt.clikt.sources.PropertiesValueSource
 import com.github.ajalt.clikt.sources.ValueSource
@@ -25,6 +26,9 @@ object QueueStartCommand : SuspendingCliktCommand() {
             valueSource = PropertiesValueSource.from(File("queue.properties"), false, ValueSource.envvarKey())
         }
     }
+
+    val grpcPort: Int by option(help = "gRPC Port", envvar = "GRPC_PORT")
+        .int().default(4564)
 
     val natsUser: String by option(help = "NATS User", envvar = "NATS_USER")
         .default("your-nats-user")

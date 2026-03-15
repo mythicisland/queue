@@ -10,15 +10,24 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import net.mythicisland.queue.runtime.extension.asPlayerOrNull
 import net.mythicisland.queue.runtime.queue.Queue
 import net.mythicisland.queue.runtime.queue.repository.QueueRepository
 import net.mythicisland.queue.runtime.queue.repository.QueueTypeRepository
 import net.mythicisland.queue.runtime.queue.server.ServerFinder
 import net.mythicisland.queue.runtime.queue.visualizer.QueueVisualizer
+import org.apache.logging.log4j.LogManager
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Reconciles queue statuses based on queue updates or server registrations.
+ *
+ * This is the core lifecycle manager for queues. It handles status transitions
+ * from [QueueStatus.NOT_ENOUGH_PLAYERS] through to [QueueStatus.FINISHED],
+ * managing countdowns, server discovery, and player transfers.
  */
 class QueueStatusReconciler(
     private val queues: QueueRepository,
@@ -29,155 +38,298 @@ class QueueStatusReconciler(
     private val visualizer: QueueVisualizer,
 ) {
 
+    private val logger = LogManager.getLogger(QueueStatusReconciler::class.java)
     private val scope = CoroutineScope(Dispatchers.IO)
 
+    private val lastWaitingTick = ConcurrentHashMap<UUID, Long>()
+    private val lastCountdownTick = ConcurrentHashMap<UUID, Long>()
+    private val queueMutexes = ConcurrentHashMap<UUID, Mutex>()
+
+    private fun getMutex(queueId: UUID): Mutex = queueMutexes.getOrPut(queueId) { Mutex() }
+
     /**
-     * Reconciles a queue's status based on its status state.
-     * This method should be called when a queue is updated or a server is registered.
+     * Reconciles a queue's status based on its current state.
+     * Handles cascading transitions when a status change occurs immediately.
      *
      * @param queueId The ID of the queue to reconcile
      */
     suspend fun reconcile(queueId: UUID) {
+        getMutex(queueId).withLock {
+            reconcileInternal(queueId)
+        }
+    }
 
+    private suspend fun reconcileInternal(queueId: UUID) {
+        var previousStatus: QueueStatus
+
+        do {
+            val queue = queues.getQueue(queueId) ?: return
+            val type = types.find(queue.type) ?: return
+
+            if (queue.players.isEmpty() && queue.status != QueueStatus.FINISHED) {
+                updateStatus(queue, QueueStatus.FINISHED)
+            }
+
+            previousStatus = queue.status
+
+            when (queue.status) {
+                QueueStatus.NOT_ENOUGH_PLAYERS -> handleNotEnoughPlayers(queue)
+                QueueStatus.WAITING_COUNTDOWN -> handleWaitingForPlayersCountdown(queue)
+                QueueStatus.SEARCHING_SERVER -> handleSearchingServer(queue)
+                QueueStatus.WAITING_FOR_SERVER -> handleWaitingForServer(queue)
+                QueueStatus.SERVER_READY -> handleServerReady(queue)
+                QueueStatus.COUNTDOWN -> handleCountdown(queue)
+                QueueStatus.TELEPORTING -> handleTeleporting(queue)
+                QueueStatus.FINISHED -> handleFinished(queue)
+                else -> return
+            }
+
+            queues.updateQueue(queue)
+
+            if (queue.status != QueueStatus.FINISHED) {
+                visualizer.send(queue, type, queue.status)
+            }
+        } while (queue.status != previousStatus)
     }
 
     /**
-     * Updates the status of a queue.
+     * Updates the status of a queue and logs the transition.
      *
-     * @param queueId The ID of the queue to update the status
-     * @param newStatus The new status of the queue
+     * @param queue The queue to update
+     * @param newStatus The new status
      */
-    private fun updateStatus(queueId: UUID, newStatus: QueueStatus) {
-
+    private fun updateStatus(queue: Queue, newStatus: QueueStatus) {
+        logger.info("Queue {} status: {} -> {}", queue.id, queue.status, newStatus)
+        queue.status = newStatus
     }
 
     /**
      * Handles a queue with NOT_ENOUGH_PLAYERS status.
-     * Checks if there are enough players to start the player waiting countdown.
+     * Transitions to WAITING_COUNTDOWN when the minimum player capacity is reached.
      *
-     * @param queue The Queue to handle not enough players
+     * @param queue The Queue to handle
      */
     private suspend fun handleNotEnoughPlayers(queue: Queue): Queue {
+        val type = types.find(queue.type) ?: return queue
+
+        if (queue.players.size >= type.minCapacity) {
+            updateStatus(queue, QueueStatus.WAITING_COUNTDOWN)
+            queue.waitingCountdownRemaining = type.waitingCountdownMillis
+            lastWaitingTick[queue.id] = System.currentTimeMillis()
+        }
+
         return queue
     }
 
     /**
-     * Updates the waiting countdown for a queue using delta time.
-     * Returns the remaining time in milliseconds.
+     * Decrements the waiting countdown using delta time.
      *
      * @param queue The Queue to update the waiting countdown
      */
     private fun updateWaitingCountdown(queue: Queue) {
+        val now = System.currentTimeMillis()
+        val lastTick = lastWaitingTick.getOrPut(queue.id) { now }
+        val delta = now - lastTick
+        queue.waitingCountdownRemaining = (queue.waitingCountdownRemaining - delta).coerceAtLeast(0)
+        lastWaitingTick[queue.id] = now
     }
 
     /**
      * Handles a queue with WAITING_COUNTDOWN status.
-     * Updates the countdown timer and transitions to SEARCHING_SERVER when done.
+     * Waits for more players while counting down. Transitions to SEARCHING_SERVER
+     * when the countdown expires or the queue is full. Falls back to NOT_ENOUGH_PLAYERS
+     * if players drop below minimum.
      *
      * @param queue The Queue to handle the waiting countdown
      */
     private suspend fun handleWaitingForPlayersCountdown(queue: Queue): Queue {
+        val type = types.find(queue.type) ?: return queue
+
+        updateWaitingCountdown(queue)
+
+        if (queue.players.size < type.minCapacity) {
+            updateStatus(queue, QueueStatus.NOT_ENOUGH_PLAYERS)
+            queue.waitingCountdownRemaining = 0
+            lastWaitingTick.remove(queue.id)
+            return queue
+        }
+
+        if (queue.waitingCountdownRemaining <= 0 || queue.players.size >= type.maxCapacity) {
+            updateStatus(queue, QueueStatus.SEARCHING_SERVER)
+            lastWaitingTick.remove(queue.id)
+        }
+
         return queue
     }
 
     /**
      * Handles a queue with SEARCHING_SERVER status.
-     * Attempts to find or request a server for the queue.
+     * Attempts to reserve an existing server or request a new one.
+     * Transitions to SERVER_READY if a server is immediately available,
+     * or WAITING_FOR_SERVER if a new server was requested.
      *
      * @param queue The Queue to handle server searching
      */
     private suspend fun handleSearchingServer(queue: Queue): Queue {
+        try {
+            val server = finder.reserveOrRequestServer(queue)
+
+            if (server != null) {
+                updateStatus(queue, QueueStatus.SERVER_READY)
+            } else {
+                updateStatus(queue, QueueStatus.WAITING_FOR_SERVER)
+            }
+        } catch (e: NotImplementedError) {
+            logger.warn("Server provisioning not yet available, waiting for existing server")
+            updateStatus(queue, QueueStatus.WAITING_FOR_SERVER)
+        }
+
         return queue
     }
 
     /**
      * Handles a queue with WAITING_FOR_SERVER status.
-     * Checks if a server has become available for the queue.
+     * Checks if a server has become available for the queue, either through
+     * direct assignment or by searching for one.
      *
      * @param queue The Queue to handle waiting for a server
      */
     private suspend fun handleWaitingForServer(queue: Queue): Queue {
+        if (queue.server != null) {
+            updateStatus(queue, QueueStatus.SERVER_READY)
+            return queue
+        }
+
+        val server = finder.findServer(queue)
+        if (server != null) {
+            queue.server = server
+            updateStatus(queue, QueueStatus.SERVER_READY)
+        }
+
         return queue
     }
 
     /**
      * Handles a queue with SERVER_READY status.
-     * Starts the countdown for teleporting players.
+     * Initializes the game countdown and transitions to COUNTDOWN.
      *
      * @param queue The Queue to handle server ready
      */
     private suspend fun handleServerReady(queue: Queue): Queue {
+        val type = types.find(queue.type) ?: return queue
+
+        updateStatus(queue, QueueStatus.COUNTDOWN)
+        queue.countdownRemaining = type.countdownMillis
+        lastCountdownTick[queue.id] = System.currentTimeMillis()
+
         return queue
     }
 
     /**
-     * Updates the countdown for a queue using delta time.
-     * Returns the remaining time in milliseconds.
+     * Decrements the game countdown using delta time.
      *
      * @param queue The Queue to update the countdown
      */
     private fun updateCountdown(queue: Queue) {
+        val now = System.currentTimeMillis()
+        val lastTick = lastCountdownTick.getOrPut(queue.id) { now }
+        val delta = now - lastTick
+        queue.countdownRemaining = (queue.countdownRemaining - delta).coerceAtLeast(0)
+        lastCountdownTick[queue.id] = now
     }
 
     /**
      * Handles a queue with COUNTDOWN status.
-     * Updates the countdown timer and transitions to TELEPORTING when done.
+     * Decrements the timer and transitions to TELEPORTING when done.
      *
      * @param queue The Queue to handle the countdown
      */
     private suspend fun handleCountdown(queue: Queue): Queue {
+        updateCountdown(queue)
+
+        if (queue.countdownRemaining <= 0) {
+            updateStatus(queue, QueueStatus.TELEPORTING)
+            lastCountdownTick.remove(queue.id)
+        }
+
         return queue
     }
 
     /**
      * Handles a queue with TELEPORTING status.
-     * Teleports players to the server and marks the queue as finished.
+     * Transfers all players to the assigned server and transitions to FINISHED.
      *
      * @param queue The Queue to handle player teleporting
      */
     private suspend fun handleTeleporting(queue: Queue): Queue {
+        val server = queue.server ?: run {
+            logger.error("Queue {} in TELEPORTING but no server assigned, searching again", queue.id)
+            updateStatus(queue, QueueStatus.SEARCHING_SERVER)
+            return queue
+        }
+
+        queue.players.forEach { playerId ->
+            try {
+                val player = playerId.asPlayerOrNull(playerApi) ?: return@forEach
+                player.connect(server.serverId)
+            } catch (e: Exception) {
+                logger.error("Failed to teleport player {} to server {}", playerId, server.serverId, e)
+            }
+        }
+
+        updateStatus(queue, QueueStatus.FINISHED)
         return queue
     }
 
     /**
      * Handles a queue with FINISHED status.
-     * Cleans up the queue.
+     * Frees the assigned server and deletes the queue.
      *
      * @param queue The Queue to finish
      */
     private suspend fun handleFinished(queue: Queue): Queue {
+        logger.info("Queue {} finished, cleaning up", queue.id)
+
+        if (queue.server != null) {
+            finder.freeServer(queue.server!!)
+        }
+
+        queues.deleteQueue(queue.id)
         return queue
     }
 
     /**
      * Reconciles all queues in the repository.
-     * This can be called periodically to ensure all queues are in the correct status.
+     * Called periodically as a safety net to ensure all queues are in the correct status.
      */
     suspend fun reconcileAll() {
-        /*queues.getAllQueues().forEach { queue ->
+        queues.getAllQueues().forEach { queue ->
             reconcile(queue.id)
-        }*/
+        }
     }
 
     /**
      * Handles server registration events.
-     * Checks if any waiting queues can use the new server.
+     * Checks if any WAITING_FOR_SERVER queues can use the new server.
      *
      * @param server The newly registered server
      */
     suspend fun handleServerRegistration(server: Server) {
-        /*this@QueueStatusReconciler.queues.getAllQueues()
-            .filter { queueStatuses[it.id] == Status.WAITING_FOR_SERVER }.forEach { queue ->
+        queues.getAllQueues()
+            .filter { it.status == QueueStatus.WAITING_FOR_SERVER }
+            .forEach { queue ->
                 if (finder.reserveServer(queue, server)) {
-                    updateStatus(queue.id, Status.SERVER_READY)
                     reconcile(queue.id)
                     return
                 }
             }
-        // Free the server as we found no queues that match this server
-        finder.freeServer(server)*/
+        finder.freeServer(server)
     }
 
+    /**
+     * Registers a subscriber for server state change events.
+     * When a server becomes AVAILABLE, checks if waiting queues can use it.
+     */
     fun registerServerRegistrationSubscriber() {
         eventApi.server().onStateChanged { event ->
             val server = event.server ?: return@onStateChanged
@@ -190,34 +342,55 @@ class QueueStatusReconciler(
         }
     }
 
+    /**
+     * Clears all reconciliation state for a queue.
+     *
+     * @param id The queue ID to clear state for
+     */
     fun clear(id: UUID) {
+        lastWaitingTick.remove(id)
+        lastCountdownTick.remove(id)
+        queueMutexes.remove(id)
     }
 
+    /**
+     * Periodically ticks queues in WAITING_COUNTDOWN status every 500ms.
+     */
     fun startWaitingCountdownReconciliation() {
         scope.launch {
             while (true) {
                 delay(500)
+                queues.getAllQueues()
+                    .filter { it.status == QueueStatus.WAITING_COUNTDOWN }
+                    .forEach { reconcile(it.id) }
             }
         }
     }
 
-
+    /**
+     * Periodically ticks queues in COUNTDOWN status every 500ms.
+     */
     fun startCountdownReconciliation() {
         scope.launch {
             while (true) {
                 delay(500)
+                queues.getAllQueues()
+                    .filter { it.status == QueueStatus.COUNTDOWN }
+                    .forEach { reconcile(it.id) }
             }
         }
     }
 
+    /**
+     * Periodically reconciles all queues every 30 seconds as a safety net.
+     */
     fun startPeriodicReconciliation() {
         scope.launch {
             while (true) {
                 reconcileAll()
-                delay(30000) // 30 seconds
+                delay(30000)
             }
         }
     }
-
 
 }

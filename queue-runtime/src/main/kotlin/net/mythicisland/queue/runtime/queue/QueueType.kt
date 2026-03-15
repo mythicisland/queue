@@ -6,12 +6,12 @@ import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
 @ConfigSerializable
 data class QueueType(
-    val name: String,
-    val group: String,
+    val name: String = "",
+    val group: String = "",
     val maxCapacity: Long = -1L,
     val minCapacity: Long = -1L,
-    val waitingCountdownMillis: Long,
-    val countdownMillis: Long,
+    val waitingCountdownMillis: Long = 30000L,
+    val countdownMillis: Long = 10000L,
     val messages: Messages = defaultMessages
 ) {
     fun toDefinition() : build.buf.gen.mythicisland.queue.v1.QueueType {

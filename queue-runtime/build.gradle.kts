@@ -37,6 +37,14 @@ tasks.named("compileKotlin") {
     dependsOn(tasks.jooqCodegen)
 }
 
+tasks.named<Tar>("distTar") {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.named<Zip>("distZip") {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
 jooq {
     configuration {
         generator {

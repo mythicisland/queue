@@ -15,8 +15,8 @@ object QueueTagResolver {
             TagResolver.resolver("queue_players", Tag.inserting(Component.text(queue.players.size.toString()))),
             TagResolver.resolver("queue_max_capacity", Tag.inserting(Component.text(type.maxCapacity.toString()))),
             TagResolver.resolver("queue_min_capacity", Tag.inserting(Component.text(type.minCapacity.toString()))),
-            TagResolver.resolver("queue_countdown_seconds", Tag.inserting(Component.text(type.countdownMillis.div(1000).toString()))),
-            TagResolver.resolver("queue_waiting_countdown_seconds", Tag.inserting(Component.text(type.waitingCountdownMillis.div(1000).toString())))
+            TagResolver.resolver("queue_countdown_seconds", Tag.inserting(Component.text((queue.countdownRemaining / 1000).toString()))),
+            TagResolver.resolver("queue_waiting_countdown_seconds", Tag.inserting(Component.text((queue.waitingCountdownRemaining / 1000).toString())))
         )
     }
 }
