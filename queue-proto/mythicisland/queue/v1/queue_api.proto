@@ -24,8 +24,73 @@ message DequeueResponse {
   Queue queue = 1;
 }
 
-
 service QueueService {
   rpc Enqueue(EnqueueRequest) returns (EnqueueResponse);
   rpc Dequeue(DequeueRequest) returns (DequeueResponse);
+}
+
+message GetQueueRequest {
+  string queue_id = 1;
+}
+
+message GetQueueResponse {
+  Queue queue = 1;
+}
+
+message GetAllQueuesRequest {}
+
+message GetAllQueuesResponse {
+  repeated Queue queues = 1;
+}
+
+message GetQueuesByTypeRequest {
+  string type = 1;
+}
+
+message GetQueuesByTypeResponse {
+  repeated Queue queues = 1;
+}
+
+message GetQueueByPlayerRequest {
+  string player_id = 1;
+}
+
+message GetQueueByPlayerResponse {
+  Queue queue = 1;
+}
+
+message GetPlayerPositionRequest {
+  string player_id = 1;
+}
+
+message GetPlayerPositionResponse {
+  Queue queue = 1;
+  uint32 position = 2;
+}
+
+message GetQueueTypeRequest {
+  string name = 1;
+}
+
+message GetQueueTypeResponse {
+  QueueType queue_type = 1;
+}
+
+message GetAllQueueTypesRequest {}
+
+message GetAllQueueTypesResponse {
+  repeated QueueType queue_types = 1;
+}
+
+service QueueDataService {
+  // Queue queries
+  rpc GetQueue(GetQueueRequest) returns (GetQueueResponse);
+  rpc GetAllQueues(GetAllQueuesRequest) returns (GetAllQueuesResponse);
+  rpc GetQueuesByType(GetQueuesByTypeRequest) returns (GetQueuesByTypeResponse);
+  rpc GetQueueByPlayer(GetQueueByPlayerRequest) returns (GetQueueByPlayerResponse);
+  rpc GetPlayerPosition(GetPlayerPositionRequest) returns (GetPlayerPositionResponse);
+
+  // Queue type queries
+  rpc GetQueueType(GetQueueTypeRequest) returns (GetQueueTypeResponse);
+  rpc GetAllQueueTypes(GetAllQueueTypesRequest) returns (GetAllQueueTypesResponse);
 }

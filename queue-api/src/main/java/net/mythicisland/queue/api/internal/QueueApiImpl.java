@@ -1,10 +1,13 @@
 package net.mythicisland.queue.api.internal;
 
+import build.buf.gen.mythicisland.queue.v1.QueueDataServiceGrpc;
 import build.buf.gen.mythicisland.queue.v1.QueueServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import net.mythicisland.queue.api.QueueApi;
 import net.mythicisland.queue.api.QueueApiOptions;
+import net.mythicisland.queue.api.data.QueueDataApi;
+import net.mythicisland.queue.api.internal.data.QueueDataApiImpl;
 import net.mythicisland.queue.api.internal.nats.NatsFailoverConnectionManager;
 import net.mythicisland.queue.api.internal.player.QueuePlayerApiImpl;
 import net.mythicisland.queue.api.player.QueuePlayerApi;
@@ -21,6 +24,7 @@ public final class QueueApiImpl implements QueueApi {
     private final ManagedChannel grpcChannel;
     private final NatsFailoverConnectionManager natsManager;
     private final QueuePlayerApi playerApi;
+    private final QueueDataApi dataApi;
 
     public QueueApiImpl(QueueApiOptions options) {
         this.grpcChannel = ManagedChannelBuilder
@@ -44,6 +48,9 @@ public final class QueueApiImpl implements QueueApi {
 
         QueueServiceGrpc.QueueServiceFutureStub stub = QueueServiceGrpc.newFutureStub(grpcChannel);
         this.playerApi = new QueuePlayerApiImpl(stub);
+
+        QueueDataServiceGrpc.QueueDataServiceFutureStub dataStub = QueueDataServiceGrpc.newFutureStub(grpcChannel);
+        this.dataApi = new QueueDataApiImpl(dataStub);
     }
 
     @Override
@@ -68,5 +75,10 @@ public final class QueueApiImpl implements QueueApi {
     @Override
     public QueuePlayerApi player() {
         return playerApi;
+    }
+
+    @Override
+    public QueueDataApi data() {
+        return dataApi;
     }
 }
