@@ -93,7 +93,7 @@ class QueueRepository(
      * @param playerId The player UUID to dequeue
      * @return true if the player was successfully removed
      */
-    suspend fun dequeue(playerId: UUID): Boolean {
+    private suspend fun dequeue(playerId: UUID): Boolean {
         if (!playersToQueue.containsKey(playerId)) {
             logger.debug("Dequeue failed: player {} is not in any queue", playerId)
             return false

@@ -115,7 +115,7 @@ queue/
 ## Conventions
 
 - [Adding Code](docs/adding-code.md) - How to add services, repositories, extensions, etc.
-- [API Documentation](docs/docs.txt) - SimpleCloud API reference
+- [API Documentation](docs/simplecloud-api.md) - SimpleCloud API reference
 
 ## Kotlin Standards
 
