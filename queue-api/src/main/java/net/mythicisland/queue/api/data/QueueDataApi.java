@@ -2,7 +2,6 @@ package net.mythicisland.queue.api.data;
 
 import build.buf.gen.mythicisland.queue.v1.*;
 
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
