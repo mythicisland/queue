@@ -68,6 +68,7 @@ class QueueStatusReconciler(
             val type = types.find(queue.type) ?: return
 
             if (queue.players.isEmpty() && queue.status != QueueStatus.FINISHED) {
+                logger.info("Queue {} has no players remaining, finishing", queue.id)
                 updateStatus(queue, QueueStatus.FINISHED)
             }
 
@@ -150,6 +151,7 @@ class QueueStatusReconciler(
         updateWaitingCountdown(queue)
 
         if (queue.players.size < type.minCapacity) {
+            logger.info("Queue {} players dropped below minimum ({}/{}), resetting countdown", queue.id, queue.players.size, type.minCapacity)
             updateStatus(queue, QueueStatus.NOT_ENOUGH_PLAYERS)
             queue.waitingCountdownRemaining = 0
             lastWaitingTick.remove(queue.id)
@@ -207,12 +209,14 @@ class QueueStatusReconciler(
      */
     private suspend fun handleWaitingForServer(queue: Queue): Queue {
         if (queue.server != null) {
+            logger.info("Queue {} server already assigned ({}), marking ready", queue.id, queue.server?.serverId)
             updateStatus(queue, QueueStatus.SERVER_READY)
             return queue
         }
 
         val server = finder.findServer(queue)
         if (server != null) {
+            logger.info("Queue {} found available server {}", queue.id, server.serverId)
             queue.server = server
             updateStatus(queue, QueueStatus.SERVER_READY)
         }
@@ -310,9 +314,10 @@ class QueueStatusReconciler(
      * @param queue The Queue to finish
      */
     private suspend fun handleFinished(queue: Queue): Queue {
-        logger.info("Queue {} finished, cleaning up", queue.id)
+        logger.info("Queue {} finished, cleaning up (players={}, server={})", queue.id, queue.players.size, queue.server?.serverId)
 
         if (queue.server != null) {
+            logger.info("Queue {} freeing server {}", queue.id, queue.server!!.serverId)
             finder.freeServer(queue.server!!)
         }
 
@@ -337,14 +342,24 @@ class QueueStatusReconciler(
      * @param server The newly registered server
      */
     private suspend fun handleServerRegistration(server: Server) {
-        queues.getAllQueues()
-            .filter { it.status == QueueStatus.WAITING_FOR_SERVER }
-            .forEach { queue ->
-                if (finder.reserveServer(queue, server)) {
-                    reconcile(queue.id)
-                    return
-                }
+        logger.info("Server {} became available, checking waiting queues", server.serverId)
+        val waitingQueues = queues.getAllQueues().filter { it.status == QueueStatus.WAITING_FOR_SERVER }
+
+        if (waitingQueues.isEmpty()) {
+            logger.debug("No queues waiting for a server, freeing server {}", server.serverId)
+            finder.freeServer(server)
+            return
+        }
+
+        for (queue in waitingQueues) {
+            if (finder.reserveServer(queue, server)) {
+                logger.info("Server {} assigned to waiting queue {} (type={})", server.serverId, queue.id, queue.type)
+                reconcile(queue.id)
+                return
             }
+        }
+
+        logger.debug("Server {} does not match any waiting queue, freeing", server.serverId)
         finder.freeServer(server)
     }
 

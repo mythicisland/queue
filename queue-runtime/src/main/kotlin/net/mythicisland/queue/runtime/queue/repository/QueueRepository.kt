@@ -33,9 +33,11 @@ class QueueRepository(
 
     fun deleteQueue(queueId: UUID): Boolean {
         if (!queues.containsKey(queueId)) return false
+        val removedPlayers = playersToQueue.filter { it.value == queueId }.keys
         queues.remove(queueId)
-        playersToQueue.filter { it.value == queueId }.forEach { playersToQueue.remove(it.key) }
+        removedPlayers.forEach { playersToQueue.remove(it) }
         reconciler.clear(queueId)
+        logger.info("Deleted queue {} (removed {} player mappings)", queueId, removedPlayers.size)
         return true
     }
 
@@ -57,7 +59,15 @@ class QueueRepository(
             return Result.failure(IllegalStateException("Some players are already in a queue"))
         }
 
-        val queue = findQueue(queueType, playerIds.size) ?: createQueue(type)
+        val existingQueue = findQueue(queueType, playerIds.size)
+        val queue = existingQueue ?: createQueue(type)
+
+        if (existingQueue != null) {
+            logger.info("Players {} joining existing queue {} (type={}, players={})", playerIds, queue.id, queue.type, queue.players.size)
+        } else {
+            logger.info("Players {} created new queue {} (type={}, capacity={})", playerIds, queue.id, queue.type, queue.capacity)
+        }
+
         queue.players.addAll(playerIds)
         queues[queue.id] = queue
         playerIds.forEach { playersToQueue[it] = queue.id }
@@ -84,13 +94,17 @@ class QueueRepository(
      * @return true if the player was successfully removed
      */
     suspend fun dequeue(playerId: UUID): Boolean {
-        if (!playersToQueue.containsKey(playerId)) return false
+        if (!playersToQueue.containsKey(playerId)) {
+            logger.debug("Dequeue failed: player {} is not in any queue", playerId)
+            return false
+        }
         val queue = getQueueByPlayer(playerId) ?: return false
         if (!playersToQueue.remove(playerId, queue.id)) return false
         if (!queue.players.remove(playerId)) {
             playersToQueue[playerId] = queue.id
             return false
         }
+        logger.info("Player {} left queue {} (type={}, remaining={})", playerId, queue.id, queue.type, queue.players.size)
         reconciler.reconcile(queue.id)
         return true
     }
