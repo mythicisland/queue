@@ -1,3 +1,5 @@
+@file:Suppress("warnings")
+
 package net.mythicisland.queue.runtime.queue.server
 
 import app.simplecloud.api.CloudApi
@@ -97,7 +99,7 @@ class ServerFinder(
      * @param queue The queue to reserve a server for
      * @return The reserved server, or null if none available or queue type doesn't exist
      */
-    suspend fun reserveServer(queue: Queue): Server? {
+    private suspend fun reserveServer(queue: Queue): Server? {
         val type = types.find(queue.type) ?: return null
 
         // Get all servers in the queue type's group
@@ -126,7 +128,7 @@ class ServerFinder(
      * @param server The server to check
      * @return true if the server can be reserved, false otherwise
      */
-    fun canReserveServer(queue: Queue, server: Server): Boolean {
+    private fun canReserveServer(queue: Queue, server: Server): Boolean {
         val type = types.find(queue.type) ?: return false
 
         // Check if server is in the correct group
@@ -168,7 +170,7 @@ class ServerFinder(
      * @param queue The queue to start a new server for
      * @return The newly created server instance, or null if the request failed or queue type doesn't exist
      */
-    suspend fun requestNewServer(queue: Queue): Server {
+    private suspend fun requestNewServer(queue: Queue): Server {
         /*val type = types.find(queue.type) ?: return null
 
         val result = try {

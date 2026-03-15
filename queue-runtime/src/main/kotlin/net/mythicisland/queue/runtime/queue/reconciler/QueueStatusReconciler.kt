@@ -110,7 +110,7 @@ class QueueStatusReconciler(
      *
      * @param queue The Queue to handle
      */
-    private suspend fun handleNotEnoughPlayers(queue: Queue): Queue {
+    private fun handleNotEnoughPlayers(queue: Queue): Queue {
         val type = types.find(queue.type) ?: return queue
 
         if (queue.players.size >= type.minCapacity) {
@@ -144,7 +144,7 @@ class QueueStatusReconciler(
      *
      * @param queue The Queue to handle the waiting countdown
      */
-    private suspend fun handleWaitingForPlayersCountdown(queue: Queue): Queue {
+    private fun handleWaitingForPlayersCountdown(queue: Queue): Queue {
         val type = types.find(queue.type) ?: return queue
 
         updateWaitingCountdown(queue)
@@ -226,7 +226,7 @@ class QueueStatusReconciler(
      *
      * @param queue The Queue to handle server ready
      */
-    private suspend fun handleServerReady(queue: Queue): Queue {
+    private fun handleServerReady(queue: Queue): Queue {
         val type = types.find(queue.type) ?: return queue
 
         updateStatus(queue, QueueStatus.COUNTDOWN)
@@ -256,7 +256,7 @@ class QueueStatusReconciler(
      *
      * @param queue The Queue to handle the countdown
      */
-    private suspend fun handleCountdown(queue: Queue): Queue {
+    private fun handleCountdown(queue: Queue): Queue {
         updateCountdown(queue)
 
         if (queue.countdownRemaining <= 0) {
@@ -324,7 +324,7 @@ class QueueStatusReconciler(
      * Reconciles all queues in the repository.
      * Called periodically as a safety net to ensure all queues are in the correct status.
      */
-    suspend fun reconcileAll() {
+    private suspend fun reconcileAll() {
         queues.getAllQueues().forEach { queue ->
             reconcile(queue.id)
         }
@@ -336,7 +336,7 @@ class QueueStatusReconciler(
      *
      * @param server The newly registered server
      */
-    suspend fun handleServerRegistration(server: Server) {
+    private suspend fun handleServerRegistration(server: Server) {
         queues.getAllQueues()
             .filter { it.status == QueueStatus.WAITING_FOR_SERVER }
             .forEach { queue ->
