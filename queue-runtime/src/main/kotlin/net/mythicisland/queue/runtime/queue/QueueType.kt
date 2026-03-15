@@ -10,8 +10,8 @@ data class QueueType(
     val group: String = "",
     val maxCapacity: Long = -1L,
     val minCapacity: Long = -1L,
-    val waitingCountdownMillis: Long = 30000L,
-    val countdownMillis: Long = 10000L,
+    val waitingCountdownSeconds: Long = 30L,
+    val countdownSeconds: Long = 10L,
     val messages: Messages = defaultMessages
 ) {
     fun toDefinition() : build.buf.gen.mythicisland.queue.v1.QueueType {
@@ -20,8 +20,8 @@ data class QueueType(
             .setGroup(group)
             .setMaxCapacity(maxCapacity.toInt())
             .setMinCapacity(minCapacity.toInt())
-            .setWaitingCountdownMillis(waitingCountdownMillis)
-            .setCountdownMillis(countdownMillis)
+            .setWaitingCountdownMillis(waitingCountdownSeconds * 1000)
+            .setCountdownMillis(countdownSeconds * 1000)
             .build()
 
     }
@@ -33,8 +33,8 @@ data class QueueType(
                 group = definition.group,
                 maxCapacity = definition.maxCapacity.toLong(),
                 minCapacity = definition.minCapacity.toLong(),
-                waitingCountdownMillis = definition.waitingCountdownMillis,
-                countdownMillis = definition.countdownMillis
+                waitingCountdownSeconds = definition.waitingCountdownMillis / 1000,
+                countdownSeconds = definition.countdownMillis / 1000
             )
         }
     }

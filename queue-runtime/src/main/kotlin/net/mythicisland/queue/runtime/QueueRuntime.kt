@@ -70,6 +70,7 @@ class QueueRuntime(
         reconciler.startPeriodicReconciliation()
         reconciler.startCountdownReconciliation()
         reconciler.startWaitingCountdownReconciliation()
+        reconciler.startVisualizerLoop()
         reconciler.registerServerRegistrationSubscriber()
 
         val server = createGrpcServer()

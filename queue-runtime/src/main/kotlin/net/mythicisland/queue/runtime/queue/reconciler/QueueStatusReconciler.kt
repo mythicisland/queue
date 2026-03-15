@@ -9,6 +9,7 @@ import build.buf.gen.mythicisland.queue.v1.QueueStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -114,8 +115,9 @@ class QueueStatusReconciler(
 
         if (queue.players.size >= type.minCapacity) {
             updateStatus(queue, QueueStatus.WAITING_COUNTDOWN)
-            queue.waitingCountdownRemaining = type.waitingCountdownMillis
+            queue.waitingCountdownRemaining = type.waitingCountdownSeconds * 1000
             lastWaitingTick[queue.id] = System.currentTimeMillis()
+            logger.info("Queue {} waiting countdown started: {}s", queue.id, type.waitingCountdownSeconds)
         }
 
         return queue
@@ -155,6 +157,8 @@ class QueueStatusReconciler(
         }
 
         if (queue.waitingCountdownRemaining <= 0 || queue.players.size >= type.maxCapacity) {
+            val reason = if (queue.players.size >= type.maxCapacity) "queue full" else "countdown expired"
+            logger.info("Queue {} waiting countdown finished ({}), searching server", queue.id, reason)
             updateStatus(queue, QueueStatus.SEARCHING_SERVER)
             lastWaitingTick.remove(queue.id)
         }
@@ -171,16 +175,23 @@ class QueueStatusReconciler(
      * @param queue The Queue to handle server searching
      */
     private suspend fun handleSearchingServer(queue: Queue): Queue {
+        logger.info("Queue {} searching for server (type: {})", queue.id, queue.type)
+
         try {
             val server = finder.reserveOrRequestServer(queue)
 
             if (server != null) {
+                logger.info("Queue {} reserved server {}", queue.id, server.serverId)
                 updateStatus(queue, QueueStatus.SERVER_READY)
             } else {
+                logger.info("Queue {} no server available, waiting for new server", queue.id)
                 updateStatus(queue, QueueStatus.WAITING_FOR_SERVER)
             }
         } catch (e: NotImplementedError) {
-            logger.warn("Server provisioning not yet available, waiting for existing server")
+            logger.warn("Queue {} server provisioning not yet available, waiting for existing server", queue.id)
+            updateStatus(queue, QueueStatus.WAITING_FOR_SERVER)
+        } catch (e: Exception) {
+            logger.error("Queue {} failed to find/reserve server", queue.id, e)
             updateStatus(queue, QueueStatus.WAITING_FOR_SERVER)
         }
 
@@ -219,8 +230,9 @@ class QueueStatusReconciler(
         val type = types.find(queue.type) ?: return queue
 
         updateStatus(queue, QueueStatus.COUNTDOWN)
-        queue.countdownRemaining = type.countdownMillis
+        queue.countdownRemaining = type.countdownSeconds * 1000
         lastCountdownTick[queue.id] = System.currentTimeMillis()
+        logger.info("Queue {} game countdown started: {}s on server {}", queue.id, type.countdownSeconds, queue.server?.serverId)
 
         return queue
     }
@@ -248,6 +260,7 @@ class QueueStatusReconciler(
         updateCountdown(queue)
 
         if (queue.countdownRemaining <= 0) {
+            logger.info("Queue {} game countdown finished, teleporting players", queue.id)
             updateStatus(queue, QueueStatus.TELEPORTING)
             lastCountdownTick.remove(queue.id)
         }
@@ -268,10 +281,18 @@ class QueueStatusReconciler(
             return queue
         }
 
+        logger.info("Queue {} teleporting {} players to server {}", queue.id, queue.players.size, server.serverId)
+
         queue.players.forEach { playerId ->
             try {
-                val player = playerId.asPlayerOrNull(playerApi) ?: return@forEach
-                player.connect(server.serverId)
+                val player = playerId.asPlayerOrNull(playerApi)
+                if (player == null) {
+                    logger.warn("Queue {} player {} is offline, skipping teleport", queue.id, playerId)
+                    return@forEach
+                }
+
+                val result = player.connect(server.serverId).await()
+                logger.info("Queue {} player {} connect result: {}", queue.id, playerId, result)
             } catch (e: Exception) {
                 logger.error("Failed to teleport player {} to server {}", playerId, server.serverId, e)
             }
@@ -377,6 +398,28 @@ class QueueStatusReconciler(
                 queues.getAllQueues()
                     .filter { it.status == QueueStatus.COUNTDOWN }
                     .forEach { reconcile(it.id) }
+            }
+        }
+    }
+
+    /**
+     * Periodically sends actionbar to all players in active queues every second.
+     * Minecraft actionbars fade after ~2 seconds, so continuous sending is required.
+     */
+    fun startVisualizerLoop() {
+        scope.launch {
+            while (true) {
+                delay(1000)
+                queues.getAllQueues()
+                    .filter { it.status != QueueStatus.FINISHED }
+                    .forEach { queue ->
+                        val type = types.find(queue.type) ?: return@forEach
+                        try {
+                            visualizer.send(queue, type, queue.status)
+                        } catch (e: Exception) {
+                            logger.debug("Failed to send visualizer for queue {}: {}", queue.id, e.message)
+                        }
+                    }
             }
         }
     }

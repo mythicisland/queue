@@ -25,7 +25,6 @@ tasks.named<ShadowJar>("shadowJar") {
     relocate("io.grpc", "net.mythicisland.queue.api.shaded.grpc")
     relocate("io.nats", "net.mythicisland.queue.api.shaded.nats")
     relocate("build.buf", "net.mythicisland.queue.api.shaded.buf")
-    archiveClassifier.set("")
 }
 
 tasks.named<Javadoc>("javadoc") {

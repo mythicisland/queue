@@ -1,12 +1,11 @@
 # Configuration Files
 
-## Queue Config (minekart.yml)
+## Queue Config (dev.yml)
 ```yml
----
-name: minekart
-
-group: duels
-min-capacity: 6
-max-capacity: 12
-
+name: dev
+group: minekart
+max-capacity: 2
+min-capacity: 1
+waiting-countdown-seconds: 30
+countdown-seconds: 10
 ```
