@@ -288,7 +288,7 @@ class QueueStatusReconciler(
         val serverName = "${server.group.name}-${server.numericalId}"
         logger.info("Queue {} teleporting {} players to server {} ({})", queue.id, queue.players.size, serverName, server.serverId)
 
-        queue.players.forEach { playerId ->
+        queue.players.toList().forEach { playerId ->
             try {
                 val player = playerId.asPlayerOrNull(playerApi)
                 if (player == null) {

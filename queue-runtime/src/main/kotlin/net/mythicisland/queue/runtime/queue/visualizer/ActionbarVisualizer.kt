@@ -16,7 +16,7 @@ class ActionbarVisualizer(
     override suspend fun send(queue: Queue, type: QueueType, status: QueueStatus) {
         val text = QueueVisualizer.createQueueText(queue, type, status)
 
-        queue.players.forEach { playerId ->
+        queue.players.toList().forEach { playerId ->
             try {
                 val player = api.get(playerId).await() ?: return@forEach
                 player.sendActionBar(text)
