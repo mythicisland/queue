@@ -118,6 +118,34 @@ try {
 }
 ```
 
+### Data API
+
+```kotlin
+// Get all available queue types (e.g. for tab completion or selection GUI)
+val types = api.data().getAllQueueTypes().await()
+types.queueTypesList.forEach { println(it.name) }
+
+// Check which queue a player is in
+val response = api.data().getQueueByPlayer(playerId).await()
+val queue = response.queue
+println("Player is in queue ${queue.type} (${queue.status})")
+
+// Get player's position in their queue
+val position = api.data().getPlayerPosition(playerId).await()
+println("Position: ${position.position}/${position.queue.playerIdsCount}")
+
+// Get all active queues of a specific type
+val queues = api.data().getQueuesByType("dev").await()
+println("${queues.queuesCount} active dev queues")
+
+// Get a specific queue type's configuration
+val type = api.data().getQueueType("dev").await()
+println("${type.queueType.name}: ${type.queueType.minCapacity}-${type.queueType.maxCapacity} players")
+
+// Get a specific queue by ID
+val queue = api.data().getQueue(queueId).await()
+```
+
 ### Cleanup
 
 ```kotlin
