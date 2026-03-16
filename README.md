@@ -185,6 +185,58 @@ println("${type.queueType.name}: ${type.queueType.minCapacity}-${type.queueType.
 val queue = api.data().getQueue(queueId).await()
 ```
 
+### Event API
+
+Listen to real-time queue lifecycle events via NATS:
+
+```kotlin
+// Player events
+api.event().player().onEnqueued { event ->
+    println("${event.playerIds()} joined queue ${event.queueType()} (${event.queueId()})")
+}
+
+api.event().player().onDequeued { event ->
+    println("${event.playerIds()} left queue ${event.queueType()}")
+}
+
+// Queue lifecycle events
+api.event().queue().onCreated { event ->
+    println("New queue created: ${event.queueId()} (type: ${event.queueType()})")
+}
+
+api.event().queue().onStatusUpdated { event ->
+    println("Queue ${event.queueId()}: ${event.oldStatus()} -> ${event.newStatus()}")
+}
+
+api.event().queue().onServerAssigned { event ->
+    println("Queue ${event.queueId()} assigned to server ${event.serverId()}")
+}
+
+api.event().queue().onTransfer { event ->
+    println("${event.transferredPlayerIds().size} players transferred to ${event.serverId()}")
+}
+
+api.event().queue().onDeleted { event ->
+    println("Queue ${event.queueId()} deleted")
+}
+
+// General queue change listener (fires on any state change)
+api.event().queue().onUpdated { event ->
+    println("Queue ${event.queueId()}: ${event.beforeStatus()} -> ${event.afterStatus()}")
+}
+```
+
+Subscriptions can be cancelled:
+
+```kotlin
+val subscription = api.event().queue().onStatusUpdated { event ->
+    // ...
+}
+
+// Later, when no longer needed
+subscription.unsubscribe()
+```
+
 ### Cleanup
 
 ```kotlin

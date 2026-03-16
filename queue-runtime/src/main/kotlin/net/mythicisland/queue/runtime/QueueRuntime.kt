@@ -8,6 +8,7 @@ import io.nats.client.Connection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import net.mythicisland.queue.runtime.config.MessageConfig
 import net.mythicisland.queue.runtime.config.YamlConfig
@@ -15,6 +16,7 @@ import net.mythicisland.queue.runtime.launcher.QueueStartCommand
 import net.mythicisland.queue.runtime.nats.NatsConnectionHandler
 import net.mythicisland.queue.runtime.nats.NatsErrorListener
 import net.mythicisland.queue.runtime.nats.NatsFailoverConnectionManager
+import net.mythicisland.queue.runtime.queue.event.EventPublisher
 import net.mythicisland.queue.runtime.queue.reconciler.QueueStatusReconciler
 import net.mythicisland.queue.runtime.queue.repository.QueueRepository
 import net.mythicisland.queue.runtime.queue.repository.QueueTypeRepository
@@ -44,13 +46,15 @@ class QueueRuntime(
     private val queueRepository = QueueRepository(queueTypeRepository)
     private val finder = ServerFinder(api, queueTypeRepository)
     private val visualizer = ActionbarVisualizer(api.player())
+    private val eventPublisher = EventPublisher(manager.connection())
     private val reconciler = QueueStatusReconciler(
         queueRepository,
         queueTypeRepository,
         api.event(),
         api.player(),
         finder,
-        visualizer
+        visualizer,
+        eventPublisher,
     )
 
     suspend fun start() {
@@ -64,13 +68,15 @@ class QueueRuntime(
 
         connectNats()
 
-        logger.info("Setting up queue reconciler...")
+        logger.info("Setting up queue repository...")
         queueRepository.setReconciler(reconciler)
+        queueRepository.setEventPublisher(eventPublisher)
 
         logger.info("Starting queue reconciler...")
         reconciler.startPeriodicReconciliation()
         reconciler.startCountdownReconciliation()
         reconciler.startWaitingCountdownReconciliation()
+        reconciler.startServerRetryReconciliation()
         reconciler.startVisualizerLoop()
         reconciler.registerServerRegistrationSubscriber()
 
@@ -81,14 +87,42 @@ class QueueRuntime(
 
         suspendCancellableCoroutine<Unit> { continuation ->
             Runtime.getRuntime().addShutdownHook(Thread {
-                manager.shutdown()
-                config.close()
+                logger.info("Shutting down QueueRuntime...")
+                runBlocking { shutdown() }
                 server.shutdown()
                 continuation.resume(Unit) { cause, _, _ ->
-                    logger.info("runtime shutdown due to: $cause")
+                    logger.info("Runtime shutdown due to: {}", cause)
                 }
             })
         }
+    }
+
+    /**
+     * Gracefully shuts down the runtime by cleaning up all active queues,
+     * freeing reserved servers, and closing connections.
+     */
+    private suspend fun shutdown() {
+        val activeQueues = queueRepository.getAllQueues()
+        if (activeQueues.isNotEmpty()) {
+            logger.info("Cleaning up {} active queues...", activeQueues.size)
+            for (queue in activeQueues) {
+                queue.server?.let { server ->
+                    logger.info("Freeing server {} from queue {}", server.serverId, queue.id)
+                    try {
+                        finder.freeServer(server)
+                    } catch (e: Exception) {
+                        logger.warn("Failed to free server {} during shutdown", server.serverId, e)
+                    }
+                }
+                queueRepository.deleteQueue(queue.id)
+            }
+            logger.info("All queues cleaned up")
+        }
+
+        reconciler.shutdown()
+        manager.shutdown()
+        config.close()
+        logger.info("QueueRuntime shutdown complete")
     }
 
     private fun connectToController(): CloudApi {

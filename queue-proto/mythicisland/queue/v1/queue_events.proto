@@ -2,5 +2,47 @@ syntax = "proto3";
 
 package mythicisland.queue.v1;
 
+import "queue_types.proto";
+
 option java_package = "net.mythicisland.queue.v1";
 option java_multiple_files = true;
+
+message EnqueueEvent {
+  Queue queue = 1;
+  repeated string player_ids = 2;
+}
+
+message DequeueEvent {
+  Queue queue = 1;
+  repeated string player_ids = 2;
+}
+
+message QueueCreatedEvent {
+  Queue queue = 1;
+}
+
+message QueueUpdatedEvent {
+  Queue before = 1;
+  Queue after = 2;
+}
+
+message QueueStatusUpdatedEvent {
+  Queue queue = 1;
+  QueueStatus old_status = 2;
+  QueueStatus new_status = 3;
+}
+
+message QueueDeletedEvent {
+  Queue queue = 1;
+}
+
+message QueueServerAssignedEvent {
+  Queue queue = 1;
+  string server_id = 2;
+}
+
+message QueueTransferEvent {
+  Queue queue = 1;
+  string server_id = 2;
+  repeated string player_ids = 3;
+}

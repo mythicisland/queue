@@ -6,8 +6,10 @@ import app.simplecloud.api.player.PlayerApi
 import app.simplecloud.api.server.Server
 import app.simplecloud.api.server.ServerState
 import build.buf.gen.mythicisland.queue.v1.QueueStatus
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
@@ -15,6 +17,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import net.mythicisland.queue.runtime.extension.asPlayerOrNull
 import net.mythicisland.queue.runtime.queue.Queue
+import net.mythicisland.queue.runtime.queue.event.EventPublisher
 import net.mythicisland.queue.runtime.queue.repository.QueueRepository
 import net.mythicisland.queue.runtime.queue.repository.QueueTypeRepository
 import net.mythicisland.queue.runtime.queue.server.ServerFinder
@@ -37,10 +40,11 @@ class QueueStatusReconciler(
     private val playerApi: PlayerApi,
     private val finder: ServerFinder,
     private val visualizer: QueueVisualizer,
+    private val eventPublisher: EventPublisher,
 ) {
 
     private val logger = LogManager.getLogger(QueueStatusReconciler::class.java)
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val lastWaitingTick = ConcurrentHashMap<UUID, Long>()
     private val lastCountdownTick = ConcurrentHashMap<UUID, Long>()
@@ -101,8 +105,10 @@ class QueueStatusReconciler(
      * @param newStatus The new status
      */
     private fun updateStatus(queue: Queue, newStatus: QueueStatus) {
-        logger.info("Queue {} status: {} -> {}", queue.id, queue.status, newStatus)
+        val oldStatus = queue.status
+        logger.info("Queue {} status: {} -> {}", queue.id, oldStatus, newStatus)
         queue.status = newStatus
+        eventPublisher.publishStatusUpdated(queue, oldStatus, newStatus)
     }
 
     /**
@@ -184,6 +190,7 @@ class QueueStatusReconciler(
 
             if (server != null) {
                 logger.info("Queue {} reserved server {}", queue.id, server.serverId)
+                eventPublisher.publishServerAssigned(queue, server.serverId)
                 updateStatus(queue, QueueStatus.SERVER_READY)
             } else {
                 logger.info("Queue {} no server available, waiting for new server", queue.id)
@@ -218,6 +225,7 @@ class QueueStatusReconciler(
         if (server != null) {
             logger.info("Queue {} found available server {}", queue.id, server.serverId)
             queue.server = server
+            eventPublisher.publishServerAssigned(queue, server.serverId)
             updateStatus(queue, QueueStatus.SERVER_READY)
         }
 
@@ -288,6 +296,8 @@ class QueueStatusReconciler(
         val serverName = "${server.group.name}-${server.numericalId}"
         logger.info("Queue {} teleporting {} players to server {} ({})", queue.id, queue.players.size, serverName, server.serverId)
 
+        val transferredPlayers = mutableListOf<UUID>()
+
         queue.players.toList().forEach { playerId ->
             try {
                 val player = playerId.asPlayerOrNull(playerApi)
@@ -298,11 +308,13 @@ class QueueStatusReconciler(
 
                 val result = player.connect(serverName).await()
                 logger.info("Queue {} player {} connect result: {}", queue.id, playerId, result)
+                transferredPlayers.add(playerId)
             } catch (e: Exception) {
                 logger.error("Failed to teleport player {} to server {}", playerId, server.serverId, e)
             }
         }
 
+        eventPublisher.publishTransfer(queue, server.serverId, transferredPlayers)
         updateStatus(queue, QueueStatus.FINISHED)
         return queue
     }
@@ -316,9 +328,9 @@ class QueueStatusReconciler(
     private suspend fun handleFinished(queue: Queue): Queue {
         logger.info("Queue {} finished, cleaning up (players={}, server={})", queue.id, queue.players.size, queue.server?.serverId)
 
-        if (queue.server != null) {
-            logger.info("Queue {} freeing server {}", queue.id, queue.server!!.serverId)
-            finder.freeServer(queue.server!!)
+        queue.server?.let { server ->
+            logger.info("Queue {} freeing server {}", queue.id, server.serverId)
+            finder.freeServer(server)
         }
 
         queues.deleteQueue(queue.id)
@@ -380,6 +392,15 @@ class QueueStatusReconciler(
     }
 
     /**
+     * Cancels all reconciliation loops and cleans up resources.
+     * Called during runtime shutdown to stop background processing.
+     */
+    fun shutdown() {
+        logger.info("Shutting down reconciler...")
+        scope.cancel()
+    }
+
+    /**
      * Clears all reconciliation state for a queue.
      *
      * @param id The queue ID to clear state for
@@ -436,6 +457,22 @@ class QueueStatusReconciler(
                             logger.debug("Failed to send visualizer for queue {}: {}", queue.id, e.message)
                         }
                     }
+            }
+        }
+    }
+
+    /**
+     * Periodically retries server reservation for queues stuck in WAITING_FOR_SERVER every 5 seconds.
+     * Complements the event-driven approach from [registerServerRegistrationSubscriber] with
+     * active polling to recover from missed events or transient failures.
+     */
+    fun startServerRetryReconciliation() {
+        scope.launch {
+            while (true) {
+                delay(5000)
+                queues.getAllQueues()
+                    .filter { it.status == QueueStatus.WAITING_FOR_SERVER }
+                    .forEach { reconcile(it.id) }
             }
         }
     }
