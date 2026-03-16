@@ -6,8 +6,10 @@ import app.simplecloud.api.player.PlayerApi
 import app.simplecloud.api.server.Server
 import app.simplecloud.api.server.ServerState
 import build.buf.gen.mythicisland.queue.v1.QueueStatus
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
@@ -42,7 +44,7 @@ class QueueStatusReconciler(
 ) {
 
     private val logger = LogManager.getLogger(QueueStatusReconciler::class.java)
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val lastWaitingTick = ConcurrentHashMap<UUID, Long>()
     private val lastCountdownTick = ConcurrentHashMap<UUID, Long>()
@@ -326,9 +328,9 @@ class QueueStatusReconciler(
     private suspend fun handleFinished(queue: Queue): Queue {
         logger.info("Queue {} finished, cleaning up (players={}, server={})", queue.id, queue.players.size, queue.server?.serverId)
 
-        if (queue.server != null) {
-            logger.info("Queue {} freeing server {}", queue.id, queue.server!!.serverId)
-            finder.freeServer(queue.server!!)
+        queue.server?.let { server ->
+            logger.info("Queue {} freeing server {}", queue.id, server.serverId)
+            finder.freeServer(server)
         }
 
         queues.deleteQueue(queue.id)
@@ -390,6 +392,15 @@ class QueueStatusReconciler(
     }
 
     /**
+     * Cancels all reconciliation loops and cleans up resources.
+     * Called during runtime shutdown to stop background processing.
+     */
+    fun shutdown() {
+        logger.info("Shutting down reconciler...")
+        scope.cancel()
+    }
+
+    /**
      * Clears all reconciliation state for a queue.
      *
      * @param id The queue ID to clear state for
@@ -446,6 +457,22 @@ class QueueStatusReconciler(
                             logger.debug("Failed to send visualizer for queue {}: {}", queue.id, e.message)
                         }
                     }
+            }
+        }
+    }
+
+    /**
+     * Periodically retries server reservation for queues stuck in WAITING_FOR_SERVER every 5 seconds.
+     * Complements the event-driven approach from [registerServerRegistrationSubscriber] with
+     * active polling to recover from missed events or transient failures.
+     */
+    fun startServerRetryReconciliation() {
+        scope.launch {
+            while (true) {
+                delay(5000)
+                queues.getAllQueues()
+                    .filter { it.status == QueueStatus.WAITING_FOR_SERVER }
+                    .forEach { reconcile(it.id) }
             }
         }
     }

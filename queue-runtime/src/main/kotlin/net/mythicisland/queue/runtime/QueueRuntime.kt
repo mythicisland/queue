@@ -8,6 +8,7 @@ import io.nats.client.Connection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import net.mythicisland.queue.runtime.config.MessageConfig
 import net.mythicisland.queue.runtime.config.YamlConfig
@@ -75,6 +76,7 @@ class QueueRuntime(
         reconciler.startPeriodicReconciliation()
         reconciler.startCountdownReconciliation()
         reconciler.startWaitingCountdownReconciliation()
+        reconciler.startServerRetryReconciliation()
         reconciler.startVisualizerLoop()
         reconciler.registerServerRegistrationSubscriber()
 
@@ -85,14 +87,42 @@ class QueueRuntime(
 
         suspendCancellableCoroutine<Unit> { continuation ->
             Runtime.getRuntime().addShutdownHook(Thread {
-                manager.shutdown()
-                config.close()
+                logger.info("Shutting down QueueRuntime...")
+                runBlocking { shutdown() }
                 server.shutdown()
                 continuation.resume(Unit) { cause, _, _ ->
-                    logger.info("runtime shutdown due to: $cause")
+                    logger.info("Runtime shutdown due to: {}", cause)
                 }
             })
         }
+    }
+
+    /**
+     * Gracefully shuts down the runtime by cleaning up all active queues,
+     * freeing reserved servers, and closing connections.
+     */
+    private suspend fun shutdown() {
+        val activeQueues = queueRepository.getAllQueues()
+        if (activeQueues.isNotEmpty()) {
+            logger.info("Cleaning up {} active queues...", activeQueues.size)
+            for (queue in activeQueues) {
+                queue.server?.let { server ->
+                    logger.info("Freeing server {} from queue {}", server.serverId, queue.id)
+                    try {
+                        finder.freeServer(server)
+                    } catch (e: Exception) {
+                        logger.warn("Failed to free server {} during shutdown", server.serverId, e)
+                    }
+                }
+                queueRepository.deleteQueue(queue.id)
+            }
+            logger.info("All queues cleaned up")
+        }
+
+        reconciler.shutdown()
+        manager.shutdown()
+        config.close()
+        logger.info("QueueRuntime shutdown complete")
     }
 
     private fun connectToController(): CloudApi {

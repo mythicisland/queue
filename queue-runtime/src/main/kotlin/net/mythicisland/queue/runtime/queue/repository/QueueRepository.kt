@@ -7,6 +7,7 @@ import net.mythicisland.queue.runtime.queue.event.EventPublisher
 import net.mythicisland.queue.runtime.queue.reconciler.QueueStatusReconciler
 import org.apache.logging.log4j.LogManager
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * In-memory repository for managing queues and player-to-queue mappings.
@@ -19,11 +20,11 @@ class QueueRepository(
 
     private val logger = LogManager.getLogger(QueueRepository::class.java)
 
-    private val playersToQueue = mutableMapOf<UUID, UUID>()
-    private val queues = mutableMapOf<UUID, Queue>()
+    private val playersToQueue = ConcurrentHashMap<UUID, UUID>()
+    private val queues = ConcurrentHashMap<UUID, Queue>()
 
     /** Protobuf snapshots of the last persisted queue state, used for change detection. */
-    private val snapshots = mutableMapOf<UUID, build.buf.gen.mythicisland.queue.v1.Queue>()
+    private val snapshots = ConcurrentHashMap<UUID, build.buf.gen.mythicisland.queue.v1.Queue>()
 
     private lateinit var reconciler: QueueStatusReconciler
     private lateinit var eventPublisher: EventPublisher
