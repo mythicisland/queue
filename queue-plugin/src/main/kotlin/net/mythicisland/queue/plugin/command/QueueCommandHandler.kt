@@ -40,7 +40,7 @@ class QueueCommandHandler(
         scope.launch {
             try {
                 api.player().enqueue(type, source.uniqueId).await()
-                source.sendMessage(miniMessage.deserialize("<color:#22c55e>You have been joined the Queue"))
+                source.sendMessage(miniMessage.deserialize("<color:#22c55e>You have joined the Queue"))
             } catch (e: StatusRuntimeException) {
                 source.sendMessage(miniMessage.deserialize("<color:#dc2626>Failed to join the Queue, Please contact an Administrator about this!"))
             } catch (e: Exception) {
