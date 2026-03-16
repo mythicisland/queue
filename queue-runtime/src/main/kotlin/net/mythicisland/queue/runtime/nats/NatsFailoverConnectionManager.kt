@@ -16,8 +16,8 @@ import kotlin.time.Duration.Companion.seconds
 
 class NatsFailoverConnectionManager(
     private val natsUrl: String,
-    private val networkId: String,
-    private val networkSecret: String,
+    private val natsUser: String,
+    private val natsSecret: String,
     private val errorListener: ErrorListener,
     private val connectionHandler: NatsConnectionHandler,
     private val failoverReconnectAfter: Duration,
@@ -150,7 +150,7 @@ class NatsFailoverConnectionManager(
         return Nats.connect(
             Options.builder()
                 .server(natsUrl)
-                .userInfo(networkId, networkSecret)
+                .userInfo(natsUser, natsSecret)
                 .maxReconnects(-1)
                 .errorListener(errorListener)
                 .connectionListener(connectionHandler)

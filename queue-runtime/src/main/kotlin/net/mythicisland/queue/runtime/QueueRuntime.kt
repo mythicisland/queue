@@ -91,7 +91,7 @@ class QueueRuntime(
                 runBlocking { shutdown() }
                 server.shutdown()
                 continuation.resume(Unit) { cause, _, _ ->
-                    logger.info("Runtime shutdown due to: {}", cause)
+                    logger.info("Runtime shutdown due to: $cause")
                 }
             })
         }
@@ -182,8 +182,8 @@ class QueueRuntime(
     private fun createNatsConnectionManager(): NatsFailoverConnectionManager {
         return NatsFailoverConnectionManager(
             natsUrl = args.natsUrl,
-            networkId = args.natsUser,
-            networkSecret = args.natsSecret,
+            natsUser = args.natsUser,
+            natsSecret = args.natsSecret,
             errorListener = natsErrorListener,
             connectionHandler = natsConnectionHandler,
             failoverReconnectAfter = args.natsFailoverReconnectAfter,
