@@ -7,7 +7,9 @@ import io.grpc.ManagedChannelBuilder;
 import net.mythicisland.queue.api.QueueApi;
 import net.mythicisland.queue.api.QueueApiOptions;
 import net.mythicisland.queue.api.data.QueueDataApi;
+import net.mythicisland.queue.api.event.EventApi;
 import net.mythicisland.queue.api.internal.data.QueueDataApiImpl;
+import net.mythicisland.queue.api.internal.event.EventApiImpl;
 import net.mythicisland.queue.api.internal.nats.NatsFailoverConnectionManager;
 import net.mythicisland.queue.api.internal.player.QueuePlayerApiImpl;
 import net.mythicisland.queue.api.player.QueuePlayerApi;
@@ -25,6 +27,7 @@ public final class QueueApiImpl implements QueueApi {
     private final NatsFailoverConnectionManager natsManager;
     private final QueuePlayerApi playerApi;
     private final QueueDataApi dataApi;
+    private final EventApi eventApi;
 
     public QueueApiImpl(QueueApiOptions options) {
         this.grpcChannel = ManagedChannelBuilder
@@ -51,6 +54,8 @@ public final class QueueApiImpl implements QueueApi {
 
         QueueDataServiceGrpc.QueueDataServiceFutureStub dataStub = QueueDataServiceGrpc.newFutureStub(grpcChannel);
         this.dataApi = new QueueDataApiImpl(dataStub);
+
+        this.eventApi = new EventApiImpl(natsManager.getConnection());
     }
 
     @Override
@@ -80,5 +85,10 @@ public final class QueueApiImpl implements QueueApi {
     @Override
     public QueueDataApi data() {
         return dataApi;
+    }
+
+    @Override
+    public EventApi event() {
+        return eventApi;
     }
 }
