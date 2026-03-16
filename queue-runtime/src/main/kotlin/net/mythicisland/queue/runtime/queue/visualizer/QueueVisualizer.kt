@@ -8,6 +8,7 @@ import net.mythicisland.queue.runtime.queue.Queue
 import net.mythicisland.queue.runtime.queue.QueueType
 
 interface QueueVisualizer {
+
     suspend fun send(queue: Queue, type: QueueType, status: QueueStatus)
 
     companion object {

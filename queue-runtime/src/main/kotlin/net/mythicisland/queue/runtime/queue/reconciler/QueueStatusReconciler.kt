@@ -23,6 +23,7 @@ import net.mythicisland.queue.runtime.queue.repository.QueueTypeRepository
 import net.mythicisland.queue.runtime.queue.server.ServerFinder
 import net.mythicisland.queue.runtime.queue.visualizer.QueueVisualizer
 import org.apache.logging.log4j.LogManager
+
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
@@ -40,7 +41,7 @@ class QueueStatusReconciler(
     private val playerApi: PlayerApi,
     private val finder: ServerFinder,
     private val visualizer: QueueVisualizer,
-    private val eventPublisher: EventPublisher,
+    private val publisher: EventPublisher,
 ) {
 
     private val logger = LogManager.getLogger(QueueStatusReconciler::class.java)
@@ -108,7 +109,7 @@ class QueueStatusReconciler(
         val oldStatus = queue.status
         logger.info("Queue {} status: {} -> {}", queue.id, oldStatus, newStatus)
         queue.status = newStatus
-        eventPublisher.publishStatusUpdated(queue, oldStatus, newStatus)
+        publisher.publishStatusUpdated(queue, oldStatus, newStatus)
     }
 
     /**
@@ -190,7 +191,7 @@ class QueueStatusReconciler(
 
             if (server != null) {
                 logger.info("Queue {} reserved server {}", queue.id, server.serverId)
-                eventPublisher.publishServerAssigned(queue, server.serverId)
+                publisher.publishServerAssigned(queue, server.serverId)
                 updateStatus(queue, QueueStatus.SERVER_READY)
             } else {
                 logger.info("Queue {} no server available, waiting for new server", queue.id)
@@ -225,7 +226,7 @@ class QueueStatusReconciler(
         if (server != null) {
             logger.info("Queue {} found available server {}", queue.id, server.serverId)
             queue.server = server
-            eventPublisher.publishServerAssigned(queue, server.serverId)
+            publisher.publishServerAssigned(queue, server.serverId)
             updateStatus(queue, QueueStatus.SERVER_READY)
         }
 
@@ -314,7 +315,7 @@ class QueueStatusReconciler(
             }
         }
 
-        eventPublisher.publishTransfer(queue, server.serverId, transferredPlayers)
+        publisher.publishTransfer(queue, server.serverId, transferredPlayers)
         updateStatus(queue, QueueStatus.FINISHED)
         return queue
     }
