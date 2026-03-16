@@ -15,6 +15,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import net.mythicisland.queue.runtime.extension.asPlayerOrNull
 import net.mythicisland.queue.runtime.queue.Queue
+import net.mythicisland.queue.runtime.queue.event.EventPublisher
 import net.mythicisland.queue.runtime.queue.repository.QueueRepository
 import net.mythicisland.queue.runtime.queue.repository.QueueTypeRepository
 import net.mythicisland.queue.runtime.queue.server.ServerFinder
@@ -37,6 +38,7 @@ class QueueStatusReconciler(
     private val playerApi: PlayerApi,
     private val finder: ServerFinder,
     private val visualizer: QueueVisualizer,
+    private val eventPublisher: EventPublisher,
 ) {
 
     private val logger = LogManager.getLogger(QueueStatusReconciler::class.java)
@@ -101,8 +103,10 @@ class QueueStatusReconciler(
      * @param newStatus The new status
      */
     private fun updateStatus(queue: Queue, newStatus: QueueStatus) {
-        logger.info("Queue {} status: {} -> {}", queue.id, queue.status, newStatus)
+        val oldStatus = queue.status
+        logger.info("Queue {} status: {} -> {}", queue.id, oldStatus, newStatus)
         queue.status = newStatus
+        eventPublisher.publishStatusUpdated(queue, oldStatus, newStatus)
     }
 
     /**
@@ -184,6 +188,7 @@ class QueueStatusReconciler(
 
             if (server != null) {
                 logger.info("Queue {} reserved server {}", queue.id, server.serverId)
+                eventPublisher.publishServerAssigned(queue, server.serverId)
                 updateStatus(queue, QueueStatus.SERVER_READY)
             } else {
                 logger.info("Queue {} no server available, waiting for new server", queue.id)
@@ -218,6 +223,7 @@ class QueueStatusReconciler(
         if (server != null) {
             logger.info("Queue {} found available server {}", queue.id, server.serverId)
             queue.server = server
+            eventPublisher.publishServerAssigned(queue, server.serverId)
             updateStatus(queue, QueueStatus.SERVER_READY)
         }
 
@@ -288,6 +294,8 @@ class QueueStatusReconciler(
         val serverName = "${server.group.name}-${server.numericalId}"
         logger.info("Queue {} teleporting {} players to server {} ({})", queue.id, queue.players.size, serverName, server.serverId)
 
+        val transferredPlayers = mutableListOf<UUID>()
+
         queue.players.toList().forEach { playerId ->
             try {
                 val player = playerId.asPlayerOrNull(playerApi)
@@ -298,11 +306,13 @@ class QueueStatusReconciler(
 
                 val result = player.connect(serverName).await()
                 logger.info("Queue {} player {} connect result: {}", queue.id, playerId, result)
+                transferredPlayers.add(playerId)
             } catch (e: Exception) {
                 logger.error("Failed to teleport player {} to server {}", playerId, server.serverId, e)
             }
         }
 
+        eventPublisher.publishTransfer(queue, server.serverId, transferredPlayers)
         updateStatus(queue, QueueStatus.FINISHED)
         return queue
     }

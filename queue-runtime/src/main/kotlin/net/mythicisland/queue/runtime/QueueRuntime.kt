@@ -15,6 +15,7 @@ import net.mythicisland.queue.runtime.launcher.QueueStartCommand
 import net.mythicisland.queue.runtime.nats.NatsConnectionHandler
 import net.mythicisland.queue.runtime.nats.NatsErrorListener
 import net.mythicisland.queue.runtime.nats.NatsFailoverConnectionManager
+import net.mythicisland.queue.runtime.queue.event.EventPublisher
 import net.mythicisland.queue.runtime.queue.reconciler.QueueStatusReconciler
 import net.mythicisland.queue.runtime.queue.repository.QueueRepository
 import net.mythicisland.queue.runtime.queue.repository.QueueTypeRepository
@@ -44,13 +45,15 @@ class QueueRuntime(
     private val queueRepository = QueueRepository(queueTypeRepository)
     private val finder = ServerFinder(api, queueTypeRepository)
     private val visualizer = ActionbarVisualizer(api.player())
+    private val eventPublisher = EventPublisher(manager.connection())
     private val reconciler = QueueStatusReconciler(
         queueRepository,
         queueTypeRepository,
         api.event(),
         api.player(),
         finder,
-        visualizer
+        visualizer,
+        eventPublisher,
     )
 
     suspend fun start() {
@@ -64,8 +67,9 @@ class QueueRuntime(
 
         connectNats()
 
-        logger.info("Setting up queue reconciler...")
+        logger.info("Setting up queue repository...")
         queueRepository.setReconciler(reconciler)
+        queueRepository.setEventPublisher(eventPublisher)
 
         logger.info("Starting queue reconciler...")
         reconciler.startPeriodicReconciliation()
