@@ -3,6 +3,8 @@ package net.mythicisland.queue.runtime.queue.service
 import build.buf.gen.mythicisland.queue.v1.*
 import io.grpc.Status
 import net.mythicisland.queue.runtime.extension.asUUID
+import net.mythicisland.queue.runtime.queue.message.CommandMessages
+import net.mythicisland.queue.runtime.queue.message.PlayerMessenger
 import net.mythicisland.queue.runtime.queue.repository.QueueRepository
 import org.apache.logging.log4j.LogManager
 
@@ -10,9 +12,11 @@ import org.apache.logging.log4j.LogManager
  * gRPC service for queue operations.
  *
  * @property queues The queue repository for data access
+ * @property messenger The player messenger for sending feedback messages
  */
 class QueueService(
-    private val queues: QueueRepository
+    private val queues: QueueRepository,
+    private val messenger: PlayerMessenger,
 ) : QueueServiceGrpcKt.QueueServiceCoroutineImplBase() {
 
     private val logger = LogManager.getLogger(QueueService::class.java)
@@ -32,20 +36,17 @@ class QueueService(
 
         val queue = result.getOrElse { error ->
             logger.warn("Enqueue failed for players {} in type '{}': {}", playerIds, request.type, error.message)
-            when (error) {
-                is NoSuchElementException -> throw Status.NOT_FOUND
-                    .withDescription(error.message)
-                    .asRuntimeException()
-                is IllegalStateException -> throw Status.FAILED_PRECONDITION
-                    .withDescription(error.message)
-                    .asRuntimeException()
-                else -> throw Status.INTERNAL
-                    .withDescription("Unexpected error during enqueue")
-                    .asRuntimeException()
+            val (status, message) = when (error) {
+                is NoSuchElementException -> Status.NOT_FOUND to CommandMessages.ENQUEUE_NOT_FOUND
+                is IllegalStateException -> Status.FAILED_PRECONDITION to CommandMessages.ENQUEUE_ALREADY_QUEUED
+                else -> Status.INTERNAL to CommandMessages.ENQUEUE_FAILED
             }
+            messenger.send(playerIds, message)
+            throw status.withDescription(error.message).asRuntimeException()
         }
 
         logger.info("Enqueue success: players {} joined queue {} (type={}, players={})", playerIds, queue.id, queue.type, queue.players.size)
+        messenger.send(playerIds, CommandMessages.ENQUEUE_SUCCESS)
         return enqueueResponse { this.queue = queue.toDefinition() }
     }
 
@@ -64,12 +65,14 @@ class QueueService(
 
         if (!success) {
             logger.warn("Dequeue failed: some players {} could not be dequeued", playerIds)
+            messenger.send(playerIds, CommandMessages.DEQUEUE_NOT_IN_QUEUE)
             throw Status.NOT_FOUND
                 .withDescription("Some players could not be dequeued")
                 .asRuntimeException()
         }
 
         logger.info("Dequeue success: players {} removed from their queues", playerIds)
+        messenger.send(playerIds, CommandMessages.DEQUEUE_SUCCESS)
         return dequeueResponse { }
     }
 

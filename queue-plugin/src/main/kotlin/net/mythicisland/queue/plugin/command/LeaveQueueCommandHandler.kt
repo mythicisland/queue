@@ -2,7 +2,6 @@ package net.mythicisland.queue.plugin.command
 
 import com.velocitypowered.api.command.SimpleCommand
 import com.velocitypowered.api.proxy.Player
-import io.grpc.StatusRuntimeException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.future.await
@@ -25,18 +24,15 @@ class LeaveQueueCommandHandler(
     override fun execute(invocation: SimpleCommand.Invocation) {
         val source = invocation.source()
         if (source !is Player) {
-            source.sendMessage(miniMessage.deserialize("<color:#dc2626>This Command can only used by players!"))
+            source.sendMessage(miniMessage.deserialize("<color:#dc2626>This command can only be used by players!"))
             return
         }
 
         scope.launch {
             try {
                 api.player().dequeue(source.uniqueId).await()
-                source.sendMessage(miniMessage.deserialize("<color:#22c55e>You have been leaved the Queue"))
-            } catch (e: StatusRuntimeException) {
-                source.sendMessage(miniMessage.deserialize("<color:#dc2626>Failed to leave the Queue, Please contact an Administrator about this!"))
-            } catch (e: Exception) {
-                source.sendMessage(miniMessage.deserialize("<color:#dc2626>Failed to leave the Queue, Please contact an Administrator about this!"))
+            } catch (_: Exception) {
+                // Messages are sent by the runtime
             }
         }
     }
