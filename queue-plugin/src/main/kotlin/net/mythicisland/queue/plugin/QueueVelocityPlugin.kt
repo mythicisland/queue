@@ -12,6 +12,7 @@ import net.mythicisland.queue.api.QueueApi
 import net.mythicisland.queue.api.QueueApiOptions
 import net.mythicisland.queue.plugin.command.LeaveQueueCommandHandler
 import net.mythicisland.queue.plugin.command.QueueCommandHandler
+import net.mythicisland.queue.plugin.listener.NetworkQuitListener
 import net.mythicisland.queue.plugin.config.QueueConfig
 import net.mythicisland.queue.plugin.config.YamlConfig
 import org.slf4j.LoggerFactory
@@ -45,6 +46,9 @@ class QueueVelocityPlugin @Inject constructor(
 
         logger.info("Registering commands...")
         registerCommands(server.commandManager)
+
+        logger.info("Registering listeners...")
+        server.eventManager.register(this, NetworkQuitListener(api))
 
         logger.info("mythicisland-queue initialized")
     }
