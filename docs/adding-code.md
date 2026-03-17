@@ -5,10 +5,20 @@
 **Check for existing types first.** Search packages for shared types before creating new ones.
 
 **Placement rules:**
-- `queue-runtime/.../service/` → Business logic (e.g., QueueService)
-- `queue-runtime/.../repository/` → Data access (e.g., QueueRepository)
-- `queue-runtime/.../extension/` → Kotlin extensions (e.g., PlayerExtension)
-- `queue-runtime/.../visualizer/` → Player UI components
+- `queue-shared/.../queue/` → Data models (Queue, QueueType)
+- `queue-shared/.../message/` → Message templates and player messaging
+- `queue-shared/.../extension/` → Kotlin extensions (PlayerExtension, UUIDExtension)
+- `queue-shared/.../event/` → Event constants (QueueEventNames)
+- `queue-shared/.../repository/` → Repository interfaces and base classes
+- `queue-runtime/.../service/` → gRPC service layer (QueueService, QueueDataService)
+- `queue-runtime/.../repository/` → Runtime repositories (QueueRepository, QueueTypeRepository)
+- `queue-runtime/.../persistence/` → Database persistence (PersistenceQueueRepository)
+- `queue-runtime/.../reconciler/` → Queue lifecycle reconciliation
+- `queue-runtime/.../server/` → SimpleCloud server management
+- `queue-runtime/.../visualizer/` → Player UI components (actionbar, tag resolvers)
+- `queue-runtime/.../event/` → NATS event publishing
+- `queue-runtime/.../nats/` → NATS connection management
+- `queue-runtime/.../database/` → Database connection and factory
 - `queue-proto/` → Protobuf definitions
 
 **Quality rules:**
@@ -31,7 +41,7 @@
 ## Adding an Extension Function
 
 Extensions add utility methods to existing types.
-
+Place in `queue-shared/.../extension/` if used by multiple modules, or `queue-runtime/.../` if runtime-only.
 
 **Naming convention:** `[Type]Extension.kt` (e.g., `PlayerExtension.kt`, `UUIDExtension.kt`)
 
