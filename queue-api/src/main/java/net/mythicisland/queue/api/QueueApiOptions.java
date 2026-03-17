@@ -63,12 +63,12 @@ public class QueueApiOptions {
         private String natsSecret;
 
         public Builder() {
-            this.grpcHost = System.getenv().getOrDefault("FRIENDS_GRPC_HOST", "localhost");
-            this.grpcPort = parsePort(System.getenv("FRIENDS_GRPC_PORT"), 4564);
-            this.natsUrl = System.getenv().getOrDefault("FRIENDS_NATS_URL", "nats://friends.mythicisland.net:4222");
-            this.natsFailoverReconnectAfter = parseDuration(System.getenv("FRIENDS_NATS_FAILOVER_RECONNECT_AFTER"), Duration.ofSeconds(30));
-            this.natsUser = System.getenv().getOrDefault("FRIENDS_NATS_USER", "mythicisland");
-            this.natsSecret = System.getenv().getOrDefault("FRIENDS_NATS_SECRET", "t3s6z3ovgYQNk4AiDJhnZH1hp2fZeglo");
+            this.grpcHost = System.getenv().getOrDefault("QUEUE_GRPC_HOST", "localhost");
+            this.grpcPort = parsePort(System.getenv("QUEUE_GRPC_PORT"), 4564);
+            this.natsUrl = System.getenv().getOrDefault("QUEUE_NATS_URL", "nats://friends.mythicisland.net:4222");
+            this.natsFailoverReconnectAfter = parseDuration(System.getenv("QUEUE_NATS_FAILOVER_RECONNECT_AFTER"), Duration.ofSeconds(30));
+            this.natsUser = System.getenv().getOrDefault("QUEUE_NATS_USER", "mythicisland");
+            this.natsSecret = System.getenv().getOrDefault("QUEUE_NATS_SECRET", "t3s6z3ovgYQNk4AiDJhnZH1hp2fZeglo");
         }
 
         public Builder grpcHost(String grpcHost) {
