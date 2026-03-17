@@ -9,7 +9,7 @@ import com.velocitypowered.api.plugin.Plugin
 import com.velocitypowered.api.plugin.annotation.DataDirectory
 import com.velocitypowered.api.proxy.ProxyServer
 import net.mythicisland.queue.api.QueueApi
-import net.mythicisland.queue.api.QueueApiOptions
+import net.mythicisland.queue.api.builders.queueApi
 import net.mythicisland.queue.plugin.command.LeaveQueueCommandHandler
 import net.mythicisland.queue.plugin.command.QueueCommandHandler
 import net.mythicisland.queue.plugin.listener.NetworkQuitListener
@@ -80,15 +80,13 @@ class QueueVelocityPlugin @Inject constructor(
             logger.info("Connecting to queue...")
             val config = queueConfig.get().queue
 
-            val api = QueueApi.create(
-                QueueApiOptions.builder()
-                    .natsUrl(config.natsUrl)
-                    .natsUser(config.natsUser)
-                    .natsSecret(config.natsSecret)
-                    .grpcPort(config.grpcPort)
-                    .grpcHost(config.grpcHost)
-                    .build()
-            )
+            val api = queueApi {
+                grpcHost = config.grpcHost
+                grpcPort = config.grpcPort
+                natsUrl = config.natsUrl
+                natsUser = config.natsUser
+                natsSecret = config.natsSecret
+            }
 
             logger.info("Successfully connected to queue!")
             return api

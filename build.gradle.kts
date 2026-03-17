@@ -1,3 +1,6 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.shadow)
@@ -33,6 +36,11 @@ subprojects {
 
     kotlin {
         jvmToolchain(21)
+        compilerOptions {
+            apiVersion.set(KotlinVersion.KOTLIN_2_0)
+            jvmTarget.set(JvmTarget.JVM_21)
+            freeCompilerArgs.add("-Xannotation-default-target=param-property")
+        }
     }
 
     java {
