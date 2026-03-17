@@ -4,10 +4,10 @@ import com.velocitypowered.api.command.SimpleCommand
 import com.velocitypowered.api.proxy.Player
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.mythicisland.queue.api.QueueApi
+import net.mythicisland.queue.api.extensions.enqueueSuspending
 
 /**
  * Handles the /queue command to enqueue a player into a queue type.
@@ -38,7 +38,7 @@ class QueueCommandHandler(
 
         scope.launch {
             try {
-                api.player().enqueue(type, source.uniqueId).await()
+                api.player().enqueueSuspending(type, source.uniqueId)
             } catch (_: Exception) {
                 // Messages are sent by the runtime
             }
@@ -51,7 +51,7 @@ class QueueCommandHandler(
         val types = try {
             api.data().getAllQueueTypes().get()
                 .queueTypesList.map { it.name }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             return emptyList()
         }
 

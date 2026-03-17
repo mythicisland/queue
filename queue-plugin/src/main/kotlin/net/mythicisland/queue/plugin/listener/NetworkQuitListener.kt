@@ -4,9 +4,9 @@ import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.connection.DisconnectEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
 import net.mythicisland.queue.api.QueueApi
+import net.mythicisland.queue.api.extensions.dequeueSuspending
 
 class NetworkQuitListener(
     private val api: QueueApi
@@ -20,7 +20,7 @@ class NetworkQuitListener(
 
         scope.launch {
             try {
-                api.player().dequeue(player.uniqueId).await()
+                api.player().dequeueSuspending(player.uniqueId)
             } catch (_: Exception) {
 
             }

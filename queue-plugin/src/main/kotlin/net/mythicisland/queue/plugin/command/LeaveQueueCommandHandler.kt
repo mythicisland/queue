@@ -4,10 +4,10 @@ import com.velocitypowered.api.command.SimpleCommand
 import com.velocitypowered.api.proxy.Player
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.mythicisland.queue.api.QueueApi
+import net.mythicisland.queue.api.extensions.dequeueSuspending
 
 /**
  * Handles the /leavequeue command to dequeue a player from their current queue.
@@ -30,7 +30,7 @@ class LeaveQueueCommandHandler(
 
         scope.launch {
             try {
-                api.player().dequeue(source.uniqueId).await()
+                api.player().dequeueSuspending(source.uniqueId)
             } catch (_: Exception) {
                 // Messages are sent by the runtime
             }
