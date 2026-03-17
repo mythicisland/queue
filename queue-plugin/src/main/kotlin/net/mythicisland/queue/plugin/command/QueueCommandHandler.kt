@@ -3,7 +3,6 @@ package net.mythicisland.queue.plugin.command
 import com.velocitypowered.api.command.SimpleCommand
 import com.velocitypowered.api.proxy.Player
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.mythicisland.queue.api.QueueApi
@@ -15,10 +14,10 @@ import net.mythicisland.queue.api.extensions.enqueueSuspending
  * Usage: /queue <type>
  */
 class QueueCommandHandler(
-    private val api: QueueApi
+    private val api: QueueApi,
+    private val scope: CoroutineScope,
 ) : SimpleCommand {
 
-    private val scope = CoroutineScope(Dispatchers.IO)
     private val miniMessage = MiniMessage.miniMessage()
 
     override fun execute(invocation: SimpleCommand.Invocation) {
