@@ -12,6 +12,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import net.mythicisland.queue.runtime.config.MessageConfig
 import net.mythicisland.queue.runtime.config.YamlConfig
+import net.mythicisland.queue.runtime.database.DatabaseFactory
 import net.mythicisland.queue.runtime.launcher.QueueStartCommand
 import net.mythicisland.queue.runtime.nats.NatsConnectionHandler
 import net.mythicisland.queue.runtime.nats.NatsErrorListener
@@ -42,6 +43,7 @@ class QueueRuntime(
 
     private var natsConnection: Connection? = null
 
+    private val database = DatabaseFactory.createDatabase(args.databaseUrl)
     private val queueTypeRepository = QueueTypeRepository
     private val queueRepository = QueueRepository(queueTypeRepository)
     private val finder = ServerFinder(api, queueTypeRepository)
@@ -68,6 +70,8 @@ class QueueRuntime(
 
         connectNats()
 
+        database.setup()
+
         logger.info("Setting up queue repository...")
         queueRepository.setReconciler(reconciler)
         queueRepository.setEventPublisher(eventPublisher)
@@ -85,7 +89,7 @@ class QueueRuntime(
 
         logger.info("Queue started successfully")
 
-        suspendCancellableCoroutine<Unit> { continuation ->
+        suspendCancellableCoroutine { continuation ->
             Runtime.getRuntime().addShutdownHook(Thread {
                 logger.info("Shutting down QueueRuntime...")
                 runBlocking { shutdown() }

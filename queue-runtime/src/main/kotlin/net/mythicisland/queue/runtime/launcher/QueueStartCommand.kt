@@ -27,6 +27,9 @@ object QueueStartCommand : SuspendingCliktCommand() {
         }
     }
 
+    val databaseUrl: String by option(help = "Database URL", envvar = "DATABASE_URL")
+        .default("")
+
     val grpcPort: Int by option(help = "gRPC Port", envvar = "GRPC_PORT")
         .int().default(4564)
 

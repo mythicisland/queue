@@ -41,8 +41,6 @@ subprojects {
 
     tasks.shadowJar {
         mergeServiceFiles()
-        exclude("META-INF/proguard/**")
-        exclude("META-INF/versions/**")
         archiveFileName.set("${project.name}.jar")
     }
 }
