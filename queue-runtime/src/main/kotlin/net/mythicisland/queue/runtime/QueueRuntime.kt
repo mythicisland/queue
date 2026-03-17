@@ -18,6 +18,7 @@ import net.mythicisland.queue.runtime.nats.NatsConnectionHandler
 import net.mythicisland.queue.runtime.nats.NatsErrorListener
 import net.mythicisland.queue.runtime.nats.NatsFailoverConnectionManager
 import net.mythicisland.queue.runtime.queue.event.EventPublisher
+import net.mythicisland.queue.runtime.queue.persistence.PersistenceQueueRepository
 import net.mythicisland.queue.runtime.queue.reconciler.QueueStatusReconciler
 import net.mythicisland.queue.runtime.queue.repository.QueueRepository
 import net.mythicisland.queue.runtime.queue.repository.QueueTypeRepository
@@ -45,7 +46,8 @@ class QueueRuntime(
 
     private val database = DatabaseFactory.createDatabase(args.databaseUrl)
     private val queueTypeRepository = QueueTypeRepository
-    private val queueRepository = QueueRepository(queueTypeRepository)
+    private val persistenceQueueRepository = PersistenceQueueRepository(database)
+    private val queueRepository = QueueRepository(queueTypeRepository, persistenceQueueRepository)
     private val finder = ServerFinder(api, queueTypeRepository)
     private val visualizer = ActionbarVisualizer(api.player())
     private val eventPublisher = EventPublisher(manager.connection())
@@ -71,6 +73,9 @@ class QueueRuntime(
         connectNats()
 
         database.setup()
+
+        logger.info("Loading queues from database...")
+        queueRepository.loadFromDatabase()
 
         logger.info("Setting up queue repository...")
         queueRepository.setReconciler(reconciler)
@@ -108,7 +113,7 @@ class QueueRuntime(
     private suspend fun shutdown() {
         val activeQueues = queueRepository.getAllQueues()
         if (activeQueues.isNotEmpty()) {
-            logger.info("Cleaning up {} active queues...", activeQueues.size)
+            logger.info("Persisting {} active queues for restart recovery...", activeQueues.size)
             for (queue in activeQueues) {
                 queue.server?.let { server ->
                     logger.info("Freeing server {} from queue {}", server.serverId, queue.id)
@@ -118,9 +123,7 @@ class QueueRuntime(
                         logger.warn("Failed to free server {} during shutdown", server.serverId, e)
                     }
                 }
-                queueRepository.deleteQueue(queue.id)
             }
-            logger.info("All queues cleaned up")
         }
 
         reconciler.shutdown()

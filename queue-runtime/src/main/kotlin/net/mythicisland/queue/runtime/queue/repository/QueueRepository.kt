@@ -4,18 +4,22 @@ import build.buf.gen.mythicisland.queue.v1.QueueStatus
 import net.mythicisland.queue.runtime.queue.Queue
 import net.mythicisland.queue.runtime.queue.QueueType
 import net.mythicisland.queue.runtime.queue.event.EventPublisher
+import net.mythicisland.queue.runtime.queue.persistence.PersistenceQueueRepository
 import net.mythicisland.queue.runtime.queue.reconciler.QueueStatusReconciler
 import org.apache.logging.log4j.LogManager
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * In-memory repository for managing queues and player-to-queue mappings.
+ * In-memory repository for managing queues and player-to-queue mappings,
+ * backed by a persistence layer for durability across restarts.
  *
  * @property types Repository for queue type configurations
+ * @property persistence Database-backed persistence layer
  */
 class QueueRepository(
     private val types: QueueTypeRepository,
+    private val persistence: PersistenceQueueRepository,
 ) {
 
     private val logger = LogManager.getLogger(QueueRepository::class.java)
@@ -26,8 +30,8 @@ class QueueRepository(
     /** Protobuf snapshots of the last persisted queue state, used for change detection. */
     private val snapshots = ConcurrentHashMap<UUID, build.buf.gen.mythicisland.queue.v1.Queue>()
 
-    private lateinit var reconciler: QueueStatusReconciler
-    private lateinit var eventPublisher: EventPublisher
+    private var reconciler: QueueStatusReconciler? = null
+    private var eventPublisher: EventPublisher? = null
 
     fun setReconciler(reconciler: QueueStatusReconciler) {
         this.reconciler = reconciler
@@ -35,6 +39,44 @@ class QueueRepository(
 
     fun setEventPublisher(eventPublisher: EventPublisher) {
         this.eventPublisher = eventPublisher
+    }
+
+    /**
+     * Loads all queues from the database into memory.
+     * Queues in server-dependent states are reset to SEARCHING_SERVER.
+     * Finished queues are deleted from the database.
+     */
+    fun loadFromDatabase() {
+        val loaded = persistence.loadAll()
+        var restored = 0
+        var cleaned = 0
+
+        for (queue in loaded) {
+            when (queue.status) {
+                QueueStatus.FINISHED -> {
+                    persistence.delete(queue.id)
+                    cleaned++
+                    continue
+                }
+                QueueStatus.SEARCHING_SERVER,
+                QueueStatus.WAITING_FOR_SERVER,
+                QueueStatus.SERVER_READY,
+                QueueStatus.COUNTDOWN,
+                QueueStatus.TELEPORTING -> {
+                    queue.status = QueueStatus.SEARCHING_SERVER
+                    queue.countdownRemaining = 0
+                }
+                else -> {}
+            }
+
+            queues[queue.id] = queue
+            snapshots[queue.id] = queue.toDefinition()
+            queue.players.forEach { playersToQueue[it] = queue.id }
+            persistence.save(queue)
+            restored++
+        }
+
+        logger.info("Loaded {} queues from database ({} cleaned up)", restored, cleaned)
     }
 
     fun getQueueByPlayer(playerId: UUID): Queue? {
@@ -47,8 +89,9 @@ class QueueRepository(
         queues.remove(queueId)
         snapshots.remove(queueId)
         removedPlayers.forEach { playersToQueue.remove(it) }
-        reconciler.clear(queueId)
-        eventPublisher.publishQueueDeleted(queue)
+        reconciler?.clear(queueId)
+        eventPublisher?.publishQueueDeleted(queue)
+        persistence.delete(queueId)
         logger.info("Deleted queue {} (removed {} player mappings)", queueId, removedPlayers.size)
         return true
     }
@@ -83,13 +126,14 @@ class QueueRepository(
         queue.players.addAll(playerIds)
         queues[queue.id] = queue
         playerIds.forEach { playersToQueue[it] = queue.id }
+        persistence.save(queue)
 
         if (existingQueue == null) {
-            eventPublisher.publishQueueCreated(queue)
+            eventPublisher?.publishQueueCreated(queue)
         }
-        eventPublisher.publishEnqueue(queue, playerIds)
+        eventPublisher?.publishEnqueue(queue, playerIds)
 
-        reconciler.reconcile(queue.id)
+        reconciler?.reconcile(queue.id)
         return Result.success(queue)
     }
 
@@ -103,6 +147,7 @@ class QueueRepository(
         )
         queues[queue.id] = queue
         snapshots[queue.id] = queue.toDefinition()
+        persistence.save(queue)
         return queue
     }
 
@@ -124,8 +169,9 @@ class QueueRepository(
             return false
         }
         logger.info("Player {} left queue {} (type={}, remaining={})", playerId, queue.id, queue.type, queue.players.size)
-        eventPublisher.publishDequeue(queue, listOf(playerId))
-        reconciler.reconcile(queue.id)
+        eventPublisher?.publishDequeue(queue, listOf(playerId))
+        persistence.save(queue)
+        reconciler?.reconcile(queue.id)
         return true
     }
 
@@ -158,9 +204,10 @@ class QueueRepository(
         val after = queue.toDefinition()
         queues[queue.id] = queue
         snapshots[queue.id] = after
+        persistence.save(queue)
 
         if (before != null && before != after) {
-            eventPublisher.publishQueueUpdated(before, after)
+            eventPublisher?.publishQueueUpdated(before, after)
         }
     }
 
