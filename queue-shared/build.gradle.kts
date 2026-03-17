@@ -1,5 +1,4 @@
 dependencies {
-    api(libs.caffeine)
     api(libs.queue.proto)
     api(libs.bundles.grpc)
     api(libs.bundles.configurate)
