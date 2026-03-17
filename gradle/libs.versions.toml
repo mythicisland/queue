@@ -20,7 +20,6 @@ adventure = "4.26.1"
 cloud-api = "0.1.0-platform.20-dev.1771710355025-becd984"
 queue-proto = "1.5.0.2.20260316100358.c173c7fd607a"
 postgre = "42.7.10"
-caffeine = "3.2.3"
 velocity = "3.5.0-SNAPSHOT"
 run-velocity = "3.0.2"
 
@@ -51,7 +50,6 @@ configurate-extra-kotlin = { module = "org.spongepowered:configurate-extra-kotli
 # Other dependencies
 clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
 jnats = { module = "io.nats:jnats", version.ref = "jnats" }
-caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
 postgre-jdbc = { module = "org.postgresql:postgresql", version.ref = "postgre" }
 cloud-api = { module = "app.simplecloud.api:api", version.ref = "cloud-api" }
 velocity-api = { module = "com.velocitypowered:velocity-api", version.ref = "velocity" }
@@ -59,7 +57,6 @@ queue-proto = { module = "build.buf.gen:mythicisland_queue_grpc_kotlin", version
 
 # Adventure
 adventure-api = { module = "net.kyori:adventure-api", version.ref = "adventure" }
-adventure-text-serializer-gson = { module = "net.kyori:adventure-text-serializer-gson", version.ref = "adventure" }
 adventure-text-minimessage = { module = "net.kyori:adventure-text-minimessage", version.ref = "adventure" }
 
 # JOOQ
@@ -78,7 +75,7 @@ grpc-netty-shaded = { module = "io.grpc:grpc-netty-shaded", version.ref = "grpc"
 
 [bundles]
 logging = ["log4j-core", "log4j-api", "log4j-slf4j-impl", "slf4j-api"]
-adventure = ["adventure-text-serializer-gson", "adventure-api", "adventure-text-minimessage"]
+adventure = ["adventure-api", "adventure-text-minimessage"]
 configurate = ["configurate-yaml", "configurate-extra-kotlin"]
 jooq = ["jooq-kotlin-coroutines", "jooq", "jooq-meta-extensions", "jooq-meta"]
 grpc = ["grpc-stub", "grpc-netty-shaded", "grpc-kotlin-stub", "grpc-protobuf", "protobuf-kotlin"]

@@ -11,7 +11,6 @@ dependencies {
     implementation(project(":queue-shared"))
     implementation(libs.clikt)
     implementation(libs.postgre.jdbc)
-    implementation(libs.cloud.api)
     implementation(libs.jnats)
     implementation(libs.bundles.jooq)
 

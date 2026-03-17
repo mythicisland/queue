@@ -2,6 +2,11 @@
 
 A [SimpleCloud](https://simplecloud.app) droplet for queuing players into minigames with automatic server provisioning and player transfers.
 
+## TODO
+- [ ] **Metrics**: Advanced metrics for queue
+- [ ] **Estimated Wait**: Estimated Wait on Queue Status messages
+- [ ] **Queue Type Rating**: Queue Type Rating based on player that play the game (Popular, Good, Medium, Low)
+
 ## Architecture
 
 ### Queue Lifecycle

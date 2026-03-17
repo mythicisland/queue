@@ -8,10 +8,15 @@ import com.velocitypowered.api.event.proxy.ProxyShutdownEvent
 import com.velocitypowered.api.plugin.Plugin
 import com.velocitypowered.api.plugin.annotation.DataDirectory
 import com.velocitypowered.api.proxy.ProxyServer
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import net.mythicisland.queue.api.QueueApi
-import net.mythicisland.queue.api.QueueApiOptions
+import net.mythicisland.queue.api.builders.queueApi
 import net.mythicisland.queue.plugin.command.LeaveQueueCommandHandler
 import net.mythicisland.queue.plugin.command.QueueCommandHandler
+import net.mythicisland.queue.plugin.listener.NetworkQuitListener
 import net.mythicisland.queue.plugin.config.QueueConfig
 import net.mythicisland.queue.plugin.config.YamlConfig
 import org.slf4j.LoggerFactory
@@ -34,6 +39,7 @@ class QueueVelocityPlugin @Inject constructor(
     private val config = YamlConfig(dataDirectory.toString())
     private val queueConfig = config.load<QueueConfig>("config")
 
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val api = connectToQueue()
 
     @Subscribe
@@ -46,12 +52,18 @@ class QueueVelocityPlugin @Inject constructor(
         logger.info("Registering commands...")
         registerCommands(server.commandManager)
 
+        logger.info("Registering listeners...")
+        server.eventManager.register(this, NetworkQuitListener(api, scope))
+
         logger.info("mythicisland-queue initialized")
     }
 
     @Subscribe
     fun onProxyShutdown(event: ProxyShutdownEvent) {
         logger.info("Shutting down mythicisland-queue...")
+
+        logger.info("Cancelling coroutine scope...")
+        scope.cancel()
 
         logger.info("Closing config...")
         config.close()
@@ -63,11 +75,11 @@ class QueueVelocityPlugin @Inject constructor(
     private fun registerCommands(commandManager: CommandManager) {
         commandManager.register(
             commandManager.metaBuilder("queue").plugin(this).build(),
-            QueueCommandHandler(api)
+            QueueCommandHandler(api, scope)
         )
         commandManager.register(
             commandManager.metaBuilder("leavequeue").plugin(this).build(),
-            LeaveQueueCommandHandler(api)
+            LeaveQueueCommandHandler(api, scope)
         )
     }
 
@@ -76,15 +88,13 @@ class QueueVelocityPlugin @Inject constructor(
             logger.info("Connecting to queue...")
             val config = queueConfig.get().queue
 
-            val api = QueueApi.create(
-                QueueApiOptions.builder()
-                    .natsUrl(config.natsUrl)
-                    .natsUser(config.natsUser)
-                    .natsSecret(config.natsSecret)
-                    .grpcPort(config.grpcPort)
-                    .grpcHost(config.grpcHost)
-                    .build()
-            )
+            val api = queueApi {
+                grpcHost = config.grpcHost
+                grpcPort = config.grpcPort
+                natsUrl = config.natsUrl
+                natsUser = config.natsUser
+                natsSecret = config.natsSecret
+            }
 
             logger.info("Successfully connected to queue!")
             return api
