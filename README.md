@@ -7,20 +7,16 @@ A [SimpleCloud](https://simplecloud.app) droplet for queuing players into miniga
 ### Queue Lifecycle
 
 ```mermaid
-stateDiagram-v2
-    [*] --> NOT_ENOUGH_PLAYERS
-
-    NOT_ENOUGH_PLAYERS --> WAITING_COUNTDOWN : min players reached
-    WAITING_COUNTDOWN --> NOT_ENOUGH_PLAYERS : players drop below min
-    WAITING_COUNTDOWN --> SEARCHING_SERVER : countdown expired or full
-    SEARCHING_SERVER --> SERVER_READY : server available
-    SEARCHING_SERVER --> WAITING_FOR_SERVER : no server free
-    WAITING_FOR_SERVER --> SERVER_READY : server becomes available
-    SERVER_READY --> COUNTDOWN : start game countdown
-    COUNTDOWN --> TELEPORTING : countdown finished
-    TELEPORTING --> FINISHED : players transferred
-
-    FINISHED --> [*]
+flowchart LR
+    NEP[NOT_ENOUGH_PLAYERS] -->|min players reached| WC[WAITING_COUNTDOWN]
+    WC -.->|players drop below min| NEP
+    WC -->|countdown expired / full| SS[SEARCHING_SERVER]
+    SS -->|server available| SR[SERVER_READY]
+    SS -->|no server free| WFS[WAITING_FOR_SERVER]
+    WFS -->|server becomes available| SR
+    SR -->|start game countdown| CD[COUNTDOWN]
+    CD -->|countdown finished| TP[TELEPORTING]
+    TP -->|players transferred| FIN[FINISHED]
 ```
 
 | Status | Description |
