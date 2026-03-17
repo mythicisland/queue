@@ -23,6 +23,7 @@ import net.mythicisland.queue.runtime.queue.reconciler.QueueStatusReconciler
 import net.mythicisland.queue.runtime.queue.repository.QueueRepository
 import net.mythicisland.queue.runtime.queue.repository.QueueTypeRepository
 import net.mythicisland.queue.runtime.queue.server.ServerFinder
+import net.mythicisland.queue.runtime.queue.message.PlayerMessenger
 import net.mythicisland.queue.runtime.queue.service.QueueDataService
 import net.mythicisland.queue.runtime.queue.service.QueueService
 import net.mythicisland.queue.runtime.queue.visualizer.ActionbarVisualizer
@@ -50,6 +51,7 @@ class QueueRuntime(
     private val queueRepository = QueueRepository(queueTypeRepository, persistenceQueueRepository)
     private val finder = ServerFinder(api, queueTypeRepository)
     private val visualizer = ActionbarVisualizer(api.player())
+    private val messenger = PlayerMessenger(api.player())
     private val eventPublisher = EventPublisher(manager.connection())
     private val reconciler = QueueStatusReconciler(
         queueRepository,
@@ -181,7 +183,7 @@ class QueueRuntime(
 
     private fun createGrpcServer(): Server {
         return ServerBuilder.forPort(args.grpcPort)
-            .addService(QueueService(queueRepository))
+            .addService(QueueService(queueRepository, messenger))
             .addService(QueueDataService(queueRepository, queueTypeRepository))
             .build()
     }
