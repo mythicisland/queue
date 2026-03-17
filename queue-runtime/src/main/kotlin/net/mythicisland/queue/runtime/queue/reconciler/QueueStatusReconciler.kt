@@ -197,7 +197,7 @@ class QueueStatusReconciler(
                 logger.info("Queue {} no server available, waiting for new server", queue.id)
                 updateStatus(queue, QueueStatus.WAITING_FOR_SERVER)
             }
-        } catch (e: NotImplementedError) {
+        } catch (_: NotImplementedError) {
             logger.warn("Queue {} server provisioning not yet available, waiting for existing server", queue.id)
             updateStatus(queue, QueueStatus.WAITING_FOR_SERVER)
         } catch (e: Exception) {

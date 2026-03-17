@@ -4,77 +4,49 @@ A [SimpleCloud](https://simplecloud.app) droplet for queuing players into miniga
 
 ## Architecture
 
-```
-queue/
-├── queue-api        # Java client library (gRPC + NATS) for interacting with the queue
-├── queue-plugin     # Velocity proxy plugin providing /queue and /leavequeue commands
-├── queue-runtime    # Standalone runtime (the droplet) managing the queue lifecycle
-└── queue-shared     # Shared utilities
-```
+### Queue Lifecycle
 
-## Architecture Diagram
 ```mermaid
-flowchart TB
-    subgraph Plugin["Velocity Plugin"]
-        CMD["/queue & /leavequeue"]
-    end
+stateDiagram-v2
+    [*] --> NOT_ENOUGH_PLAYERS
 
-    subgraph Runtime["Queue Runtime (Droplet)"]
-        Reconciler["Status Reconciler"]
-        Visualizer["Visualizer Loop\n(actionbar every 1s)"]
-    end
+    NOT_ENOUGH_PLAYERS --> WAITING_COUNTDOWN : min players reached
+    WAITING_COUNTDOWN --> NOT_ENOUGH_PLAYERS : players drop below min
+    WAITING_COUNTDOWN --> SEARCHING_SERVER : countdown expired or full
+    SEARCHING_SERVER --> SERVER_READY : server available
+    SEARCHING_SERVER --> WAITING_FOR_SERVER : no server free
+    WAITING_FOR_SERVER --> SERVER_READY : server becomes available
+    SERVER_READY --> COUNTDOWN : start game countdown
+    COUNTDOWN --> TELEPORTING : countdown finished
+    TELEPORTING --> FINISHED : players transferred
 
-    Plugin -->|gRPC| Runtime
-    Runtime -->|NATS| SC["SimpleCloud API\n(server discovery & transfers)"]
-
-    subgraph Lifecycle["Queue Lifecycle"]
-        NEP["NOT_ENOUGH_PLAYERS"]
-        WC["WAITING_COUNTDOWN"]
-        SS["SEARCHING_SERVER"]
-        WFS["WAITING_FOR_SERVER"]
-        SR["SERVER_READY"]
-        CD["COUNTDOWN"]
-        TP["TELEPORTING"]
-        FIN["FINISHED"]
-
-        NEP --> WC
-        WC -->|countdown expired / full| SS
-        WC -.->|players drop below min| NEP
-        SS --> SR
-        SS -->|no server free| WFS
-        WFS -->|server becomes available| SR
-        SR --> CD
-        CD --> TP
-        TP --> FIN
-    end
-
-    Runtime --> Lifecycle
+    FINISHED --> [*]
 ```
+
+| Status | Description |
+|---|---|
+| `NOT_ENOUGH_PLAYERS` | Waiting for the minimum player count |
+| `WAITING_COUNTDOWN` | Minimum reached, counting down while waiting for more players |
+| `SEARCHING_SERVER` | Reserving an available game server |
+| `WAITING_FOR_SERVER` | No server available yet, waiting for one |
+| `SERVER_READY` | Server reserved, starting the game countdown |
+| `COUNTDOWN` | Final countdown before teleport |
+| `TELEPORTING` | Transferring players to the game server |
+| `FINISHED` | Cleanup: free server, delete queue |
 
 ### How it works
 
-The runtime manages queues through a **status reconciler** that drives each queue through its lifecycle:
+The runtime manages queues through a **status reconciler** that drives each queue through its lifecycle. It uses **delta-time countdown tracking** and **per-queue mutex synchronization** for thread-safe transitions. A **visualizer loop** sends actionbar messages to all queued players every second.
 
-```
-NOT_ENOUGH_PLAYERS → WAITING_COUNTDOWN → SEARCHING_SERVER → WAITING_FOR_SERVER/SERVER_READY → COUNTDOWN → TELEPORTING → FINISHED
-```
-
-1. **NOT_ENOUGH_PLAYERS** — Waiting for the minimum player count to be reached
-2. **WAITING_COUNTDOWN** — Minimum reached, countdown running while waiting for more players (or until full)
-3. **SEARCHING_SERVER** — Countdown expired or queue full, reserving an available server
-4. **WAITING_FOR_SERVER** — No server available yet, waiting for one to become ready
-5. **SERVER_READY** — Server reserved, starting the game countdown
-6. **COUNTDOWN** — Final countdown before teleporting players
-7. **TELEPORTING** — Transferring all players to the game server
-8. **FINISHED** — Cleanup: free the server, delete the queue
-
-The reconciler uses **delta-time countdown tracking** and **per-queue mutex synchronization** to ensure thread-safe status transitions. A dedicated **visualizer loop** sends actionbar messages to all players in active queues every second.
+Queues are persisted to a PostgreSQL database so they survive runtime restarts. On startup, queues are restored from the database and server-dependent states are reset to `SEARCHING_SERVER`.
 
 ### Communication
 
-- **gRPC** — Client-server communication for enqueue/dequeue operations
-- **NATS** — Messaging with failover connection management
-- **SimpleCloud API** — Server discovery, player transfers, and event subscriptions
+| Protocol | Purpose |
+|---|---|
+| gRPC | Client-server communication (enqueue, dequeue, queries) |
+| NATS | Event publishing with failover connection management |
+| PostgreSQL | Queue persistence across restarts |
 
 ## Queue Type Configuration
 
@@ -262,21 +234,8 @@ api.close()
 The runtime is configured via CLI options, environment variables, or a `queue.properties` file:
 
 ```bash
-./gradlew :queue-runtime:run --args="--grpc-port=4564 --nats-url=nats://localhost:4222 --network-id=your-id --network-secret=your-secret --controller-url=https://controller.platform.simplecloud.app"
+./gradlew :queue-runtime:run"
 ```
-
-| Option | Env Variable | Default | Description |
-|---|---|---|---|
-| `--grpc-port` | `GRPC_PORT` | `4564` | gRPC server port |
-| `--nats-url` | `NATS_URL` | — | NATS connection URL |
-| `--nats-user` | `NATS_USER` | — | NATS username |
-| `--nats-secret` | `NATS_SECRET` | — | NATS password |
-| `--nats-failover-reconnect-after` | `NATS_FAILOVER_RECONNECT_AFTER` | `30s` | Full reconnect timeout (e.g. `30s`, `2m`) |
-| `--config-path` | `CONFIG_PATH` | `.` | Path to config directory |
-| `--network-id` | `NETWORK_ID` | — | SimpleCloud network ID |
-| `--network-secret` | `NETWORK_SECRET` | — | SimpleCloud network secret |
-| `--controller-url` | `CONTROLLER_URL` | `https://controller.platform.simplecloud.app` | SimpleCloud controller URL |
-| `--controller-nats-url` | `CONTROLLER_NATS_URL` | `nats://platform.simplecloud.app:4222` | SimpleCloud controller NATS URL |
 
 ### Running the Velocity plugin
 
@@ -289,10 +248,3 @@ The runtime is configured via CLI options, environment variables, or a `queue.pr
 ```bash
 ./gradlew :queue-api:publish
 ```
-
-## Player Commands
-
-| Command | Permission | Description |
-|---|---|---|
-| `/queue <type>` | `mythicisland.queue.command.enqueue` | Join a queue of the specified type |
-| `/leavequeue` | `mythicisland.queue.command.dequeue` | Leave your current queue |
