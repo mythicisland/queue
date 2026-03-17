@@ -6,6 +6,8 @@ import net.mythicisland.queue.runtime.queue.QueueType
 import net.mythicisland.queue.runtime.queue.event.EventPublisher
 import net.mythicisland.queue.runtime.queue.persistence.PersistenceQueueRepository
 import net.mythicisland.queue.runtime.queue.reconciler.QueueStatusReconciler
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.apache.logging.log4j.LogManager
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -29,6 +31,9 @@ class QueueRepository(
 
     /** Protobuf snapshots of the last persisted queue state, used for change detection. */
     private val snapshots = ConcurrentHashMap<UUID, build.buf.gen.mythicisland.queue.v1.Queue>()
+
+    /** Per-type mutexes to serialize enqueue operations for the same queue type. */
+    private val typeMutexes = ConcurrentHashMap<String, Mutex>()
 
     private var reconciler: QueueStatusReconciler? = null
     private var eventPublisher: EventPublisher? = null
@@ -110,31 +115,34 @@ class QueueRepository(
         val type = types.find(queueType)
             ?: return Result.failure(NoSuchElementException("Queue type '$queueType' not found"))
 
-        if (playerIds.any { playersToQueue.containsKey(it) }) {
-            return Result.failure(IllegalStateException("Some players are already in a queue"))
+        val mutex = typeMutexes.getOrPut(queueType) { Mutex() }
+        return mutex.withLock {
+            if (playerIds.any { playersToQueue.containsKey(it) }) {
+                return@withLock Result.failure(IllegalStateException("Some players are already in a queue"))
+            }
+
+            val existingQueue = findQueue(queueType, playerIds.size)
+            val queue = existingQueue ?: createQueue(type)
+
+            if (existingQueue != null) {
+                logger.info("Players {} joining existing queue {} (type={}, players={})", playerIds, queue.id, queue.type, queue.players.size)
+            } else {
+                logger.info("Players {} created new queue {} (type={}, capacity={})", playerIds, queue.id, queue.type, queue.capacity)
+            }
+
+            queue.players.addAll(playerIds)
+            queues[queue.id] = queue
+            playerIds.forEach { playersToQueue[it] = queue.id }
+            persistence.save(queue)
+
+            if (existingQueue == null) {
+                eventPublisher?.publishQueueCreated(queue)
+            }
+            eventPublisher?.publishEnqueue(queue, playerIds)
+
+            reconciler?.reconcile(queue.id)
+            Result.success(queue)
         }
-
-        val existingQueue = findQueue(queueType, playerIds.size)
-        val queue = existingQueue ?: createQueue(type)
-
-        if (existingQueue != null) {
-            logger.info("Players {} joining existing queue {} (type={}, players={})", playerIds, queue.id, queue.type, queue.players.size)
-        } else {
-            logger.info("Players {} created new queue {} (type={}, capacity={})", playerIds, queue.id, queue.type, queue.capacity)
-        }
-
-        queue.players.addAll(playerIds)
-        queues[queue.id] = queue
-        playerIds.forEach { playersToQueue[it] = queue.id }
-        persistence.save(queue)
-
-        if (existingQueue == null) {
-            eventPublisher?.publishQueueCreated(queue)
-        }
-        eventPublisher?.publishEnqueue(queue, playerIds)
-
-        reconciler?.reconcile(queue.id)
-        return Result.success(queue)
     }
 
     private fun createQueue(type: QueueType): Queue {
