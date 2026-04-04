@@ -83,6 +83,16 @@ println("${type.queueType.name}: ${type.queueType.minCapacity}-${type.queueType.
 
 // Get a specific queue by ID
 val queue = api.data().getQueue(queueId).await()
+
+// Get rating and activity stats for a specific queue type
+val stats = api.data().getQueueTypeStats("bedwars").await()
+println("${stats.stats.queueType}: ${stats.stats.rating} (${stats.stats.sharePercent}% share)")
+
+// Get rating and activity stats for all queue types
+val allStats = api.data().getAllQueueTypeStats().await()
+allStats.statsList.forEach {
+    println("${it.queueType}: ${it.rating} — ${it.totalPlayers24H} players today, ${it.trendPercent}% trend")
+}
 ```
 
 ### Event API
