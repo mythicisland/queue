@@ -35,6 +35,7 @@ queue/
 │   ├── persistence/            # jOOQ-based persistence layer
 │   ├── repository/             # QueueRepository, QueueTypeRepository
 │   ├── reconciler/             # QueueStatusReconciler (lifecycle manager)
+│   ├── rating/                 # QueueTypeRatingCalculator (popularity rating)
 │   ├── service/                # gRPC endpoints (QueueService, QueueDataService)
 │   ├── server/                 # ServerFinder (SimpleCloud discovery + reservation)
 │   ├── visualizer/             # ActionbarVisualizer, tag resolvers
@@ -68,9 +69,10 @@ queue/
 | Event Names | `queue-shared/.../event/` | `QueueEventNames.kt` |
 | Repository Interfaces | `queue-shared/.../repository/` | `Repository.kt`, `YamlDirectoryRepository.kt` |
 | Reconcilers | `queue-runtime/.../reconciler/` | `QueueStatusReconciler.kt` |
+| Rating | `queue-runtime/.../rating/` | `QueueTypeRatingCalculator.kt` |
 | Services | `queue-runtime/.../service/` | `QueueService.kt`, `QueueDataService.kt` |
 | Repositories | `queue-runtime/.../repository/` | `QueueRepository.kt`, `QueueTypeRepository.kt` |
-| Persistence | `queue-runtime/.../persistence/` | `PersistenceQueueRepository.kt` |
+| Persistence | `queue-runtime/.../persistence/` | `PersistenceQueueRepository.kt`, `QueueTypeActivityRepository.kt` |
 | Server Logic | `queue-runtime/.../server/` | `ServerFinder.kt` |
 | Visualizers | `queue-runtime/.../visualizer/` | `ActionbarVisualizer.kt`, `QueueTagResolver.kt`, `ServerTagResolver.kt` |
 | Event Publishing | `queue-runtime/.../event/` | `EventPublisher.kt` |
@@ -82,7 +84,7 @@ queue/
 | Plugin Config | `queue-plugin/.../config/` | `QueueConfig.kt`, `YamlConfig.kt` |
 | API Interfaces | `queue-api/.../api/` | `QueueApi.java`, `QueuePlayerApi.java` |
 | API Internals | `queue-api/.../api/internal/` | `QueueApiImpl.java` |
-| Protobuf | `queue-proto/.../v1/` | `queue_api.proto`, `queue_types.proto` |
+| Protobuf | `queue-proto/.../v1/` | `queue_api.proto`, `queue_types.proto`, `queue_events.proto` |
 | Tests | `*/src/test/kotlin/` | Mirror main package structure |
 
 ## Queue Lifecycle
