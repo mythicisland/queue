@@ -74,12 +74,7 @@ class QueueRuntime(
         queueRepository.setEventPublisher(eventPublisher)
 
         logger.info("Starting queue reconciler...")
-        reconciler.startPeriodicReconciliation()
-        reconciler.startCountdownReconciliation()
-        reconciler.startWaitingCountdownReconciliation()
-        reconciler.startServerRetryReconciliation()
-        reconciler.startVisualizerLoop()
-        reconciler.registerServerRegistrationSubscriber()
+        reconciler.start()
 
         val server = createGrpcServer()
         startGrpcServer(server)
@@ -97,10 +92,10 @@ class QueueRuntime(
     }
 
     private suspend fun shutdown() {
-        val activeQueues = queueRepository.getAllQueues()
-        if (activeQueues.isNotEmpty()) {
-            logger.info("Persisting {} active queues for restart recovery...", activeQueues.size)
-            for (queue in activeQueues) {
+        val queues = queueRepository.getAllQueues()
+        if (queues.isNotEmpty()) {
+            logger.info("Persisting {} active queues for restart recovery...", queues.size)
+            for (queue in queues) {
                 queue.server?.let { server ->
                     logger.info("Freeing server {} from queue {}", server.serverId, queue.id)
                     try {

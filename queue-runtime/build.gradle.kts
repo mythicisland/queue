@@ -19,16 +19,8 @@ dependencies {
 
 sourceSets {
     main {
-        java {
-            srcDirs(
-                "build/generated/source/db/main/java",
-            )
-        }
-        resources {
-            srcDirs(
-                "src/main/db"
-            )
-        }
+        java { srcDirs("build/generated/source/db/main/java") }
+        resources { srcDirs("src/main/db") }
     }
 }
 

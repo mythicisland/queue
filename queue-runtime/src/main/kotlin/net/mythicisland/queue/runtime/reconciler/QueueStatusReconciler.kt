@@ -54,6 +54,18 @@ class QueueStatusReconciler(
     private fun getMutex(queueId: UUID): Mutex = queueMutexes.getOrPut(queueId) { Mutex() }
 
     /**
+     * Starts the Reconciler.
+     */
+    fun start() {
+        startPeriodicReconciliation()
+        startCountdownReconciliation()
+        startWaitingCountdownReconciliation()
+        startServerRetryReconciliation()
+        startVisualizerLoop()
+        registerServerRegistrationSubscriber()
+    }
+
+    /**
      * Reconciles a queue's status based on its current state.
      * Handles cascading transitions when a status change occurs immediately.
      *
@@ -61,42 +73,38 @@ class QueueStatusReconciler(
      */
     suspend fun reconcile(queueId: UUID) {
         getMutex(queueId).withLock {
-            reconcileInternal(queueId)
+            var previousStatus: QueueStatus
+
+            do {
+                val queue = queues.getQueue(queueId) ?: return
+                val type = types.find(queue.type) ?: return
+
+                if (queue.players.isEmpty() && queue.status != QueueStatus.FINISHED) {
+                    logger.info("Queue {} has no players remaining, finishing", queue.id)
+                    updateStatus(queue, QueueStatus.FINISHED)
+                }
+
+                previousStatus = queue.status
+
+                when (queue.status) {
+                    QueueStatus.NOT_ENOUGH_PLAYERS -> handleNotEnoughPlayers(queue)
+                    QueueStatus.WAITING_COUNTDOWN -> handleWaitingForPlayersCountdown(queue)
+                    QueueStatus.SEARCHING_SERVER -> handleSearchingServer(queue)
+                    QueueStatus.WAITING_FOR_SERVER -> handleWaitingForServer(queue)
+                    QueueStatus.SERVER_READY -> handleServerReady(queue)
+                    QueueStatus.COUNTDOWN -> handleCountdown(queue)
+                    QueueStatus.TELEPORTING -> handleTeleporting(queue)
+                    QueueStatus.FINISHED -> handleFinished(queue)
+                    else -> return
+                }
+
+                queues.updateQueue(queue)
+
+                if (queue.status != QueueStatus.FINISHED) {
+                    visualizer.send(queue, type, queue.status)
+                }
+            } while (queue.status != previousStatus)
         }
-    }
-
-    private suspend fun reconcileInternal(queueId: UUID) {
-        var previousStatus: QueueStatus
-
-        do {
-            val queue = queues.getQueue(queueId) ?: return
-            val type = types.find(queue.type) ?: return
-
-            if (queue.players.isEmpty() && queue.status != QueueStatus.FINISHED) {
-                logger.info("Queue {} has no players remaining, finishing", queue.id)
-                updateStatus(queue, QueueStatus.FINISHED)
-            }
-
-            previousStatus = queue.status
-
-            when (queue.status) {
-                QueueStatus.NOT_ENOUGH_PLAYERS -> handleNotEnoughPlayers(queue)
-                QueueStatus.WAITING_COUNTDOWN -> handleWaitingForPlayersCountdown(queue)
-                QueueStatus.SEARCHING_SERVER -> handleSearchingServer(queue)
-                QueueStatus.WAITING_FOR_SERVER -> handleWaitingForServer(queue)
-                QueueStatus.SERVER_READY -> handleServerReady(queue)
-                QueueStatus.COUNTDOWN -> handleCountdown(queue)
-                QueueStatus.TELEPORTING -> handleTeleporting(queue)
-                QueueStatus.FINISHED -> handleFinished(queue)
-                else -> return
-            }
-
-            queues.updateQueue(queue)
-
-            if (queue.status != QueueStatus.FINISHED) {
-                visualizer.send(queue, type, queue.status)
-            }
-        } while (queue.status != previousStatus)
     }
 
     /**
@@ -415,7 +423,7 @@ class QueueStatusReconciler(
     /**
      * Periodically ticks queues in WAITING_COUNTDOWN status every 500ms.
      */
-    fun startWaitingCountdownReconciliation() {
+    private fun startWaitingCountdownReconciliation() {
         scope.launch {
             while (true) {
                 delay(500)
@@ -429,7 +437,7 @@ class QueueStatusReconciler(
     /**
      * Periodically ticks queues in COUNTDOWN status every 500ms.
      */
-    fun startCountdownReconciliation() {
+    private fun startCountdownReconciliation() {
         scope.launch {
             while (true) {
                 delay(500)
@@ -444,7 +452,7 @@ class QueueStatusReconciler(
      * Periodically sends actionbar to all players in active queues every second.
      * Minecraft actionbars fade after ~2 seconds, so continuous sending is required.
      */
-    fun startVisualizerLoop() {
+    private fun startVisualizerLoop() {
         scope.launch {
             while (true) {
                 delay(1000)
@@ -467,7 +475,7 @@ class QueueStatusReconciler(
      * Complements the event-driven approach from [registerServerRegistrationSubscriber] with
      * active polling to recover from missed events or transient failures.
      */
-    fun startServerRetryReconciliation() {
+    private fun startServerRetryReconciliation() {
         scope.launch {
             while (true) {
                 delay(5000)
@@ -481,7 +489,7 @@ class QueueStatusReconciler(
     /**
      * Periodically reconciles all queues every 30 seconds as a safety net.
      */
-    fun startPeriodicReconciliation() {
+    private fun startPeriodicReconciliation() {
         scope.launch {
             while (true) {
                 reconcileAll()
