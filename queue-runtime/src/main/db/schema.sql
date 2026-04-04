@@ -15,3 +15,13 @@ CREATE TABLE IF NOT EXISTS queue_players (
 );
 
 CREATE INDEX IF NOT EXISTS idx_queue_players_queue_id ON queue_players(queue_id);
+
+CREATE TABLE IF NOT EXISTS queue_type_activity (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    queue_type VARCHAR(255) NOT NULL,
+    player_id VARCHAR(36) NOT NULL,
+    enqueued_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_queue_type_activity_type ON queue_type_activity(queue_type);
+CREATE INDEX IF NOT EXISTS idx_queue_type_activity_enqueued_at ON queue_type_activity(enqueued_at);

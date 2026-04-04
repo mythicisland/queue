@@ -4,6 +4,7 @@ import build.buf.gen.mythicisland.queue.v1.*
 import io.grpc.Status
 import net.mythicisland.queue.shared.extension.asUUID
 import net.mythicisland.queue.shared.queue.QueueType
+import net.mythicisland.queue.runtime.rating.QueueTypeRatingCalculator
 import net.mythicisland.queue.runtime.repository.QueueRepository
 import net.mythicisland.queue.runtime.repository.QueueTypeRepository
 import org.apache.logging.log4j.LogManager
@@ -14,6 +15,7 @@ import org.apache.logging.log4j.LogManager
 class QueueDataService(
     private val queues: QueueRepository,
     private val types: QueueTypeRepository,
+    private val ratingCalculator: QueueTypeRatingCalculator,
 ) : QueueDataServiceGrpcKt.QueueDataServiceCoroutineImplBase() {
 
     private val logger = LogManager.getLogger(QueueDataService::class.java)
@@ -143,6 +145,39 @@ class QueueDataService(
 
         return getAllQueueTypesResponse {
             this.queueTypes.addAll(allTypes.map(QueueType::toDefinition))
+        }
+    }
+
+    /**
+     * Gets the rating and activity stats for a single queue type.
+     *
+     * @param request The request containing the queue type name
+     * @return The response containing the computed stats
+     * @throws io.grpc.StatusException NOT_FOUND if the queue type does not exist
+     */
+    override suspend fun getQueueTypeStats(request: GetQueueTypeStatsRequest): GetQueueTypeStatsResponse {
+        logger.debug("GetQueueTypeStats request: name={}", request.name)
+
+        val stats = ratingCalculator.calculate(request.name)
+            ?: throw Status.NOT_FOUND
+                .withDescription("Queue type '${request.name}' not found")
+                .asRuntimeException()
+
+        logger.debug("GetQueueTypeStats response: type={} rating={} share={}%", request.name, stats.rating, stats.sharePercent)
+        return getQueueTypeStatsResponse { this.stats = stats }
+    }
+
+    /**
+     * Gets the rating and activity stats for all registered queue types.
+     *
+     * @return The response containing stats for every registered queue type
+     */
+    override suspend fun getAllQueueTypeStats(request: GetAllQueueTypeStatsRequest): GetAllQueueTypeStatsResponse {
+        val allStats = ratingCalculator.calculateAll()
+        logger.debug("GetAllQueueTypeStats response: {} types", allStats.size)
+
+        return getAllQueueTypeStatsResponse {
+            this.stats.addAll(allStats)
         }
     }
 }

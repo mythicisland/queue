@@ -5,6 +5,7 @@ import net.mythicisland.queue.shared.queue.Queue
 import net.mythicisland.queue.shared.queue.QueueType
 import net.mythicisland.queue.runtime.event.EventPublisher
 import net.mythicisland.queue.runtime.persistence.PersistenceQueueRepository
+import net.mythicisland.queue.runtime.persistence.QueueTypeActivityRepository
 import net.mythicisland.queue.runtime.reconciler.QueueStatusReconciler
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -19,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap
 class QueueRepository(
     private val types: QueueTypeRepository,
     private val persistence: PersistenceQueueRepository,
+    private val activity: QueueTypeActivityRepository,
 ) {
 
     private val logger = LogManager.getLogger(QueueRepository::class.java)
@@ -131,6 +133,8 @@ class QueueRepository(
             queues[queue.id] = queue
             playerIds.forEach { playersToQueue[it] = queue.id }
             persistence.save(queue)
+
+            activity.record(queueType, playerIds)
 
             if (existingQueue == null) {
                 publisher?.publishQueueCreated(queue)
