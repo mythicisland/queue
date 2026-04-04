@@ -9,7 +9,7 @@ build/
 .kotlin/
 
 # MacOS
-.DB_STORE
+.DS_STORE
 
 # Vscode
 .vscode/

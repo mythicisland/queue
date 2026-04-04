@@ -4,12 +4,6 @@ plugins {
 
 rootProject.name = "queue"
 
-dependencyResolutionManagement {
-    versionCatalogs {
-        create("libs")
-    }
-}
-
 include(
     "queue-api",
     "queue-plugin",
