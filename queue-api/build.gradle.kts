@@ -1,7 +1,6 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
-    id("java")
     id("maven-publish")
 }
 
@@ -27,17 +26,7 @@ tasks.named<ShadowJar>("shadowJar") {
     relocate("build.buf", "net.mythicisland.queue.api.shaded.buf")
 }
 
-tasks.named<Javadoc>("javadoc") {
-    isFailOnError = false
-    options {
-        (this as StandardJavadocDocletOptions).apply {
-            addStringOption("Xmaxerrs", "10000")
-            addStringOption("Xmaxwarns", "10000")
-        }
-    }
-}
-
-val isSnapshot = version.toString().contains(Regex("beta|dev|alpha|snapshot", RegexOption.IGNORE_CASE))
+val isSnapshot = version.toString().contains(Regex("dev|snapshot", RegexOption.IGNORE_CASE))
 
 publishing {
     publications {
@@ -56,13 +45,13 @@ publishing {
                 licenses {
                     license {
                         name.set("The Apache License, Version 2.0")
-                        url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
                     }
                 }
                 developers {
                     developer {
                         id.set("xxjanisxx")
-                        name.set("Janis K.")
+                        name.set("Janis")
                     }
                 }
                 scm {
