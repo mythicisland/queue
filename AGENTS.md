@@ -13,7 +13,6 @@ Built with Kotlin coroutines, gRPC, and NATS.
 ./gradlew build                        # Build all modules
 ./gradlew test                         # Run all tests
 ./gradlew :queue-runtime:run           # Run the runtime
-./gradlew :queue-plugin:runVelocity    # Run the Velocity plugin
 ./gradlew :queue-api:publish           # Publish the API
 ```
 
@@ -22,7 +21,6 @@ Built with Kotlin coroutines, gRPC, and NATS.
 | Module | Purpose |
 |--------|---------|
 | `queue-runtime/` | Standalone droplet: queue lifecycle, gRPC server, NATS events, database |
-| `queue-plugin/` | Velocity proxy plugin (`/queue`, `/leavequeue` commands, disconnect listener) |
 | `queue-api/` | Java/Kotlin client library (gRPC stubs, NATS failover, Kotlin coroutine extensions) |
 | `queue-shared/` | Shared models, extensions, messages, events, and repository base classes |
 | `queue-proto/` | Protobuf/gRPC service definitions and message types |
@@ -49,10 +47,6 @@ queue/
 │   ├── event/                  # QueueEventNames (NATS subject constants)
 │   ├── extension/              # PlayerExtension, UUIDExtension, MiniFontExtension
 │   └── repository/             # Repository interfaces + YamlDirectoryRepository
-├── queue-plugin/               # Velocity proxy plugin
-│   ├── command/                # QueueCommandHandler, LeaveQueueCommandHandler
-│   ├── listener/               # NetworkQuitListener
-│   └── config/                 # QueueConfig, YamlConfig, ReactiveConfig
 ├── queue-api/                  # Java/Kotlin client library
 │   ├── api/                    # Public interfaces (QueueApi, QueuePlayerApi, etc.)
 │   ├── api/event/              # Event API interfaces + event types
