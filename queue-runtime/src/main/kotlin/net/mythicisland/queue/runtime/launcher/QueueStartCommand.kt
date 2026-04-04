@@ -7,12 +7,10 @@ import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
-import com.github.ajalt.clikt.parameters.types.path
 import com.github.ajalt.clikt.sources.PropertiesValueSource
 import com.github.ajalt.clikt.sources.ValueSource
 import net.mythicisland.queue.runtime.QueueRuntime
 import java.io.File
-import java.nio.file.Path
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
@@ -45,9 +43,6 @@ object QueueStartCommand : SuspendingCliktCommand() {
     val natsFailoverReconnectAfter: Duration by option(help = "Force a full NATS reconnect after this reconnecting duration (e.g. 30s, 2m, 1h)", envvar = "NATS_FAILOVER_RECONNECT_AFTER")
         .convert { parseDuration(it) }
         .default(30.seconds)
-
-    val configPath: Path by option(help = "Config path", envvar = "CONFIG_PATH")
-        .path().default(Path.of(""))
 
     val networkId: String by option(help = "Simplecloud Network ID", envvar = "NETWORK_ID")
         .default("your-network-id")

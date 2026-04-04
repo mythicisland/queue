@@ -13,11 +13,8 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * In-memory repository for managing queues and player-to-queue mappings,
+ * Repository for managing queues and player-to-queue mappings,
  * backed by a persistence layer for durability across restarts.
- *
- * @property types Repository for queue type configurations
- * @property persistence Database-backed persistence layer
  */
 class QueueRepository(
     private val types: QueueTypeRepository,
@@ -36,14 +33,14 @@ class QueueRepository(
     private val typeMutexes = ConcurrentHashMap<String, Mutex>()
 
     private var reconciler: QueueStatusReconciler? = null
-    private var eventPublisher: EventPublisher? = null
+    private var publisher: EventPublisher? = null
 
     fun setReconciler(reconciler: QueueStatusReconciler) {
         this.reconciler = reconciler
     }
 
-    fun setEventPublisher(eventPublisher: EventPublisher) {
-        this.eventPublisher = eventPublisher
+    fun setEventPublisher(publisher: EventPublisher) {
+        this.publisher = publisher
     }
 
     /**
@@ -95,7 +92,7 @@ class QueueRepository(
         snapshots.remove(queueId)
         removedPlayers.forEach { playersToQueue.remove(it) }
         reconciler?.clear(queueId)
-        eventPublisher?.publishQueueDeleted(queue)
+        publisher?.publishQueueDeleted(queue)
         persistence.delete(queueId)
         logger.info("Deleted queue {} (removed {} player mappings)", queueId, removedPlayers.size)
         return true
@@ -136,9 +133,9 @@ class QueueRepository(
             persistence.save(queue)
 
             if (existingQueue == null) {
-                eventPublisher?.publishQueueCreated(queue)
+                publisher?.publishQueueCreated(queue)
             }
-            eventPublisher?.publishEnqueue(queue, playerIds)
+            publisher?.publishEnqueue(queue, playerIds)
 
             reconciler?.reconcile(queue.id)
             Result.success(queue)
@@ -177,7 +174,7 @@ class QueueRepository(
             return false
         }
         logger.info("Player {} left queue {} (type={}, remaining={})", playerId, queue.id, queue.type, queue.players.size)
-        eventPublisher?.publishDequeue(queue, listOf(playerId))
+        publisher?.publishDequeue(queue, listOf(playerId))
         persistence.save(queue)
         reconciler?.reconcile(queue.id)
         return true
@@ -215,7 +212,7 @@ class QueueRepository(
         persistence.save(queue)
 
         if (before != null && before != after) {
-            eventPublisher?.publishQueueUpdated(before, after)
+            publisher?.publishQueueUpdated(before, after)
         }
     }
 

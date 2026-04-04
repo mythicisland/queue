@@ -10,9 +10,6 @@ import org.apache.logging.log4j.LogManager
 
 /**
  * gRPC service for queue operations.
- *
- * @property queues The queue repository for data access
- * @property messenger The player messenger for sending feedback messages
  */
 class QueueService(
     private val queues: QueueRepository,

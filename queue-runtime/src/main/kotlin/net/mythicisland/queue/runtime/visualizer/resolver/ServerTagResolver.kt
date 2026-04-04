@@ -1,4 +1,4 @@
-package net.mythicisland.queue.runtime.queue.visualizer
+package net.mythicisland.queue.runtime.visualizer.resolver
 
 import app.simplecloud.api.server.Server
 import net.kyori.adventure.text.Component

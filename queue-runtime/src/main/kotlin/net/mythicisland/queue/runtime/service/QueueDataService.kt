@@ -10,12 +10,6 @@ import org.apache.logging.log4j.LogManager
 
 /**
  * gRPC service for queue data queries.
- *
- * Provides read access to queues, queue types, and player positions
- * for use in GUIs, tab completion, scoreboards, etc.
- *
- * @property queues The queue repository for queue data access
- * @property types The queue type repository for type configuration access
  */
 class QueueDataService(
     private val queues: QueueRepository,

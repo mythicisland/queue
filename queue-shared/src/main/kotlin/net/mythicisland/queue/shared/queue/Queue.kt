@@ -27,14 +27,4 @@ data class Queue(
             .build()
     }
 
-    companion object {
-        fun fromDefinition(definition: build.buf.gen.mythicisland.queue.v1.Queue): Queue {
-            return Queue(
-                id = UUID.fromString(definition.uniqueId),
-                type = definition.type,
-                status = definition.status,
-                players = definition.playerIdsList.map { UUID.fromString(it) }.toMutableList(),
-            )
-        }
-    }
 }

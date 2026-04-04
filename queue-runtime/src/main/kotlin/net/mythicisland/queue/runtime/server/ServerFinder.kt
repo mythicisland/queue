@@ -11,15 +11,6 @@ import org.apache.logging.log4j.LogManager
 
 /**
  * Handles server discovery, reservation, and provisioning for queues.
- *
- * This class manages the lifecycle of server assignment to queues, including:
- * - Finding existing servers assigned to queues
- * - Reserving available servers from the pool
- * - Requesting new servers when none are available
- * - Freeing servers when queues are complete
- *
- * @property api The Cloud API instance for server management
- * @property types Repository for queue type configurations
  */
 class ServerFinder(
     private val api: CloudApi,

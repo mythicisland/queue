@@ -1,4 +1,4 @@
-package net.mythicisland.queue.runtime.queue.visualizer
+package net.mythicisland.queue.runtime.visualizer.resolver
 
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.minimessage.tag.Tag

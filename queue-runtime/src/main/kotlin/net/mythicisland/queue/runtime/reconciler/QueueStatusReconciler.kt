@@ -21,7 +21,7 @@ import net.mythicisland.queue.runtime.event.EventPublisher
 import net.mythicisland.queue.runtime.repository.QueueRepository
 import net.mythicisland.queue.runtime.repository.QueueTypeRepository
 import net.mythicisland.queue.runtime.server.ServerFinder
-import net.mythicisland.queue.runtime.queue.visualizer.QueueVisualizer
+import net.mythicisland.queue.runtime.visualizer.QueueVisualizer
 import org.apache.logging.log4j.LogManager
 
 import java.util.UUID

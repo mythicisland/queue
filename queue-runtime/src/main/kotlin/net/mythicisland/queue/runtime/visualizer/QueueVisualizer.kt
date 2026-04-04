@@ -1,9 +1,11 @@
-package net.mythicisland.queue.runtime.queue.visualizer
+package net.mythicisland.queue.runtime.visualizer
 
 import build.buf.gen.mythicisland.queue.v1.QueueStatus
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver
+import net.mythicisland.queue.runtime.visualizer.resolver.ServerTagResolver
+import net.mythicisland.queue.runtime.visualizer.resolver.QueueTagResolver
 import net.mythicisland.queue.shared.queue.Queue
 import net.mythicisland.queue.shared.queue.QueueType
 

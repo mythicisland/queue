@@ -26,16 +26,4 @@ data class QueueType(
 
     }
 
-    companion object {
-        fun fromDefinition(definition: build.buf.gen.mythicisland.queue.v1.QueueType): QueueType {
-            return QueueType(
-                name = definition.name,
-                group = definition.group,
-                maxCapacity = definition.maxCapacity.toLong(),
-                minCapacity = definition.minCapacity.toLong(),
-                waitingCountdownSeconds = definition.waitingCountdownMillis / 1000,
-                countdownSeconds = definition.countdownMillis / 1000
-            )
-        }
-    }
 }

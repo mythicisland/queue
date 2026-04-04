@@ -1,4 +1,4 @@
-package net.mythicisland.queue.runtime.queue.visualizer
+package net.mythicisland.queue.runtime.visualizer
 
 import app.simplecloud.api.player.PlayerApi
 import build.buf.gen.mythicisland.queue.v1.QueueStatus

@@ -24,7 +24,7 @@ import net.mythicisland.queue.runtime.server.ServerFinder
 import net.mythicisland.queue.shared.message.PlayerMessenger
 import net.mythicisland.queue.runtime.service.QueueDataService
 import net.mythicisland.queue.runtime.service.QueueService
-import net.mythicisland.queue.runtime.queue.visualizer.ActionbarVisualizer
+import net.mythicisland.queue.runtime.visualizer.ActionbarVisualizer
 import org.apache.logging.log4j.LogManager
 
 class QueueRuntime(
@@ -86,8 +86,6 @@ class QueueRuntime(
         val server = createGrpcServer()
         startGrpcServer(server)
 
-        logger.info("Queue started successfully")
-
         suspendCancellableCoroutine { continuation ->
             Runtime.getRuntime().addShutdownHook(Thread {
                 logger.info("Shutting down QueueRuntime...")
@@ -100,10 +98,6 @@ class QueueRuntime(
         }
     }
 
-    /**
-     * Gracefully shuts down the runtime by cleaning up all active queues,
-     * freeing reserved servers, and closing connections.
-     */
     private suspend fun shutdown() {
         val activeQueues = queueRepository.getAllQueues()
         if (activeQueues.isNotEmpty()) {
@@ -165,6 +159,7 @@ class QueueRuntime(
                 server.start()
                 logger.info("gRPC server started on port {}", args.grpcPort)
                 server.awaitTermination()
+                logger.info("Queue started successfully")
             } catch (e: Exception) {
                 logger.error("Error in gRPC server", e)
                 throw e

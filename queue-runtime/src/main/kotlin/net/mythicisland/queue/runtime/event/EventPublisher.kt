@@ -23,8 +23,6 @@ import java.util.UUID
  * NATS subject defined in [QueueEventNames]. Publishing failures are logged
  * but never propagate to callers, ensuring event emission does not interfere
  * with queue operations.
- *
- * @property connection The NATS connection used for publishing events
  */
 class EventPublisher(
     private val connection: Connection,
