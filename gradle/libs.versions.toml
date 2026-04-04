@@ -18,7 +18,7 @@ clikt = "5.1.0"
 jnats = "2.25.2"
 adventure = "4.26.1"
 cloud-api = "0.1.0-platform.22-dev.1774376168759-1e20f57"
-queue-proto = "1.5.0.2.20260316100358.c173c7fd607a"
+queue-proto = "1.5.0.2.20260404195144.6b82bfec6ac3"
 postgre = "42.7.10"
 
 # Proto Buf

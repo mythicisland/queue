@@ -21,6 +21,15 @@ message QueueType {
   optional int64 countdown_millis = 6;
 }
 
+message QueueStats {
+  string queue_type = 1;
+  QueueRating rating = 2;
+  uint32 total_players_7d = 3;   // Total players in the last 7 days
+  uint32 total_players_24h = 4;  // Total players in the last 24 hours
+  double share_percent = 5;      // Relative share compared to all queue types
+  double trend_percent = 6;      // 24h vs. 7-day average in %
+}
+
 enum QueueStatus {
   NOT_ENOUGH_PLAYERS = 0;
   WAITING_COUNTDOWN = 1;
@@ -30,4 +39,11 @@ enum QueueStatus {
   COUNTDOWN = 5;
   TELEPORTING = 6;
   FINISHED = 7;
+}
+
+enum QueueRating {
+  DEAD = 0;
+  LOW = 1;
+  GOOD = 2;
+  POPULAR = 3;
 }
