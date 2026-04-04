@@ -24,4 +24,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Publish with Gradle
+        env:
+          REPO_USER: ${{ secrets.REPO_USER }}
+          REPO_PASSWORD: ${{ secrets.REPO_PASSWORD }}
         run: chmod +x ./gradlew && ./gradlew :queue-api:publish
