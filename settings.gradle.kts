@@ -6,7 +6,6 @@ rootProject.name = "queue"
 
 include(
     "queue-api",
-    "queue-plugin",
     "queue-runtime",
     "queue-shared"
 )
