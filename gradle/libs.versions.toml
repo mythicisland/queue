@@ -3,7 +3,7 @@
 kotlin = "2.2.20"
 
 # Logging
-log4j = "2.25.3"
+log4j = "2.25.4"
 slf4j = "2.0.17"
 
 # Configurate
