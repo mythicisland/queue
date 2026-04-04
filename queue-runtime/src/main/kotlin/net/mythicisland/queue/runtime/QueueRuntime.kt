@@ -17,6 +17,8 @@ import net.mythicisland.queue.runtime.nats.NatsErrorListener
 import net.mythicisland.queue.runtime.nats.NatsFailoverConnectionManager
 import net.mythicisland.queue.runtime.event.EventPublisher
 import net.mythicisland.queue.runtime.persistence.PersistenceQueueRepository
+import net.mythicisland.queue.runtime.persistence.QueueTypeActivityRepository
+import net.mythicisland.queue.runtime.rating.QueueTypeRatingCalculator
 import net.mythicisland.queue.runtime.reconciler.QueueStatusReconciler
 import net.mythicisland.queue.runtime.repository.QueueRepository
 import net.mythicisland.queue.runtime.repository.QueueTypeRepository
@@ -42,7 +44,9 @@ class QueueRuntime(
     private val database = DatabaseFactory.createDatabase(args.databaseUrl)
     private val queueTypeRepository = QueueTypeRepository
     private val persistenceQueueRepository = PersistenceQueueRepository(database)
-    private val queueRepository = QueueRepository(queueTypeRepository, persistenceQueueRepository)
+    private val activityRepository = QueueTypeActivityRepository(database)
+    private val queueRepository = QueueRepository(queueTypeRepository, persistenceQueueRepository, activityRepository)
+    private val ratingCalculator = QueueTypeRatingCalculator(activityRepository, queueTypeRepository)
     private val finder = ServerFinder(api, queueTypeRepository)
     private val visualizer = ActionbarVisualizer(api.player())
     private val eventPublisher = EventPublisher(manager.connection())
@@ -163,7 +167,7 @@ class QueueRuntime(
     private fun createGrpcServer(): Server {
         return ServerBuilder.forPort(args.grpcPort)
             .addService(QueueService(queueRepository))
-            .addService(QueueDataService(queueRepository, queueTypeRepository))
+            .addService(QueueDataService(queueRepository, queueTypeRepository, ratingCalculator))
             .build()
     }
 
