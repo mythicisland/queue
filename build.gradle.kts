@@ -8,7 +8,7 @@ plugins {
 
 allprojects {
     group = "net.mythicisland.queue"
-    version = "0.0.1-beta.1"
+    version = "1.0.0"
 
     repositories {
         mavenCentral()
