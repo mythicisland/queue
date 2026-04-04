@@ -20,8 +20,6 @@ adventure = "4.26.1"
 cloud-api = "0.1.0-platform.22-dev.1774376168759-1e20f57"
 queue-proto = "1.5.0.2.20260316100358.c173c7fd607a"
 postgre = "42.7.10"
-velocity = "3.5.0-SNAPSHOT"
-run-velocity = "3.0.2"
 
 # Proto Buf
 protobuf = "4.34.1"
@@ -52,7 +50,6 @@ clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
 jnats = { module = "io.nats:jnats", version.ref = "jnats" }
 postgre-jdbc = { module = "org.postgresql:postgresql", version.ref = "postgre" }
 cloud-api = { module = "app.simplecloud.api:api", version.ref = "cloud-api" }
-velocity-api = { module = "com.velocitypowered:velocity-api", version.ref = "velocity" }
 queue-proto = { module = "build.buf.gen:mythicisland_queue_grpc_kotlin", version.ref = "queue-proto" }
 
 # Adventure
@@ -84,4 +81,3 @@ grpc = ["grpc-stub", "grpc-netty-shaded", "grpc-kotlin-stub", "grpc-protobuf", "
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 jooq-codegen = { id = "org.jooq.jooq-codegen-gradle", version.ref = "jooq" }
-run-velocity = { id = "xyz.jpenilla.run-velocity", version.ref = "run-velocity" }
