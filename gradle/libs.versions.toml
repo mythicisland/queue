@@ -29,7 +29,7 @@ grpc = "1.79.0"
 grpc-kotlin = "1.5.0"
 
 # JOOQ
-jooq = "3.20.11"
+jooq = "3.21.1"
 
 [libraries]
 # Kotlin
