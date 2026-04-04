@@ -49,10 +49,10 @@ Queues are persisted to a PostgreSQL database so they survive runtime restarts. 
 Queue types are defined as YAML files in the config directory:
 
 ```yml
-name: dev
-group: dev
-max-capacity: 2
-min-capacity: 1
+name: minekart
+group: minekart
+max-capacity: 6
+min-capacity: 12
 waiting-countdown-seconds: 30
 countdown-seconds: 10
 ```
