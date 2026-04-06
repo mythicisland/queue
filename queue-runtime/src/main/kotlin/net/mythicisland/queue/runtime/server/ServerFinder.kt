@@ -2,6 +2,7 @@ package net.mythicisland.queue.runtime.server
 
 import app.simplecloud.api.CloudApi
 import app.simplecloud.api.server.Server
+import app.simplecloud.api.server.ServerState
 import kotlinx.coroutines.future.await
 import net.mythicisland.queue.shared.queue.Queue
 import net.mythicisland.queue.runtime.repository.QueueTypeRepository
@@ -32,9 +33,9 @@ class ServerFinder(
         // Get all servers in the queue type's group
         val servers = api.server().getServersByGroup(type.group).await()
 
-        // Find the server with matching queue-id property
         return servers.firstOrNull {
             it.properties["queue-id"] == queue.id.toString()
+                && it.state == ServerState.AVAILABLE
         }
     }
 
@@ -110,6 +111,7 @@ class ServerFinder(
      * Checks if a server can be reserved for the given queue.
      *
      * A server can be reserved if:
+     * - It is in [ServerState.AVAILABLE] state
      * - It belongs to the same group as the queue type
      * - It has no queue-id property, OR the property is empty/null, OR it already belongs to this queue
      *
@@ -120,10 +122,9 @@ class ServerFinder(
     private fun canReserveServer(queue: Queue, server: Server): Boolean {
         val type = types.find(queue.type) ?: return false
 
-        // Check if server is in the correct group
+        if (server.state != ServerState.AVAILABLE) return false
         if (type.group != server.group.name) return false
 
-        // Check if server is available (no queue-id) or already assigned to this queue
         val queueId = server.properties["queue-id"] as? String
         return queueId.isNullOrEmpty() || queueId == queue.id.toString()
     }
