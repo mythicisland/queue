@@ -1,5 +1,3 @@
-@file:Suppress("warnings")
-
 package net.mythicisland.queue.runtime.server
 
 import app.simplecloud.api.CloudApi
@@ -63,20 +61,20 @@ class ServerFinder(
     /**
      * Attempts to reserve an available server, or requests a new one if none available.
      *
-     * This is a convenience method that first tries to reserve an existing server,
-     * and if that fails, requests a new server to be started. Note that requesting
+     * First tries to reserve an existing server from the pool. If none is available,
+     * queues a start request via the SimpleCloud controller. The controller's reconciler
+     * will start the server asynchronously; the queue transitions to WAITING_FOR_SERVER
+     * until the server becomes AVAILABLE.
      *
      * @param queue The queue to reserve or request a server for
      * @return The reserved server if one was available, null if a new server was requested
      */
     suspend fun reserveOrRequestServer(queue: Queue): Server? {
-        // Try to reserve an existing available server
         val reserved = reserveServer(queue)
         if (reserved != null) {
             return reserved
         }
 
-        // No available server, request a new one to be started
         requestNewServer(queue)
         return null
     }
@@ -151,45 +149,26 @@ class ServerFinder(
     }
 
     /**
-     * Requests a new server to be started for the given queue.
+     * Queues a server start request via the SimpleCloud controller.
      *
-     * NOTE: Currently, not avivable in the simplecloud api (controller)
+     * Resolves the queue type's group and submits a start request to the controller's
+     * server start queue. The controller's reconciler processes the request on its next
+     * tick and allocates a server, respecting the group's `max_servers` limit.
      *
-     * Creates a new server instance in the queue type's group with the queue ID
-     * pre-assigned. The server will go through the startup lifecycle asynchronously.
+     * The server is not immediately available — the queue should transition to
+     * WAITING_FOR_SERVER and wait for the server registration event.
      *
-     * @param queue The queue to start a new server for
-     * @return The newly created server instance, or null if the request failed or queue type doesn't exist
+     * @param queue The queue that needs a new server
+     * @throws IllegalStateException if the queue type or group cannot be resolved
      */
-    private suspend fun requestNewServer(queue: Queue): Server {
-        /*val type = types.find(queue.type) ?: return null
+    private suspend fun requestNewServer(queue: Queue) {
+        val type = types.find(queue.type)
+            ?: throw IllegalStateException("Queue type '${queue.type}' not found")
 
-        val result = try {
-            // Get the group to obtain its ID for the request
-            val group = api.group().getGroupByName(type.group).await()
-            if (group == null) {
-                logger.error("Group ${type.group} not found for queue type ${queue.type}")
-                return null
-            }
+        val group = api.group().getGroupByName(type.group).await()
+            ?: throw IllegalStateException("Group '${type.group}' not found for queue type '${queue.type}'")
 
-            // Create start request with queue-id property pre-set
-            val request = StartServerRequest(group.id, type.group)
-            val server = api.server().startServer(request).await()
-
-            // Set the queue-id property after server is created
-            api.server().updateServerProperties(server.serverId, mapOf("queue-id" to queue.id.toString())).await()
-
-            server
-        } catch (e: Exception) {
-            logger.error("Failed to request new server for ${queue.type}", e)
-            null
-        }
-
-        if (result != null) {
-            queue.server = result
-        }
-
-        return result*/
-        return TODO("Implement when manual starting is in the controller back")
+        api.group().requestServerStart(group).await()
+        logger.info("Requested server start for queue {} (group={})", queue.id, type.group)
     }
 }

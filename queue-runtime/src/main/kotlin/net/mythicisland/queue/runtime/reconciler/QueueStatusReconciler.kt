@@ -202,12 +202,9 @@ class QueueStatusReconciler(
                 publisher.publishServerAssigned(queue, server.serverId)
                 updateStatus(queue, QueueStatus.SERVER_READY)
             } else {
-                logger.info("Queue {} no server available, waiting for new server", queue.id)
+                logger.info("Queue {} requested new server, waiting for it to start", queue.id)
                 updateStatus(queue, QueueStatus.WAITING_FOR_SERVER)
             }
-        } catch (_: NotImplementedError) {
-            logger.warn("Queue {} server provisioning not yet available, waiting for existing server", queue.id)
-            updateStatus(queue, QueueStatus.WAITING_FOR_SERVER)
         } catch (e: Exception) {
             logger.error("Queue {} failed to find/reserve server", queue.id, e)
             updateStatus(queue, QueueStatus.WAITING_FOR_SERVER)
