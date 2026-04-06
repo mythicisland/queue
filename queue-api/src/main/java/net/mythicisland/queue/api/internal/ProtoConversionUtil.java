@@ -50,6 +50,7 @@ public final class ProtoConversionUtil {
         return switch (proto) {
             case DEAD -> QueueRating.DEAD;
             case LOW -> QueueRating.LOW;
+            case MEDIUM -> QueueRating.MEDIUM;
             case GOOD -> QueueRating.GOOD;
             case POPULAR -> QueueRating.POPULAR;
             default -> throw new IllegalArgumentException("Unknown proto QueueRating: " + proto);

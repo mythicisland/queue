@@ -6,6 +6,8 @@ public enum QueueRating {
 
     LOW,
 
+    MEDIUM,
+
     GOOD,
 
     POPULAR;

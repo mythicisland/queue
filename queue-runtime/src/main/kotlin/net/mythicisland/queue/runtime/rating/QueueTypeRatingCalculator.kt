@@ -16,7 +16,8 @@ import java.time.LocalDateTime
  *
  * Rating thresholds (by share):
  * - [QueueRating.POPULAR]: > 30%
- * - [QueueRating.GOOD]: > 10%
+ * - [QueueRating.GOOD]: > 15%
+ * - [QueueRating.MEDIUM]: > 5%
  * - [QueueRating.LOW]: > 2%
  * - [QueueRating.DEAD]: <= 2%
  */
@@ -92,7 +93,8 @@ class QueueTypeRatingCalculator(
     private fun calculateRating(share: Double): QueueRating {
         return when {
             share > 30.0 -> QueueRating.POPULAR
-            share > 10.0 -> QueueRating.GOOD
+            share > 15.0 -> QueueRating.GOOD
+            share > 5.0 -> QueueRating.MEDIUM
             share > 2.0 -> QueueRating.LOW
             else -> QueueRating.DEAD
         }
