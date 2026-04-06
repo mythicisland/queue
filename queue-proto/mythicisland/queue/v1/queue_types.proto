@@ -44,6 +44,7 @@ enum QueueStatus {
 enum QueueRating {
   DEAD = 0;
   LOW = 1;
-  GOOD = 2;
-  POPULAR = 3;
+  MEDIUM = 2;
+  GOOD = 3;
+  POPULAR = 4;
 }
