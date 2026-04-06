@@ -32,5 +32,6 @@
   "rebaseLabel": "s: rebase",
   "stopUpdatingLabel": "s: stop updates",
   "commitMessagePrefix": "chore: ",
-  "commitMessageAction": "update"
+  "commitMessageAction": "update",
+  "commitBody": "[skip ci]"
 }
