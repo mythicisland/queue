@@ -1,4 +1,4 @@
-package net.mythicisland.queue.runtime.persistence
+package net.mythicisland.queue.runtime.repository
 
 import net.mythicisland.queue.db.tables.references.QUEUE_TYPE_ACTIVITY
 import net.mythicisland.queue.runtime.database.Database

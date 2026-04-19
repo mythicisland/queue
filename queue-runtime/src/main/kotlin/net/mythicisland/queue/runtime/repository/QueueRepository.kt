@@ -4,9 +4,7 @@ import build.buf.gen.mythicisland.queue.v1.QueueStatus
 import net.mythicisland.queue.shared.queue.Queue
 import net.mythicisland.queue.shared.queue.QueueType
 import net.mythicisland.queue.runtime.event.EventPublisher
-import net.mythicisland.queue.runtime.persistence.PersistenceQueueRepository
-import net.mythicisland.queue.runtime.persistence.QueueTypeActivityRepository
-import net.mythicisland.queue.runtime.reconciler.QueueStatusReconciler
+import net.mythicisland.queue.runtime.reconciler.QueueReconciler
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.apache.logging.log4j.LogManager
@@ -19,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class QueueRepository(
     private val types: QueueTypeRepository,
-    private val persistence: PersistenceQueueRepository,
+    private val repository: QueueDatabaseRepository,
     private val activity: QueueTypeActivityRepository,
 ) {
 
@@ -34,10 +32,10 @@ class QueueRepository(
     /** Per-type mutexes to serialize enqueue operations for the same queue type. */
     private val typeMutexes = ConcurrentHashMap<String, Mutex>()
 
-    private var reconciler: QueueStatusReconciler? = null
+    private var reconciler: QueueReconciler? = null
     private var publisher: EventPublisher? = null
 
-    fun setReconciler(reconciler: QueueStatusReconciler) {
+    fun setReconciler(reconciler: QueueReconciler) {
         this.reconciler = reconciler
     }
 
@@ -47,18 +45,16 @@ class QueueRepository(
 
     /**
      * Loads all queues from the database into memory.
-     * Queues in server-dependent states are reset to SEARCHING_SERVER.
-     * Finished queues are deleted from the database.
      */
     fun loadFromDatabase() {
-        val loaded = persistence.loadAll()
+        val loaded = repository.loadAll()
         var restored = 0
         var cleaned = 0
 
         for (queue in loaded) {
             when (queue.status) {
                 QueueStatus.FINISHED -> {
-                    persistence.delete(queue.id)
+                    repository.delete(queue.id)
                     cleaned++
                     continue
                 }
@@ -68,7 +64,7 @@ class QueueRepository(
                 QueueStatus.COUNTDOWN,
                 QueueStatus.TELEPORTING -> {
                     queue.status = QueueStatus.SEARCHING_SERVER
-                    queue.countdownRemaining = 0
+                    queue.countdownEndsAt = null
                 }
                 else -> {}
             }
@@ -76,7 +72,7 @@ class QueueRepository(
             queues[queue.id] = queue
             snapshots[queue.id] = queue.toDefinition()
             queue.players.forEach { playersToQueue[it] = queue.id }
-            persistence.save(queue)
+            repository.save(queue)
             restored++
         }
 
@@ -89,14 +85,16 @@ class QueueRepository(
 
     fun deleteQueue(queueId: UUID): Boolean {
         val queue = queues[queueId] ?: return false
-        val removedPlayers = playersToQueue.filter { it.value == queueId }.keys
         queues.remove(queueId)
         snapshots.remove(queueId)
-        removedPlayers.forEach { playersToQueue.remove(it) }
+        var removedCount = 0
+        playersToQueue.entries.removeAll { (_, mappedQueueId) ->
+            (mappedQueueId == queueId).also { if (it) removedCount++ }
+        }
         reconciler?.clear(queueId)
         publisher?.publishQueueDeleted(queue)
-        persistence.delete(queueId)
-        logger.info("Deleted queue {} (removed {} player mappings)", queueId, removedPlayers.size)
+        repository.delete(queueId)
+        logger.info("Deleted queue {} (removed {} player mappings)", queueId, removedCount)
         return true
     }
 
@@ -132,7 +130,7 @@ class QueueRepository(
             queue.players.addAll(playerIds)
             queues[queue.id] = queue
             playerIds.forEach { playersToQueue[it] = queue.id }
-            persistence.save(queue)
+            repository.save(queue)
 
             activity.record(queueType, playerIds)
 
@@ -156,7 +154,7 @@ class QueueRepository(
         )
         queues[queue.id] = queue
         snapshots[queue.id] = queue.toDefinition()
-        persistence.save(queue)
+        repository.save(queue)
         return queue
     }
 
@@ -171,15 +169,17 @@ class QueueRepository(
             logger.debug("Dequeue failed: player {} is not in any queue", playerId)
             return false
         }
+
         val queue = getQueueByPlayer(playerId) ?: return false
         if (!playersToQueue.remove(playerId, queue.id)) return false
         if (!queue.players.remove(playerId)) {
             playersToQueue[playerId] = queue.id
             return false
         }
+
         logger.info("Player {} left queue {} (type={}, remaining={})", playerId, queue.id, queue.type, queue.players.size)
         publisher?.publishDequeue(queue, listOf(playerId))
-        persistence.save(queue)
+        repository.save(queue)
         reconciler?.reconcile(queue.id)
         return true
     }
@@ -213,7 +213,7 @@ class QueueRepository(
         val after = queue.toDefinition()
         queues[queue.id] = queue
         snapshots[queue.id] = after
-        persistence.save(queue)
+        repository.save(queue)
 
         if (before != null && before != after) {
             publisher?.publishQueueUpdated(before, after)

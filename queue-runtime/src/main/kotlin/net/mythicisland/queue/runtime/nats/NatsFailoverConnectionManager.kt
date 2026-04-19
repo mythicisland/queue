@@ -5,6 +5,7 @@ import io.nats.client.ErrorListener
 import io.nats.client.Nats
 import io.nats.client.Options
 import kotlinx.coroutines.*
+import kotlin.coroutines.coroutineContext
 import org.apache.logging.log4j.LogManager
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Proxy
@@ -64,7 +65,7 @@ class NatsFailoverConnectionManager(
     private suspend fun monitorConnection() {
         var reconnectingSinceMillis: Long? = null
 
-        while (true) {
+        while (coroutineContext.isActive) {
             val conn = connectionRef.get()
             when (val status = conn.status) {
                 Connection.Status.CLOSED -> {

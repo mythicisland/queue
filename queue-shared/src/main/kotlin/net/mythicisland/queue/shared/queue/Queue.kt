@@ -12,11 +12,17 @@ data class Queue(
     val capacity: Long = 0,
     var server: Server? = null,
 ) {
-    /** Remaining waiting countdown in milliseconds. */
-    var waitingCountdownRemaining: Long = 0
+    /** Absolute timestamp (ms) at which the waiting countdown ends, or null if not active. */
+    var waitingCountdownEndsAt: Long? = null
 
-    /** Remaining game countdown in milliseconds. */
-    var countdownRemaining: Long = 0
+    /** Absolute timestamp (ms) at which the game countdown ends, or null if not active. */
+    var countdownEndsAt: Long? = null
+
+    val waitingCountdownRemaining: Long
+        get() = waitingCountdownEndsAt?.let { (it - System.currentTimeMillis()).coerceAtLeast(0) } ?: 0
+
+    val countdownRemaining: Long
+        get() = countdownEndsAt?.let { (it - System.currentTimeMillis()).coerceAtLeast(0) } ?: 0
 
     fun toDefinition() : build.buf.gen.mythicisland.queue.v1.Queue {
         return build.buf.gen.mythicisland.queue.v1.Queue.newBuilder()

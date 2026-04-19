@@ -1,4 +1,4 @@
-package net.mythicisland.queue.runtime.persistence
+package net.mythicisland.queue.runtime.repository
 
 import build.buf.gen.mythicisland.queue.v1.QueueStatus
 import net.mythicisland.queue.db.tables.references.QUEUES
@@ -7,7 +7,7 @@ import net.mythicisland.queue.runtime.database.Database
 import net.mythicisland.queue.shared.queue.Queue
 import java.util.UUID
 
-class PersistenceQueueRepository(
+class QueueDatabaseRepository(
     private val db: Database
 ) {
 
@@ -60,17 +60,19 @@ class PersistenceQueueRepository(
 
     fun loadAll(): List<Queue> {
         val records = db.context.selectFrom(QUEUES).fetch()
+        val playersByQueueId = db.context.selectFrom(QUEUE_PLAYERS)
+            .orderBy(QUEUE_PLAYERS.QUEUE_ID, QUEUE_PLAYERS.POSITION.asc())
+            .fetch()
+            .groupBy({ it.queueId.orEmpty() }) { record ->
+                record.playerId?.let(UUID::fromString)
+            }
+            .mapValues { (_, players) -> players.filterNotNull() }
+
+        val now = System.currentTimeMillis()
 
         return records.mapNotNull { record ->
             val queueId = record.id ?: return@mapNotNull null
             val uuid = UUID.fromString(queueId)
-
-            val playerRecords = db.context.selectFrom(QUEUE_PLAYERS)
-                .where(QUEUE_PLAYERS.QUEUE_ID.eq(queueId))
-                .orderBy(QUEUE_PLAYERS.POSITION.asc())
-                .fetch()
-
-            val players = playerRecords.mapNotNull { it.playerId?.let { id -> UUID.fromString(id) } }
 
             val statusNumber = record.status ?: 0
             val status = QueueStatus.forNumber(statusNumber) ?: QueueStatus.NOT_ENOUGH_PLAYERS
@@ -79,11 +81,13 @@ class PersistenceQueueRepository(
                 id = uuid,
                 type = record.queueType ?: return@mapNotNull null,
                 status = status,
-                players = players.toMutableList(),
+                players = playersByQueueId[queueId].orEmpty().toMutableList(),
                 capacity = record.capacity ?: 0,
             ).also {
-                it.waitingCountdownRemaining = record.waitingCountdownRemaining ?: 0
-                it.countdownRemaining = record.countdownRemaining ?: 0
+                it.waitingCountdownEndsAt = record.waitingCountdownRemaining
+                    ?.takeIf { r -> r > 0 }?.let { r -> now + r }
+                it.countdownEndsAt = record.countdownRemaining
+                    ?.takeIf { r -> r > 0 }?.let { r -> now + r }
             }
         }
     }

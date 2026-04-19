@@ -18,11 +18,6 @@ import java.util.UUID
 
 /**
  * Publishes queue lifecycle events to NATS.
- *
- * Each event is serialized as a protobuf message and published to a dedicated
- * NATS subject defined in [QueueEventNames]. Publishing failures are logged
- * but never propagate to callers, ensuring event emission does not interfere
- * with queue operations.
  */
 class EventPublisher(
     private val connection: Connection,
@@ -155,7 +150,6 @@ class EventPublisher(
 
     /**
      * Publishes a protobuf message to the given NATS subject.
-     * Failures are logged but never propagated.
      *
      * @param subject The NATS subject to publish to
      * @param message The protobuf message to serialize and publish

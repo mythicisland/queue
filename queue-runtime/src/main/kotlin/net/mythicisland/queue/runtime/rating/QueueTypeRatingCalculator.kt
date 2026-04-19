@@ -3,7 +3,7 @@ package net.mythicisland.queue.runtime.rating
 import build.buf.gen.mythicisland.queue.v1.QueueRating
 import build.buf.gen.mythicisland.queue.v1.QueueStats
 import build.buf.gen.mythicisland.queue.v1.queueStats
-import net.mythicisland.queue.runtime.persistence.QueueTypeActivityRepository
+import net.mythicisland.queue.runtime.repository.QueueTypeActivityRepository
 import net.mythicisland.queue.runtime.repository.QueueTypeRepository
 import java.time.LocalDateTime
 
@@ -33,8 +33,14 @@ class QueueTypeRatingCalculator(
      * @return The computed stats, or null if the queue type does not exist
      */
     fun calculate(queueTypeName: String): QueueStats? {
-        typeRepository.find(queueTypeName) ?: return null
-        return calculateAll().find { it.queueType == queueTypeName }
+        val type = typeRepository.find(queueTypeName) ?: return null
+
+        val now = LocalDateTime.now()
+        val playersByType7d = activityRepository.countDistinctPlayersByType(now.minusDays(7))
+        val players7d = playersByType7d[type.name] ?: 0
+        val players24h = activityRepository.countDistinctPlayers(type.name, now.minusDays(1))
+
+        return buildStats(type.name, players7d, players24h, playersByType7d.values.sum())
     }
 
     /**
@@ -47,40 +53,46 @@ class QueueTypeRatingCalculator(
      */
     fun calculateAll(): List<QueueStats> {
         val now = LocalDateTime.now()
-        val sevenDaysAgo = now.minusDays(7)
-        val oneDayAgo = now.minusDays(1)
-
-        val playersByType7d = activityRepository.countDistinctPlayersByType(sevenDaysAgo)
-        val playersByType24h = activityRepository.countDistinctPlayersByType(oneDayAgo)
+        val playersByType7d = activityRepository.countDistinctPlayersByType(now.minusDays(7))
+        val playersByType24h = activityRepository.countDistinctPlayersByType(now.minusDays(1))
         val totalPlayers7d = playersByType7d.values.sum()
 
         return typeRepository.getAll().map { type ->
-            val players7d = playersByType7d[type.name] ?: 0
-            val players24h = playersByType24h[type.name] ?: 0
+            buildStats(
+                queueType = type.name,
+                players7d = playersByType7d[type.name] ?: 0,
+                players24h = playersByType24h[type.name] ?: 0,
+                totalPlayers7d = totalPlayers7d,
+            )
+        }
+    }
 
-            val share = if (totalPlayers7d > 0) {
-                players7d.toDouble() / totalPlayers7d * 100.0
-            } else {
-                0.0
-            }
+    private fun buildStats(
+        queueType: String,
+        players7d: Int,
+        players24h: Int,
+        totalPlayers7d: Int,
+    ): QueueStats {
+        val share = if (totalPlayers7d > 0) {
+            players7d.toDouble() / totalPlayers7d * 100.0
+        } else {
+            0.0
+        }
 
-            val dailyAverage7d = players7d.toDouble() / 7.0
-            val trend = if (dailyAverage7d > 0) {
-                players24h.toDouble() / dailyAverage7d * 100.0
-            } else {
-                0.0
-            }
+        val dailyAverage7d = players7d.toDouble() / 7.0
+        val trend = if (dailyAverage7d > 0) {
+            players24h.toDouble() / dailyAverage7d * 100.0
+        } else {
+            0.0
+        }
 
-            val rating = calculateRating(share)
-
-            queueStats {
-                this.queueType = type.name
-                this.rating = rating
-                this.totalPlayers7D = players7d
-                this.totalPlayers24H = players24h
-                this.sharePercent = share
-                this.trendPercent = trend
-            }
+        return queueStats {
+            this.queueType = queueType
+            this.rating = calculateRating(share)
+            this.totalPlayers7D = players7d
+            this.totalPlayers24H = players24h
+            this.sharePercent = share
+            this.trendPercent = trend
         }
     }
 

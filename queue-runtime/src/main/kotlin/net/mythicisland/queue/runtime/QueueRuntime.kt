@@ -16,10 +16,10 @@ import net.mythicisland.queue.runtime.nats.NatsConnectionHandler
 import net.mythicisland.queue.runtime.nats.NatsErrorListener
 import net.mythicisland.queue.runtime.nats.NatsFailoverConnectionManager
 import net.mythicisland.queue.runtime.event.EventPublisher
-import net.mythicisland.queue.runtime.persistence.PersistenceQueueRepository
-import net.mythicisland.queue.runtime.persistence.QueueTypeActivityRepository
+import net.mythicisland.queue.runtime.repository.QueueDatabaseRepository
+import net.mythicisland.queue.runtime.repository.QueueTypeActivityRepository
 import net.mythicisland.queue.runtime.rating.QueueTypeRatingCalculator
-import net.mythicisland.queue.runtime.reconciler.QueueStatusReconciler
+import net.mythicisland.queue.runtime.reconciler.QueueReconciler
 import net.mythicisland.queue.runtime.repository.QueueRepository
 import net.mythicisland.queue.runtime.repository.QueueTypeRepository
 import net.mythicisland.queue.runtime.server.ServerFinder
@@ -33,8 +33,6 @@ class QueueRuntime(
 ) {
     private val logger = LogManager.getLogger(QueueRuntime::class.java)
 
-    private val api = connectToController()
-
     private val natsConnectionHandler = NatsConnectionHandler()
     private val natsErrorListener = NatsErrorListener()
     private val manager = createNatsConnectionManager()
@@ -43,32 +41,32 @@ class QueueRuntime(
 
     private val database = DatabaseFactory.createDatabase(args.databaseUrl)
     private val queueTypeRepository = QueueTypeRepository
-    private val persistenceQueueRepository = PersistenceQueueRepository(database)
+    private val persistenceQueueRepository = QueueDatabaseRepository(database)
     private val activityRepository = QueueTypeActivityRepository(database)
     private val queueRepository = QueueRepository(queueTypeRepository, persistenceQueueRepository, activityRepository)
     private val ratingCalculator = QueueTypeRatingCalculator(activityRepository, queueTypeRepository)
-    private val finder = ServerFinder(api, queueTypeRepository)
-    private val visualizer = ActionbarVisualizer(api.player())
     private val eventPublisher = EventPublisher(manager.connection())
-    private val reconciler = QueueStatusReconciler(
-        queueRepository,
-        queueTypeRepository,
-        api.event(),
-        api.player(),
-        finder,
-        visualizer,
-        eventPublisher,
-    )
 
     suspend fun start() {
         logger.info("Starting QueueRuntime...")
+        connectNats()
+        database.setup()
 
         logger.info("Loading queue types...")
         queueTypeRepository.load()
 
-        connectNats()
-
-        database.setup()
+        val api = connectToController()
+        val finder = ServerFinder(api, queueTypeRepository)
+        val visualizer = ActionbarVisualizer(api.player())
+        val reconciler = QueueReconciler(
+            queueRepository,
+            queueTypeRepository,
+            api.event(),
+            api.player(),
+            finder,
+            visualizer,
+            eventPublisher,
+        )
 
         logger.info("Loading queues from database...")
         queueRepository.loadFromDatabase()
@@ -86,7 +84,26 @@ class QueueRuntime(
         suspendCancellableCoroutine { continuation ->
             Runtime.getRuntime().addShutdownHook(Thread {
                 logger.info("Shutting down QueueRuntime...")
-                runBlocking { shutdown() }
+                runBlocking {
+                    val queues = queueRepository.getAllQueues()
+                    if (queues.isNotEmpty()) {
+                        logger.info("Saving {} active queues...", queues.size)
+                        for (queue in queues) {
+                            queue.server?.let { server ->
+                                logger.info("Freeing server {} from queue {}", server.serverId, queue.id)
+                                try {
+                                    finder.freeServer(server)
+                                } catch (e: Exception) {
+                                    logger.warn("Failed to free server {} during shutdown", server.serverId, e)
+                                }
+                            }
+                        }
+                    }
+
+                    reconciler.shutdown()
+                    manager.shutdown()
+                    logger.info("QueueRuntime shutdown complete")
+                }
                 server.shutdown()
                 continuation.resume(Unit) { cause, _, _ ->
                     logger.info("Runtime shutdown due to: $cause")
@@ -95,58 +112,27 @@ class QueueRuntime(
         }
     }
 
-    private suspend fun shutdown() {
-        val queues = queueRepository.getAllQueues()
-        if (queues.isNotEmpty()) {
-            logger.info("Persisting {} active queues for restart recovery...", queues.size)
-            for (queue in queues) {
-                queue.server?.let { server ->
-                    logger.info("Freeing server {} from queue {}", server.serverId, queue.id)
-                    try {
-                        finder.freeServer(server)
-                    } catch (e: Exception) {
-                        logger.warn("Failed to free server {} during shutdown", server.serverId, e)
-                    }
-                }
-            }
-        }
-
-        reconciler.shutdown()
-        manager.shutdown()
-        logger.info("QueueRuntime shutdown complete")
-    }
-
     private fun connectToController(): CloudApi {
-        try {
-            logger.info("Connecting to your Network...")
-            val api = CloudApi.create(
-                CloudApiOptions.builder()
-                    .networkId(args.networkId)
-                    .networkSecret(args.networkSecret)
-                    .controllerUrl(args.controllerUrl)
-                    .natsUrl(args.controllerNatsUrl)
-                    .build()
-            )
-            logger.info("Successfully connected to your Network")
-            logger.info("Network ID: {}", api.networkId)
-            return api
-        } catch (e: Exception) {
-            logger.error("Failed to connect to your Network", e)
-            throw e
-        }
+        logger.info("Connecting to your Network...")
+        val api = CloudApi.create(
+            CloudApiOptions.builder()
+                .networkId(args.networkId)
+                .networkSecret(args.networkSecret)
+                .controllerUrl(args.controllerUrl)
+                .natsUrl(args.controllerNatsUrl)
+                .build()
+        )
+        logger.info("Successfully connected to your Network")
+        logger.info("Network ID: {}", api.networkId)
+        return api
     }
 
     private fun connectNats() {
-        try {
-            logger.info("Connecting to NATS...")
-            logger.info("NATS failover full reconnect timeout: {}", args.natsFailoverReconnectAfter)
+        logger.info("Connecting to NATS...")
+        logger.info("NATS failover full reconnect timeout: {}", args.natsFailoverReconnectAfter)
 
-            natsConnection = manager.connection()
-            logger.info("Successfully connected to NATS")
-        } catch (e: Exception) {
-            logger.error("Failed to connect to NATS", e)
-            throw e
-        }
+        natsConnection = manager.connection()
+        logger.info("Successfully connected to NATS")
     }
 
     private fun startGrpcServer(server: Server) {

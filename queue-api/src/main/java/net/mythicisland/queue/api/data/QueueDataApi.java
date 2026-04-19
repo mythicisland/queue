@@ -7,9 +7,6 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * API for queue data queries.
- *
- * <p>Provides read access to queues, queue types, and player positions
- * for use in GUIs, tab completion, scoreboards, etc.</p>
  */
 public interface QueueDataApi {
 

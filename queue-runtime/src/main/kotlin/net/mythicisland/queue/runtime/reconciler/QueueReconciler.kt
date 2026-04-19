@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -26,6 +27,7 @@ import org.apache.logging.log4j.LogManager
 
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Reconciles queue statuses based on queue updates or server registrations.
@@ -34,7 +36,7 @@ import java.util.concurrent.ConcurrentHashMap
  * from [QueueStatus.NOT_ENOUGH_PLAYERS] through to [QueueStatus.FINISHED],
  * managing countdowns, server discovery, and player transfers.
  */
-class QueueStatusReconciler(
+class QueueReconciler(
     private val queues: QueueRepository,
     private val types: QueueTypeRepository,
     private val eventApi: EventApi,
@@ -44,14 +46,10 @@ class QueueStatusReconciler(
     private val publisher: EventPublisher,
 ) {
 
-    private val logger = LogManager.getLogger(QueueStatusReconciler::class.java)
+    private val logger = LogManager.getLogger(QueueReconciler::class.java)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val lastWaitingTick = ConcurrentHashMap<UUID, Long>()
-    private val lastCountdownTick = ConcurrentHashMap<UUID, Long>()
     private val queueMutexes = ConcurrentHashMap<UUID, Mutex>()
-
-    private fun getMutex(queueId: UUID): Mutex = queueMutexes.getOrPut(queueId) { Mutex() }
 
     /**
      * Starts the Reconciler.
@@ -72,7 +70,7 @@ class QueueStatusReconciler(
      * @param queueId The ID of the queue to reconcile
      */
     suspend fun reconcile(queueId: UUID) {
-        getMutex(queueId).withLock {
+        queueMutexes.getOrPut(queueId) { Mutex() }.withLock {
             var previousStatus: QueueStatus
 
             do {
@@ -95,7 +93,10 @@ class QueueStatusReconciler(
                     QueueStatus.COUNTDOWN -> handleCountdown(queue)
                     QueueStatus.TELEPORTING -> handleTeleporting(queue)
                     QueueStatus.FINISHED -> handleFinished(queue)
-                    else -> return
+                    else -> {
+                        logger.warn("Queue {} has unhandled status {}, skipping reconciliation", queueId, queue.status)
+                        return
+                    }
                 }
 
                 queues.updateQueue(queue)
@@ -131,25 +132,11 @@ class QueueStatusReconciler(
 
         if (queue.players.size >= type.minCapacity) {
             updateStatus(queue, QueueStatus.WAITING_COUNTDOWN)
-            queue.waitingCountdownRemaining = type.waitingCountdownSeconds * 1000
-            lastWaitingTick[queue.id] = System.currentTimeMillis()
+            queue.waitingCountdownEndsAt = System.currentTimeMillis() + type.waitingCountdownSeconds * 1000
             logger.info("Queue {} waiting countdown started: {}s", queue.id, type.waitingCountdownSeconds)
         }
 
         return queue
-    }
-
-    /**
-     * Decrements the waiting countdown using delta time.
-     *
-     * @param queue The Queue to update the waiting countdown
-     */
-    private fun updateWaitingCountdown(queue: Queue) {
-        val now = System.currentTimeMillis()
-        val lastTick = lastWaitingTick.getOrPut(queue.id) { now }
-        val delta = now - lastTick
-        queue.waitingCountdownRemaining = (queue.waitingCountdownRemaining - delta).coerceAtLeast(0)
-        lastWaitingTick[queue.id] = now
     }
 
     /**
@@ -163,13 +150,10 @@ class QueueStatusReconciler(
     private fun handleWaitingForPlayersCountdown(queue: Queue): Queue {
         val type = types.find(queue.type) ?: return queue
 
-        updateWaitingCountdown(queue)
-
         if (queue.players.size < type.minCapacity) {
             logger.info("Queue {} players dropped below minimum ({}/{}), resetting countdown", queue.id, queue.players.size, type.minCapacity)
             updateStatus(queue, QueueStatus.NOT_ENOUGH_PLAYERS)
-            queue.waitingCountdownRemaining = 0
-            lastWaitingTick.remove(queue.id)
+            queue.waitingCountdownEndsAt = null
             return queue
         }
 
@@ -177,7 +161,7 @@ class QueueStatusReconciler(
             val reason = if (queue.players.size >= type.maxCapacity) "queue full" else "countdown expired"
             logger.info("Queue {} waiting countdown finished ({}), searching server", queue.id, reason)
             updateStatus(queue, QueueStatus.SEARCHING_SERVER)
-            lastWaitingTick.remove(queue.id)
+            queue.waitingCountdownEndsAt = null
         }
 
         return queue
@@ -248,39 +232,23 @@ class QueueStatusReconciler(
         val type = types.find(queue.type) ?: return queue
 
         updateStatus(queue, QueueStatus.COUNTDOWN)
-        queue.countdownRemaining = type.countdownSeconds * 1000
-        lastCountdownTick[queue.id] = System.currentTimeMillis()
+        queue.countdownEndsAt = System.currentTimeMillis() + type.countdownSeconds * 1000
         logger.info("Queue {} game countdown started: {}s on server {}", queue.id, type.countdownSeconds, queue.server?.serverId)
 
         return queue
     }
 
     /**
-     * Decrements the game countdown using delta time.
-     *
-     * @param queue The Queue to update the countdown
-     */
-    private fun updateCountdown(queue: Queue) {
-        val now = System.currentTimeMillis()
-        val lastTick = lastCountdownTick.getOrPut(queue.id) { now }
-        val delta = now - lastTick
-        queue.countdownRemaining = (queue.countdownRemaining - delta).coerceAtLeast(0)
-        lastCountdownTick[queue.id] = now
-    }
-
-    /**
      * Handles a queue with COUNTDOWN status.
-     * Decrements the timer and transitions to TELEPORTING when done.
+     * Transitions to TELEPORTING when the countdown expires.
      *
      * @param queue The Queue to handle the countdown
      */
     private fun handleCountdown(queue: Queue): Queue {
-        updateCountdown(queue)
-
         if (queue.countdownRemaining <= 0) {
             logger.info("Queue {} game countdown finished, teleporting players", queue.id)
             updateStatus(queue, QueueStatus.TELEPORTING)
-            lastCountdownTick.remove(queue.id)
+            queue.countdownEndsAt = null
         }
 
         return queue
@@ -412,8 +380,6 @@ class QueueStatusReconciler(
      * @param id The queue ID to clear state for
      */
     fun clear(id: UUID) {
-        lastWaitingTick.remove(id)
-        lastCountdownTick.remove(id)
         queueMutexes.remove(id)
     }
 
@@ -422,8 +388,8 @@ class QueueStatusReconciler(
      */
     private fun startWaitingCountdownReconciliation() {
         scope.launch {
-            while (true) {
-                delay(500)
+            while (isActive) {
+                delay(500.milliseconds)
                 queues.getAllQueues()
                     .filter { it.status == QueueStatus.WAITING_COUNTDOWN }
                     .forEach { reconcile(it.id) }
@@ -436,8 +402,8 @@ class QueueStatusReconciler(
      */
     private fun startCountdownReconciliation() {
         scope.launch {
-            while (true) {
-                delay(500)
+            while (isActive) {
+                delay(500.milliseconds)
                 queues.getAllQueues()
                     .filter { it.status == QueueStatus.COUNTDOWN }
                     .forEach { reconcile(it.id) }
@@ -451,8 +417,8 @@ class QueueStatusReconciler(
      */
     private fun startVisualizerLoop() {
         scope.launch {
-            while (true) {
-                delay(1000)
+            while (isActive) {
+                delay(1000.milliseconds)
                 queues.getAllQueues()
                     .filter { it.status != QueueStatus.FINISHED }
                     .forEach { queue ->
@@ -474,8 +440,8 @@ class QueueStatusReconciler(
      */
     private fun startServerRetryReconciliation() {
         scope.launch {
-            while (true) {
-                delay(5000)
+            while (isActive) {
+                delay(5000.milliseconds)
                 queues.getAllQueues()
                     .filter { it.status == QueueStatus.WAITING_FOR_SERVER }
                     .forEach { reconcile(it.id) }
@@ -488,9 +454,9 @@ class QueueStatusReconciler(
      */
     private fun startPeriodicReconciliation() {
         scope.launch {
-            while (true) {
+            while (isActive) {
                 reconcileAll()
-                delay(30000)
+                delay(30000.milliseconds)
             }
         }
     }
