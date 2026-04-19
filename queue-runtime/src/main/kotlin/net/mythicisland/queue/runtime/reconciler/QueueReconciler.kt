@@ -6,14 +6,8 @@ import app.simplecloud.api.player.PlayerApi
 import app.simplecloud.api.server.Server
 import app.simplecloud.api.server.ServerState
 import build.buf.gen.mythicisland.queue.v1.QueueStatus
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.*
 import kotlinx.coroutines.future.await
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import net.mythicisland.queue.shared.extension.asPlayerOrNull
