@@ -1,6 +1,6 @@
 [versions]
 # Kotlin
-kotlin = "2.3.20"
+kotlin = "2.3.21"
 
 # Logging
 log4j = "2.25.4"
@@ -17,9 +17,9 @@ kotlinx-coroutines = "1.10.2"
 clikt = "5.1.0"
 jnats = "2.25.2"
 adventure = "5.0.1"
-cloud-api = "0.1.0-platform.23-dev.1775473227066-1c0c25a"
-queue-proto = "1.5.0.2.20260404223810.d11d2b06e28c"
-postgre = "42.7.10"
+cloud-api = "0.1.0-platform.29-dev.1777216779595-3228d3d"
+queue-proto = "1.5.0.3.20260404223810.d11d2b06e28c"
+postgre = "42.7.11"
 
 # Proto Buf
 protobuf = "4.34.1"
@@ -27,7 +27,7 @@ grpc = "1.81.0"
 grpc-kotlin = "1.5.0"
 
 # JOOQ
-jooq = "3.21.1"
+jooq = "3.21.3"
 
 [libraries]
 # Kotlin
