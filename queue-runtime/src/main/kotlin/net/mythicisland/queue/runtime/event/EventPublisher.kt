@@ -1,29 +1,18 @@
 package net.mythicisland.queue.runtime.event
 
-import build.buf.gen.mythicisland.queue.v1.DequeueEvent
-import build.buf.gen.mythicisland.queue.v1.EnqueueEvent
-import build.buf.gen.mythicisland.queue.v1.QueueCreatedEvent
-import build.buf.gen.mythicisland.queue.v1.QueueDeletedEvent
-import build.buf.gen.mythicisland.queue.v1.QueueServerAssignedEvent
-import build.buf.gen.mythicisland.queue.v1.QueueStatusUpdatedEvent
-import build.buf.gen.mythicisland.queue.v1.QueueTransferEvent
-import build.buf.gen.mythicisland.queue.v1.QueueUpdatedEvent
-import build.buf.gen.mythicisland.queue.v1.QueueStatus
-import com.google.protobuf.MessageLite
+import build.buf.gen.mythicisland.queue.v1.*
 import io.nats.client.Connection
+import net.mythicisland.moonrise.common.nats.Publisher
 import net.mythicisland.queue.shared.event.QueueEventNames
 import net.mythicisland.queue.shared.queue.Queue
-import org.apache.logging.log4j.LogManager
 import java.util.UUID
 
 /**
  * Publishes queue lifecycle events to NATS.
  */
 class EventPublisher(
-    private val connection: Connection,
-) {
-
-    private val logger = LogManager.getLogger(EventPublisher::class.java)
+    connection: Connection
+) : Publisher(connection) {
 
     /**
      * Publishes an [EnqueueEvent] when players join a queue.
@@ -148,18 +137,4 @@ class EventPublisher(
         publish(QueueEventNames.QUEUE_TRANSFER, event)
     }
 
-    /**
-     * Publishes a protobuf message to the given NATS subject.
-     *
-     * @param subject The NATS subject to publish to
-     * @param message The protobuf message to serialize and publish
-     */
-    private fun publish(subject: String, message: MessageLite) {
-        try {
-            connection.publish(subject, message.toByteArray())
-            logger.debug("Published event to {}", subject)
-        } catch (e: Exception) {
-            logger.error("Failed to publish event to {}", subject, e)
-        }
-    }
 }

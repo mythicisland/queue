@@ -1,7 +1,5 @@
 package net.mythicisland.queue.runtime
 
-import app.simplecloud.api.CloudApi
-import app.simplecloud.api.CloudApiOptions
 import io.grpc.Server
 import io.grpc.ServerBuilder
 import kotlinx.coroutines.CoroutineScope
@@ -9,10 +7,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
+import net.mythicisland.moonrise.common.MoonriseCommon
 import net.mythicisland.queue.runtime.launcher.QueueStartCommand
-import net.mythicisland.queue.runtime.nats.NatsConnectionHandler
-import net.mythicisland.queue.runtime.nats.NatsErrorListener
-import net.mythicisland.queue.runtime.nats.NatsFailoverConnectionManager
 import net.mythicisland.queue.runtime.event.EventPublisher
 import net.mythicisland.queue.runtime.reconciler.QueueReconciler
 import net.mythicisland.queue.runtime.repository.QueueRepository
@@ -27,22 +23,29 @@ class QueueRuntime(
 ) {
     private val logger = LogManager.getLogger(QueueRuntime::class.java)
 
-    private val natsConnectionHandler = NatsConnectionHandler()
-    private val natsErrorListener = NatsErrorListener()
-    private val manager = createNatsConnectionManager()
+    private val manager = MoonriseCommon.createNatsConnectionManager(
+        args.natsUrl,
+        args.natsUser,
+        args.natsSecret,
+        args.natsFailoverReconnectAfter
+    )
 
     private val eventPublisher = EventPublisher(manager.connection())
-
     private val queueTypeRepository = QueueTypeRepository(args.typesPath)
     private val queueRepository = QueueRepository(queueTypeRepository, eventPublisher)
 
     suspend fun start() {
         logger.info("Starting QueueRuntime...")
-
+        
         logger.info("Loading queue types...")
         queueTypeRepository.load()
 
-        val api = connectToController()
+        val api = MoonriseCommon.connectToController(
+            args.networkId,
+            args.networkSecret,
+            args.controllerUrl,
+            args.controllerNatsUrl
+        )
         val finder = ServerFinder(api, queueTypeRepository)
         
         val reconciler = QueueReconciler(
@@ -54,8 +57,6 @@ class QueueRuntime(
         )
 
         queueRepository.setReconciler(reconciler)
-
-        logger.info("Setting up queue reconciler...")
         reconciler.start()
 
         val server = createGrpcServer()
@@ -108,24 +109,5 @@ class QueueRuntime(
             .addService(QueueService(queueRepository))
             .addService(QueueDataService(queueRepository, queueTypeRepository))
             .build()
-    }
-
-    private fun createNatsConnectionManager(): NatsFailoverConnectionManager {
-        return NatsFailoverConnectionManager(args.natsUrl, args.natsUser, args.natsSecret, natsErrorListener, natsConnectionHandler, args.natsFailoverReconnectAfter)
-    }
-
-    private fun connectToController(): CloudApi {
-        logger.info("Connecting to your Network...")
-        val api = CloudApi.create(
-            CloudApiOptions.builder()
-                .networkId(args.networkId)
-                .networkSecret(args.networkSecret)
-                .controllerUrl(args.controllerUrl)
-                .natsUrl(args.controllerNatsUrl)
-                .build()
-        )
-        logger.info("Successfully connected to your Network")
-        logger.info("Network ID: {}", api.networkId)
-        return api
     }
 }
