@@ -76,23 +76,3 @@ suspend fun QueueDataApi.getQueueTypeSuspending(name: String): GetQueueTypeRespo
 suspend fun QueueDataApi.getAllQueueTypesSuspending(): GetAllQueueTypesResponse {
     return getAllQueueTypes().await()
 }
-
-/**
- * Gets the rating and activity stats for a single queue type, suspending until the response is available.
- *
- * @param name the queue type name (e.g. "bedwars")
- * @return the response containing the stats
- * @throws io.grpc.StatusRuntimeException with `NOT_FOUND` if the type doesn't exist
- */
-suspend fun QueueDataApi.getQueueTypeStatsSuspending(name: String): GetQueueTypeStatsResponse {
-    return getQueueTypeStats(name).await()
-}
-
-/**
- * Gets the rating and activity stats for all registered queue types, suspending until the response is available.
- *
- * @return the response containing stats for every registered queue type
- */
-suspend fun QueueDataApi.getAllQueueTypeStatsSuspending(): GetAllQueueTypeStatsResponse {
-    return getAllQueueTypeStats().await()
-}

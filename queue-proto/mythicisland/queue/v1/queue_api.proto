@@ -82,28 +82,6 @@ message GetAllQueueTypesResponse {
   repeated QueueType queue_types = 1;
 }
 
-// Requests the rating and activity stats for a single queue type.
-// Returns NOT_FOUND if the queue type does not exist.
-message GetQueueTypeStatsRequest {
-  // The name of the queue type to get stats for (e.g. "bedwars").
-  string name = 1;
-}
-
-// Contains the computed rating and activity stats for a single queue type.
-message GetQueueTypeStatsResponse {
-  // The stats including rating, player counts, share, and trend.
-  QueueStats stats = 1;
-}
-
-// Requests the rating and activity stats for all registered queue types.
-message GetAllQueueTypeStatsRequest {}
-
-// Contains the computed rating and activity stats for all registered queue types.
-message GetAllQueueTypeStatsResponse {
-  // Stats for each queue type, one entry per registered type.
-  repeated QueueStats stats = 1;
-}
-
 service QueueDataService {
   // Queue queries
   rpc GetQueue(GetQueueRequest) returns (GetQueueResponse);
@@ -115,8 +93,4 @@ service QueueDataService {
   // Queue type queries
   rpc GetQueueType(GetQueueTypeRequest) returns (GetQueueTypeResponse);
   rpc GetAllQueueTypes(GetAllQueueTypesRequest) returns (GetAllQueueTypesResponse);
-
-  // Queue type stats queries
-  rpc GetQueueTypeStats(GetQueueTypeStatsRequest) returns (GetQueueTypeStatsResponse);
-  rpc GetAllQueueTypeStats(GetAllQueueTypeStatsRequest) returns (GetAllQueueTypeStatsResponse);
 }

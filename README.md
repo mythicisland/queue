@@ -1,6 +1,6 @@
 # Queue
 
-A [SimpleCloud](https://simplecloud.app) droplet for queuing players into minigames with automatic server provisioning and player transfers.
+A [SimpleCloud](https://simplecloud.app) droplet for queuing players into minigames.
 
 ## Architecture
 
@@ -30,23 +30,9 @@ flowchart TD
 | `TELEPORTING`        | Transferring players to the game server                       |
 | `FINISHED`           | Cleanup: free server, delete queue                            |
 
-### How it works
+### Queue Type Configuration
 
-The runtime manages queues through a **reconciler** that drives each queue through its lifecycle. It uses **delta-time countdown tracking** and **per-queue mutex synchronization** for thread-safe transitions. A **visualizer loop** sends actionbar messages to all queued players every second.
-
-Queues are saved to a PostgreSQL database so they survive runtime restarts. On startup, queues are restored from the database and server-dependent states are reset to `SEARCHING_SERVER`.
-
-### Communication
-
-| Protocol   | Purpose                                                 |
-|------------|---------------------------------------------------------|
-| gRPC       | Client-server communication (enqueue, dequeue, queries) |
-| NATS       | Event publishing with failover connection management    |
-| PostgreSQL | Queue persistence across restarts                       |
-
-## Queue Type Configuration
-
-Queue types are defined as YAML files in the config directory:
+Queue types are defined as YAML files in the types directory:
 
 ```yml
 name: minekart
@@ -65,17 +51,3 @@ countdown-seconds: 10
 | `max-capacity`              | Maximum players per queue (starts immediately when full)       |
 | `waiting-countdown-seconds` | Seconds to wait for more players after minimum is reached      |
 | `countdown-seconds`         | Seconds to count down before teleporting after server is ready |
-
-## Development
-
-### Prerequisites
-
-- JDK 21+
-- A running SimpleCloud network
-- NATS server
-
-### Building
-
-```bash
-./gradlew build
-```

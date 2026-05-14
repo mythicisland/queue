@@ -65,19 +65,4 @@ public interface QueueDataApi {
      * @return a future completing with all queue type configurations
      */
     CompletableFuture<GetAllQueueTypesResponse> getAllQueueTypes();
-
-    /**
-     * Gets the rating and activity stats for a single queue type.
-     *
-     * @param name the queue type name (e.g. "bedwars")
-     * @return a future completing with the stats, or failing with {@code NOT_FOUND}
-     */
-    CompletableFuture<GetQueueTypeStatsResponse> getQueueTypeStats(String name);
-
-    /**
-     * Gets the rating and activity stats for all registered queue types.
-     *
-     * @return a future completing with stats for every registered queue type
-     */
-    CompletableFuture<GetAllQueueTypeStatsResponse> getAllQueueTypeStats();
 }

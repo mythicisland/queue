@@ -7,10 +7,13 @@ import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
+import com.github.ajalt.clikt.parameters.types.path
 import com.github.ajalt.clikt.sources.PropertiesValueSource
 import com.github.ajalt.clikt.sources.ValueSource
 import net.mythicisland.queue.runtime.QueueRuntime
 import java.io.File
+import java.nio.file.Path
+import java.nio.file.Paths
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
@@ -24,9 +27,6 @@ object QueueStartCommand : SuspendingCliktCommand() {
             valueSource = PropertiesValueSource.from(File("queue.properties"), false, ValueSource.envvarKey())
         }
     }
-
-    val databaseUrl: String by option(help = "Database URL", envvar = "DATABASE_URL")
-        .default("jdbc:postgresql://localhost:5432/queue?user=queue&password=yourPassword")
 
     val grpcPort: Int by option(help = "gRPC Port", envvar = "GRPC_PORT")
         .int().default(4564)
@@ -44,6 +44,10 @@ object QueueStartCommand : SuspendingCliktCommand() {
         .convert { parseDuration(it) }
         .default(30.seconds)
 
+    val typesPath: Path by option(help = "Directory for queue types", envvar = "TYPE_PATH")
+        .path()
+        .default(Path.of("types"))
+
     val networkId: String by option(help = "Simplecloud Network ID", envvar = "NETWORK_ID")
         .default("your-network-id")
 
@@ -51,7 +55,7 @@ object QueueStartCommand : SuspendingCliktCommand() {
         .default("your-network-secret")
 
     val controllerUrl: String by option(help = "Simplecloud Controller URL", envvar = "CONTROLLER_URL")
-        .default("https://controller.platform.simplecloud.app")
+        .default("https://controller.simplecloud.app")
 
     val controllerNatsUrl: String by option(help = "Simplecloud Controller Nats URL", envvar = "CONTROLLER_NATS_URL")
         .default("nats://platform.simplecloud.app:4222")

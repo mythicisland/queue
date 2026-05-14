@@ -9,7 +9,7 @@ import net.mythicisland.queue.runtime.repository.QueueTypeRepository
 import org.apache.logging.log4j.LogManager
 
 /**
- * Handles server discovery, reservation, and provisioning for queues.
+ * Handles server discovery and reservation for queues.
  */
 class ServerFinder(
     private val api: CloudApi,
@@ -21,40 +21,30 @@ class ServerFinder(
     /**
      * Finds the server currently assigned to the given queue.
      *
-     * Searches for a server in the queue type's group that has the queue ID
-     * stored in its "queue-id" property.
-     *
      * @param queue The queue to find a server for
      * @return The assigned server, or null if none found or queue type doesn't exist
      */
     suspend fun findServer(queue: Queue): Server? {
         val type = types.find(queue.type) ?: return null
-
-        // Get all servers in the queue type's group
         val servers = api.server().getServersByGroup(type.group).await()
 
         return servers.firstOrNull {
-            it.properties["queue-id"] == queue.id.toString()
-                && it.state == ServerState.AVAILABLE
+            it.properties["queue-id"] == queue.id.toString() && it.state == ServerState.AVAILABLE
         }
     }
 
     /**
-     * Frees a server by clearing its queue assignment.
-     *
-     * Removes the "queue-id" property from the server, making it available
-     * for other queues to reserve.
+     * Frees a server by clearing its queue id.
      *
      * @param server The server to free
-     * @return true if the server was successfully freed, false on error
+     * @return true if the property was successfully removed, false on error
      */
     suspend fun freeServer(server: Server): Boolean {
         try {
-            // Clear the queue-id property to mark server as available
             api.server().updateServerProperties(server.serverId, mapOf("queue-id" to "")).await()
             return true
         } catch (e: Exception) {
-            logger.error("Failed to free server ${server.serverId}", e)
+            logger.error("Failed to remove the queue-id property from server ${server.serverId}", e)
             return false
         }
     }
@@ -81,26 +71,20 @@ class ServerFinder(
     }
 
     /**
-     * Attempts to reserve an available server from the pool for the given queue.
+     * Attempts to reserve an available server for the given queue.
      *
-     * Searches for a server in the queue type's group that can be reserved
-     * (has no queue-id or matches this queue's ID), then assigns it to the queue.
+     * Searches for a server in the queue type's group that can be reserved.
      *
      * @param queue The queue to reserve a server for
      * @return The reserved server, or null if none available or queue type doesn't exist
      */
     private suspend fun reserveServer(queue: Queue): Server? {
         val type = types.find(queue.type) ?: return null
-
-        // Get all servers in the queue type's group
         val servers = api.server().getServersByGroup(type.group).await()
-
-        // Find first server that can be reserved
         val server = servers.firstOrNull {
             canReserveServer(queue, it)
         } ?: return null
 
-        // Assign queue ID to the server
         api.server().updateServerProperties(server.serverId, mapOf("queue-id" to queue.id.toString())).await()
         queue.server = server
 
@@ -132,9 +116,6 @@ class ServerFinder(
     /**
      * Reserves a specific server for the given queue.
      *
-     * This overload allows reserving a specific server instance, rather than
-     * searching for one. The server must pass the canReserveServer check.
-     *
      * @param queue The queue to reserve the server for
      * @param server The specific server to reserve
      * @return true if the server was successfully reserved, false if it cannot be reserved
@@ -142,7 +123,6 @@ class ServerFinder(
     suspend fun reserveServer(queue: Queue, server: Server): Boolean {
         if (!canReserveServer(queue, server)) return false
 
-        // Assign queue ID to the server
         api.server().updateServerProperties(server.serverId, mapOf("queue-id" to queue.id.toString())).await()
         queue.server = server
 
@@ -150,14 +130,7 @@ class ServerFinder(
     }
 
     /**
-     * Queues a server start request via the SimpleCloud controller.
-     *
-     * Resolves the queue type's group and submits a start request to the controller's
-     * server start queue. The controller's reconciler processes the request on its next
-     * tick and allocates a server, respecting the group's `max_servers` limit.
-     *
-     * The server is not immediately available — the queue should transition to
-     * WAITING_FOR_SERVER and wait for the server registration event.
+     * Queues a server start for a queue.
      *
      * @param queue The queue that needs a new server
      * @throws IllegalStateException if the queue type or group cannot be resolved

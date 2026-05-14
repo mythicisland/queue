@@ -16,13 +16,10 @@ class QueueService(
     private val logger = LogManager.getLogger(QueueService::class.java)
 
     override suspend fun enqueue(request: EnqueueRequest): EnqueueResponse {
-        val playerIds = request.playerIdsList.map { it.asUUID() }
-        logger.info("Enqueue request: type={}, players={}", request.type, playerIds)
-
-        val result = queues.enqueue(request.type, playerIds)
-
+        val players = request.playerIdsList.map { it.asUUID() }
+        val result = queues.enqueue(request.type, players)
         val queue = result.getOrElse { error ->
-            logger.warn("Enqueue failed for players {} in type '{}': {}", playerIds, request.type, error.message)
+            logger.warn("Enqueue failed for players {} in type '{}': {}", players, request.type, error.message)
             val status = when (error) {
                 is NoSuchElementException -> Status.NOT_FOUND
                 is IllegalStateException -> Status.FAILED_PRECONDITION
@@ -31,14 +28,11 @@ class QueueService(
             throw status.withDescription(error.message).asRuntimeException()
         }
 
-        logger.info("Enqueue success: players {} joined queue {} (type={}, players={})", playerIds, queue.id, queue.type, queue.players.size)
         return enqueueResponse { this.queue = queue.toDefinition() }
     }
 
     override suspend fun dequeue(request: DequeueRequest): DequeueResponse {
         val playerIds = request.playerIdsList.map { it.asUUID() }
-        logger.info("Dequeue request: players={}", playerIds)
-
         val success = queues.dequeue(playerIds)
 
         if (!success) {
@@ -48,7 +42,6 @@ class QueueService(
                 .asRuntimeException()
         }
 
-        logger.info("Dequeue success: players {} removed from their queues", playerIds)
         return dequeueResponse { }
     }
 

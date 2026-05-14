@@ -11,72 +11,22 @@ import org.apache.logging.log4j.LogManager
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
-/**
- * Repository for managing queues and player-to-queue mappings,
- * backed by a persistence layer for durability across restarts.
- */
 class QueueRepository(
     private val types: QueueTypeRepository,
-    private val repository: QueueDatabaseRepository,
-    private val activity: QueueTypeActivityRepository,
+    private val publisher: EventPublisher
 ) {
 
     private val logger = LogManager.getLogger(QueueRepository::class.java)
 
     private val playersToQueue = ConcurrentHashMap<UUID, UUID>()
     private val queues = ConcurrentHashMap<UUID, Queue>()
-
-    /** Protobuf snapshots of the last persisted queue state, used for change detection. */
     private val snapshots = ConcurrentHashMap<UUID, build.buf.gen.mythicisland.queue.v1.Queue>()
-
-    /** Per-type mutexes to serialize enqueue operations for the same queue type. */
-    private val typeMutexes = ConcurrentHashMap<String, Mutex>()
+    private val typeMutex = ConcurrentHashMap<String, Mutex>()
 
     private var reconciler: QueueReconciler? = null
-    private var publisher: EventPublisher? = null
 
     fun setReconciler(reconciler: QueueReconciler) {
         this.reconciler = reconciler
-    }
-
-    fun setEventPublisher(publisher: EventPublisher) {
-        this.publisher = publisher
-    }
-
-    /**
-     * Loads all queues from the database into memory.
-     */
-    fun loadFromDatabase() {
-        val loaded = repository.loadAll()
-        var restored = 0
-        var cleaned = 0
-
-        for (queue in loaded) {
-            when (queue.status) {
-                QueueStatus.FINISHED -> {
-                    repository.delete(queue.id)
-                    cleaned++
-                    continue
-                }
-                QueueStatus.SEARCHING_SERVER,
-                QueueStatus.WAITING_FOR_SERVER,
-                QueueStatus.SERVER_READY,
-                QueueStatus.COUNTDOWN,
-                QueueStatus.TELEPORTING -> {
-                    queue.status = QueueStatus.SEARCHING_SERVER
-                    queue.countdownEndsAt = null
-                }
-                else -> {}
-            }
-
-            queues[queue.id] = queue
-            snapshots[queue.id] = queue.toDefinition()
-            queue.players.forEach { playersToQueue[it] = queue.id }
-            repository.save(queue)
-            restored++
-        }
-
-        logger.info("Loaded {} queues from database ({} cleaned up)", restored, cleaned)
     }
 
     fun getQueueByPlayer(playerId: UUID): Queue? {
@@ -92,17 +42,13 @@ class QueueRepository(
             (mappedQueueId == queueId).also { if (it) removedCount++ }
         }
         reconciler?.clear(queueId)
-        publisher?.publishQueueDeleted(queue)
-        repository.delete(queueId)
-        logger.info("Deleted queue {} (removed {} player mappings)", queueId, removedCount)
+        publisher.publishQueueDeleted(queue)
+        logger.info("Deleted queue $queueId")
         return true
     }
 
     /**
      * Enqueues players into a queue of the given type.
-     *
-     * Finds an existing queue with available capacity in NOT_ENOUGH_PLAYERS or
-     * WAITING_COUNTDOWN status, or creates a new one if none fits.
      *
      * @param queueType The queue type name
      * @param playerIds The player UUIDs to enqueue
@@ -112,7 +58,7 @@ class QueueRepository(
         val type = types.find(queueType)
             ?: return Result.failure(NoSuchElementException("Queue type '$queueType' not found"))
 
-        val mutex = typeMutexes.getOrPut(queueType) { Mutex() }
+        val mutex = typeMutex.getOrPut(queueType) { Mutex() }
         return mutex.withLock {
             if (playerIds.any { playersToQueue.containsKey(it) }) {
                 return@withLock Result.failure(IllegalStateException("Some players are already in a queue"))
@@ -124,20 +70,17 @@ class QueueRepository(
             if (existingQueue != null) {
                 logger.info("Players {} joining existing queue {} (type={}, players={})", playerIds, queue.id, queue.type, queue.players.size)
             } else {
-                logger.info("Players {} created new queue {} (type={}, capacity={})", playerIds, queue.id, queue.type, queue.capacity)
+                logger.info("Players {} created new queue {} (type={}, capacity={})", playerIds, queue.id, queue.type, queue.players.size)
             }
 
             queue.players.addAll(playerIds)
             queues[queue.id] = queue
             playerIds.forEach { playersToQueue[it] = queue.id }
-            repository.save(queue)
-
-            activity.record(queueType, playerIds)
 
             if (existingQueue == null) {
-                publisher?.publishQueueCreated(queue)
+                publisher.publishQueueCreated(queue)
             }
-            publisher?.publishEnqueue(queue, playerIds)
+            publisher.publishEnqueue(queue, playerIds)
 
             reconciler?.reconcile(queue.id)
             Result.success(queue)
@@ -154,7 +97,6 @@ class QueueRepository(
         )
         queues[queue.id] = queue
         snapshots[queue.id] = queue.toDefinition()
-        repository.save(queue)
         return queue
     }
 
@@ -178,14 +120,13 @@ class QueueRepository(
         }
 
         logger.info("Player {} left queue {} (type={}, remaining={})", playerId, queue.id, queue.type, queue.players.size)
-        publisher?.publishDequeue(queue, listOf(playerId))
-        repository.save(queue)
+        publisher.publishDequeue(queue, listOf(playerId))
         reconciler?.reconcile(queue.id)
         return true
     }
 
     /**
-     * Removes multiple players from their queues.
+     * Removes players from their queues.
      *
      * @param playerIds The player UUIDs to dequeue
      * @return true if all players were successfully removed
@@ -213,10 +154,9 @@ class QueueRepository(
         val after = queue.toDefinition()
         queues[queue.id] = queue
         snapshots[queue.id] = after
-        repository.save(queue)
 
         if (before != null && before != after) {
-            publisher?.publishQueueUpdated(before, after)
+            publisher.publishQueueUpdated(before, after)
         }
     }
 

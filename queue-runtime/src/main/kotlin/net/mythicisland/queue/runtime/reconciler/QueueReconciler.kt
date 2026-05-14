@@ -1,8 +1,7 @@
 package net.mythicisland.queue.runtime.reconciler
 
-import app.simplecloud.api.event.EventApi
+import app.simplecloud.api.CloudApi
 import app.simplecloud.api.group.GroupServerType
-import app.simplecloud.api.player.PlayerApi
 import app.simplecloud.api.server.Server
 import app.simplecloud.api.server.ServerState
 import build.buf.gen.mythicisland.queue.v1.QueueStatus
@@ -10,13 +9,11 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import net.mythicisland.queue.shared.extension.asPlayerOrNull
 import net.mythicisland.queue.shared.queue.Queue
 import net.mythicisland.queue.runtime.event.EventPublisher
 import net.mythicisland.queue.runtime.repository.QueueRepository
 import net.mythicisland.queue.runtime.repository.QueueTypeRepository
 import net.mythicisland.queue.runtime.server.ServerFinder
-import net.mythicisland.queue.runtime.visualizer.QueueVisualizer
 import org.apache.logging.log4j.LogManager
 
 import java.util.UUID
@@ -25,36 +22,38 @@ import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Reconciles queue statuses based on queue updates or server registrations.
- *
- * This is the core lifecycle manager for queues. It handles status transitions
- * from [QueueStatus.NOT_ENOUGH_PLAYERS] through to [QueueStatus.FINISHED],
- * managing countdowns, server discovery, and player transfers.
  */
 class QueueReconciler(
     private val queues: QueueRepository,
     private val types: QueueTypeRepository,
-    private val eventApi: EventApi,
-    private val playerApi: PlayerApi,
+    private val api: CloudApi,
     private val finder: ServerFinder,
-    private val visualizer: QueueVisualizer,
     private val publisher: EventPublisher,
 ) {
 
     private val logger = LogManager.getLogger(QueueReconciler::class.java)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val queueMutexes = ConcurrentHashMap<UUID, Mutex>()
+    private val mutex = ConcurrentHashMap<UUID, Mutex>()
 
     /**
      * Starts the Reconciler.
      */
     fun start() {
+        logger.info("Starting up queue reconciler...")
         startPeriodicReconciliation()
         startCountdownReconciliation()
         startWaitingCountdownReconciliation()
         startServerRetryReconciliation()
-        startVisualizerLoop()
         registerServerRegistrationSubscriber()
+    }
+
+    /**
+     * Shutdowns the reconciler and cleanup resources.
+     */
+    fun shutdown() {
+        logger.info("Shutting down queue reconciler...")
+        scope.cancel()
     }
 
     /**
@@ -64,12 +63,11 @@ class QueueReconciler(
      * @param queueId The ID of the queue to reconcile
      */
     suspend fun reconcile(queueId: UUID) {
-        queueMutexes.getOrPut(queueId) { Mutex() }.withLock {
+        mutex.getOrPut(queueId) { Mutex() }.withLock {
             var previousStatus: QueueStatus
 
             do {
                 val queue = queues.getQueue(queueId) ?: return
-                val type = types.find(queue.type) ?: return
 
                 if (queue.players.isEmpty() && queue.status != QueueStatus.FINISHED) {
                     logger.info("Queue {} has no players remaining, finishing", queue.id)
@@ -94,10 +92,6 @@ class QueueReconciler(
                 }
 
                 queues.updateQueue(queue)
-
-                if (queue.status != QueueStatus.FINISHED) {
-                    visualizer.send(queue, type, queue.status)
-                }
             } while (queue.status != previousStatus)
         }
     }
@@ -268,7 +262,7 @@ class QueueReconciler(
 
         queue.players.toList().forEach { playerId ->
             try {
-                val player = playerId.asPlayerOrNull(playerApi)
+                val player = api.player().get(playerId).await()
                 if (player == null) {
                     logger.warn("Queue {} player {} is offline, skipping teleport", queue.id, playerId)
                     return@forEach
@@ -307,7 +301,6 @@ class QueueReconciler(
 
     /**
      * Reconciles all queues in the repository.
-     * Called periodically as a safety net to ensure all queues are in the correct status.
      */
     private suspend fun reconcileAll() {
         queues.getAllQueues().forEach { queue ->
@@ -344,11 +337,11 @@ class QueueReconciler(
     }
 
     /**
-     * Registers a subscriber for server state change events.
+     * Registers a listener for server state changes.
      * When a server becomes AVAILABLE, checks if waiting queues can use it.
      */
     fun registerServerRegistrationSubscriber() {
-        eventApi.server().onStateChanged { event ->
+        api.event().server().onStateChanged { event ->
             val server = event.server ?: return@onStateChanged
             if (server.serverBase?.type != GroupServerType.SERVER) return@onStateChanged
             if (event.newState == ServerState.AVAILABLE && event.oldState != ServerState.AVAILABLE) {
@@ -360,21 +353,12 @@ class QueueReconciler(
     }
 
     /**
-     * Cancels all reconciliation loops and cleans up resources.
-     * Called during runtime shutdown to stop background processing.
-     */
-    fun shutdown() {
-        logger.info("Shutting down reconciler...")
-        scope.cancel()
-    }
-
-    /**
      * Clears all reconciliation state for a queue.
      *
      * @param id The queue ID to clear state for
      */
     fun clear(id: UUID) {
-        queueMutexes.remove(id)
+        mutex.remove(id)
     }
 
     /**
@@ -406,31 +390,7 @@ class QueueReconciler(
     }
 
     /**
-     * Periodically sends actionbar to all players in active queues every second.
-     * Minecraft actionbars fade after ~2 seconds, so continuous sending is required.
-     */
-    private fun startVisualizerLoop() {
-        scope.launch {
-            while (isActive) {
-                delay(1000.milliseconds)
-                queues.getAllQueues()
-                    .filter { it.status != QueueStatus.FINISHED }
-                    .forEach { queue ->
-                        val type = types.find(queue.type) ?: return@forEach
-                        try {
-                            visualizer.send(queue, type, queue.status)
-                        } catch (e: Exception) {
-                            logger.debug("Failed to send visualizer for queue {}: {}", queue.id, e.message)
-                        }
-                    }
-            }
-        }
-    }
-
-    /**
      * Periodically retries server reservation for queues stuck in WAITING_FOR_SERVER every 5 seconds.
-     * Complements the event-driven approach from [registerServerRegistrationSubscriber] with
-     * active polling to recover from missed events or transient failures.
      */
     private fun startServerRetryReconciliation() {
         scope.launch {
@@ -444,7 +404,7 @@ class QueueReconciler(
     }
 
     /**
-     * Periodically reconciles all queues every 30 seconds as a safety net.
+     * Periodically reconciles all queues every 30 seconds.
      */
     private fun startPeriodicReconciliation() {
         scope.launch {

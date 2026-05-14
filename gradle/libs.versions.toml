@@ -19,15 +19,11 @@ jnats = "2.25.3"
 adventure = "5.0.1"
 cloud-api = "0.1.0-platform.29-dev.1777216779595-3228d3d"
 queue-proto = "1.5.0.3.20260404223810.d11d2b06e28c"
-postgre = "42.7.11"
 
 # Proto Buf
 protobuf = "4.34.1"
 grpc = "1.81.0"
 grpc-kotlin = "1.5.0"
-
-# JOOQ
-jooq = "3.21.3"
 
 [libraries]
 # Kotlin
@@ -48,19 +44,12 @@ configurate-extra-kotlin = { module = "org.spongepowered:configurate-extra-kotli
 # Other dependencies
 clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
 jnats = { module = "io.nats:jnats", version.ref = "jnats" }
-postgre-jdbc = { module = "org.postgresql:postgresql", version.ref = "postgre" }
 cloud-api = { module = "app.simplecloud.api:api", version.ref = "cloud-api" }
 queue-proto = { module = "build.buf.gen:mythicisland_queue_grpc_kotlin", version.ref = "queue-proto" }
 
 # Adventure
 adventure-api = { module = "net.kyori:adventure-api", version.ref = "adventure" }
 adventure-text-minimessage = { module = "net.kyori:adventure-text-minimessage", version.ref = "adventure" }
-
-# JOOQ
-jooq = { module = "org.jooq:jooq-kotlin", version.ref = "jooq" }
-jooq-meta = { module = "org.jooq:jooq-meta", version.ref = "jooq" }
-jooq-meta-extensions = { module = "org.jooq:jooq-meta-extensions", version.ref = "jooq" }
-jooq-kotlin-coroutines = { module = "org.jooq:jooq-kotlin-coroutines", version.ref = "jooq" }
 
 # Proto Buf
 protobuf-kotlin = { module = "com.google.protobuf:protobuf-kotlin", version.ref = "protobuf" }
@@ -74,10 +63,8 @@ grpc-netty-shaded = { module = "io.grpc:grpc-netty-shaded", version.ref = "grpc"
 logging = ["log4j-core", "log4j-api", "log4j-slf4j-impl", "slf4j-api"]
 adventure = ["adventure-api", "adventure-text-minimessage"]
 configurate = ["configurate-yaml", "configurate-extra-kotlin"]
-jooq = ["jooq-kotlin-coroutines", "jooq", "jooq-meta-extensions", "jooq-meta"]
 grpc = ["grpc-stub", "grpc-netty-shaded", "grpc-kotlin-stub", "grpc-protobuf", "protobuf-kotlin"]
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
-jooq-codegen = { id = "org.jooq.jooq-codegen-gradle", version.ref = "jooq" }

@@ -4,28 +4,22 @@ import app.simplecloud.api.CloudApi
 import app.simplecloud.api.CloudApiOptions
 import io.grpc.Server
 import io.grpc.ServerBuilder
-import io.nats.client.Connection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
-import net.mythicisland.queue.runtime.database.DatabaseFactory
 import net.mythicisland.queue.runtime.launcher.QueueStartCommand
 import net.mythicisland.queue.runtime.nats.NatsConnectionHandler
 import net.mythicisland.queue.runtime.nats.NatsErrorListener
 import net.mythicisland.queue.runtime.nats.NatsFailoverConnectionManager
 import net.mythicisland.queue.runtime.event.EventPublisher
-import net.mythicisland.queue.runtime.repository.QueueDatabaseRepository
-import net.mythicisland.queue.runtime.repository.QueueTypeActivityRepository
-import net.mythicisland.queue.runtime.rating.QueueTypeRatingCalculator
 import net.mythicisland.queue.runtime.reconciler.QueueReconciler
 import net.mythicisland.queue.runtime.repository.QueueRepository
 import net.mythicisland.queue.runtime.repository.QueueTypeRepository
 import net.mythicisland.queue.runtime.server.ServerFinder
 import net.mythicisland.queue.runtime.service.QueueDataService
 import net.mythicisland.queue.runtime.service.QueueService
-import net.mythicisland.queue.runtime.visualizer.ActionbarVisualizer
 import org.apache.logging.log4j.LogManager
 
 class QueueRuntime(
@@ -37,45 +31,31 @@ class QueueRuntime(
     private val natsErrorListener = NatsErrorListener()
     private val manager = createNatsConnectionManager()
 
-    private var natsConnection: Connection? = null
-
-    private val database = DatabaseFactory.createDatabase(args.databaseUrl)
-    private val queueTypeRepository = QueueTypeRepository
-    private val persistenceQueueRepository = QueueDatabaseRepository(database)
-    private val activityRepository = QueueTypeActivityRepository(database)
-    private val queueRepository = QueueRepository(queueTypeRepository, persistenceQueueRepository, activityRepository)
-    private val ratingCalculator = QueueTypeRatingCalculator(activityRepository, queueTypeRepository)
     private val eventPublisher = EventPublisher(manager.connection())
+
+    private val queueTypeRepository = QueueTypeRepository(args.typesPath)
+    private val queueRepository = QueueRepository(queueTypeRepository, eventPublisher)
 
     suspend fun start() {
         logger.info("Starting QueueRuntime...")
-        connectNats()
-        database.setup()
 
         logger.info("Loading queue types...")
         queueTypeRepository.load()
 
         val api = connectToController()
         val finder = ServerFinder(api, queueTypeRepository)
-        val visualizer = ActionbarVisualizer(api.player())
+        
         val reconciler = QueueReconciler(
             queueRepository,
             queueTypeRepository,
-            api.event(),
-            api.player(),
+            api,
             finder,
-            visualizer,
             eventPublisher,
         )
 
-        logger.info("Loading queues from database...")
-        queueRepository.loadFromDatabase()
-
-        logger.info("Setting up queue repository...")
         queueRepository.setReconciler(reconciler)
-        queueRepository.setEventPublisher(eventPublisher)
 
-        logger.info("Starting queue reconciler...")
+        logger.info("Setting up queue reconciler...")
         reconciler.start()
 
         val server = createGrpcServer()
@@ -87,7 +67,6 @@ class QueueRuntime(
                 runBlocking {
                     val queues = queueRepository.getAllQueues()
                     if (queues.isNotEmpty()) {
-                        logger.info("Saving {} active queues...", queues.size)
                         for (queue in queues) {
                             queue.server?.let { server ->
                                 logger.info("Freeing server {} from queue {}", server.serverId, queue.id)
@@ -99,10 +78,8 @@ class QueueRuntime(
                             }
                         }
                     }
-
                     reconciler.shutdown()
                     manager.shutdown()
-                    logger.info("QueueRuntime shutdown complete")
                 }
                 server.shutdown()
                 continuation.resume(Unit) { cause, _, _ ->
@@ -110,6 +87,31 @@ class QueueRuntime(
                 }
             })
         }
+    }
+
+    private fun startGrpcServer(server: Server) {
+        logger.info("Starting gRPC server on port {}...", args.grpcPort)
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                server.start()
+                logger.info("gRPC server started on port {}", args.grpcPort)
+                server.awaitTermination()
+            } catch (e: Exception) {
+                logger.error("Error in gRPC server", e)
+                throw e
+            }
+        }
+    }
+
+    private fun createGrpcServer(): Server {
+        return ServerBuilder.forPort(args.grpcPort)
+            .addService(QueueService(queueRepository))
+            .addService(QueueDataService(queueRepository, queueTypeRepository))
+            .build()
+    }
+
+    private fun createNatsConnectionManager(): NatsFailoverConnectionManager {
+        return NatsFailoverConnectionManager(args.natsUrl, args.natsUser, args.natsSecret, natsErrorListener, natsConnectionHandler, args.natsFailoverReconnectAfter)
     }
 
     private fun connectToController(): CloudApi {
@@ -125,46 +127,5 @@ class QueueRuntime(
         logger.info("Successfully connected to your Network")
         logger.info("Network ID: {}", api.networkId)
         return api
-    }
-
-    private fun connectNats() {
-        logger.info("Connecting to NATS...")
-        logger.info("NATS failover full reconnect timeout: {}", args.natsFailoverReconnectAfter)
-
-        natsConnection = manager.connection()
-        logger.info("Successfully connected to NATS")
-    }
-
-    private fun startGrpcServer(server: Server) {
-        logger.info("Starting gRPC server on port {}...", args.grpcPort)
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                server.start()
-                logger.info("gRPC server started on port {}", args.grpcPort)
-                server.awaitTermination()
-                logger.info("Queue started successfully")
-            } catch (e: Exception) {
-                logger.error("Error in gRPC server", e)
-                throw e
-            }
-        }
-    }
-
-    private fun createGrpcServer(): Server {
-        return ServerBuilder.forPort(args.grpcPort)
-            .addService(QueueService(queueRepository))
-            .addService(QueueDataService(queueRepository, queueTypeRepository, ratingCalculator))
-            .build()
-    }
-
-    private fun createNatsConnectionManager(): NatsFailoverConnectionManager {
-        return NatsFailoverConnectionManager(
-            natsUrl = args.natsUrl,
-            natsUser = args.natsUser,
-            natsSecret = args.natsSecret,
-            errorListener = natsErrorListener,
-            connectionHandler = natsConnectionHandler,
-            failoverReconnectAfter = args.natsFailoverReconnectAfter,
-        )
     }
 }

@@ -2,10 +2,12 @@ package net.mythicisland.queue.runtime.repository
 
 import net.mythicisland.queue.shared.queue.QueueType
 import net.mythicisland.queue.shared.repository.YamlDirectoryRepository
-import java.nio.file.Paths
+import java.nio.file.Path
 
-object QueueTypeRepository : YamlDirectoryRepository<QueueType, String>(
-    Paths.get("types"),
+class QueueTypeRepository(
+    path: Path
+) : YamlDirectoryRepository<QueueType, String>(
+    path,
     QueueType::class.java
 ) {
 

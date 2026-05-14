@@ -81,22 +81,6 @@ public class QueueDataApiImpl implements QueueDataApi {
         ));
     }
 
-    @Override
-    public CompletableFuture<GetQueueTypeStatsResponse> getQueueTypeStats(String name) {
-        return toCompletableFuture(stub.getQueueTypeStats(
-                GetQueueTypeStatsRequest.newBuilder()
-                        .setName(name)
-                        .build()
-        ));
-    }
-
-    @Override
-    public CompletableFuture<GetAllQueueTypeStatsResponse> getAllQueueTypeStats() {
-        return toCompletableFuture(stub.getAllQueueTypeStats(
-                GetAllQueueTypeStatsRequest.getDefaultInstance()
-        ));
-    }
-
     private <T> CompletableFuture<T> toCompletableFuture(ListenableFuture<T> listenableFuture) {
         CompletableFuture<T> future = new CompletableFuture<>();
         Futures.addCallback(listenableFuture, new FutureCallback<>() {

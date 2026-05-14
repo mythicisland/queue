@@ -1,7 +1,5 @@
 package net.mythicisland.queue.shared.queue
 
-import net.mythicisland.queue.shared.message.Messages
-import net.mythicisland.queue.shared.message.defaultMessages
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
 @ConfigSerializable
@@ -12,7 +10,6 @@ data class QueueType(
     val minCapacity: Long = -1L,
     val waitingCountdownSeconds: Long = 30L,
     val countdownSeconds: Long = 10L,
-    val messages: Messages = defaultMessages
 ) {
     fun toDefinition() : build.buf.gen.mythicisland.queue.v1.QueueType {
         return build.buf.gen.mythicisland.queue.v1.QueueType.newBuilder()

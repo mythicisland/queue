@@ -1,6 +1,5 @@
 package net.mythicisland.queue.api.internal;
 
-import net.mythicisland.queue.api.queue.QueueRating;
 import net.mythicisland.queue.api.queue.QueueStatus;
 
 import java.util.List;
@@ -14,9 +13,6 @@ import java.util.UUID;
  * public-facing equivalents.</p>
  */
 public final class ProtoConversionUtil {
-
-    private ProtoConversionUtil() {
-    }
 
     /**
      * Converts a protobuf {@link build.buf.gen.mythicisland.queue.v1.QueueStatus}
@@ -40,26 +36,6 @@ public final class ProtoConversionUtil {
     }
 
     /**
-     * Converts a protobuf {@link build.buf.gen.mythicisland.queue.v1.QueueRating}
-     * to the public API {@link QueueRating}.
-     *
-     * @param proto the protobuf queue rating
-     * @return the corresponding API queue rating
-     */
-    public static QueueRating toApiRating(build.buf.gen.mythicisland.queue.v1.QueueRating proto) {
-        return switch (proto) {
-            case DEAD -> QueueRating.DEAD;
-            case LOW -> QueueRating.LOW;
-            case MEDIUM -> QueueRating.MEDIUM;
-            case GOOD -> QueueRating.GOOD;
-            case POPULAR -> QueueRating.POPULAR;
-            default -> throw new IllegalArgumentException("Unknown proto QueueRating: " + proto);
-        };
-    }
-
-    /**
-     * Converts a list of UUID strings to a list of {@link UUID} objects.
-     *
      * @param ids the UUID strings from protobuf messages
      * @return the parsed UUIDs
      */
@@ -77,4 +53,9 @@ public final class ProtoConversionUtil {
     public static UUID toQueueId(build.buf.gen.mythicisland.queue.v1.Queue proto) {
         return UUID.fromString(proto.getUniqueId());
     }
+
+    /**
+     * Hidden constructor.
+     */
+    private ProtoConversionUtil() {}
 }
