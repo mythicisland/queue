@@ -1,6 +1,6 @@
 # Queue
 
-A [SimpleCloud](https://simplecloud.app) droplet for queuing players into minigames.
+A SimpleCloud droplet for queuing players into minigames.
 
 ## Architecture
 
