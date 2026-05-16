@@ -38,8 +38,8 @@ class QueueRepository(
         queues.remove(queueId)
         snapshots.remove(queueId)
         var removedCount = 0
-        playersToQueue.entries.removeAll { (_, mappedQueueId) ->
-            (mappedQueueId == queueId).also { if (it) removedCount++ }
+        playersToQueue.entries.removeAll { (_, id) ->
+            (id == queueId).also { if (it) removedCount++ }
         }
         reconciler?.clear(queueId)
         publisher.publishQueueDeleted(queue)
@@ -47,13 +47,6 @@ class QueueRepository(
         return true
     }
 
-    /**
-     * Enqueues players into a queue of the given type.
-     *
-     * @param queueType The queue type name
-     * @param playerIds The player UUIDs to enqueue
-     * @return Success with the queue, or failure if the type doesn't exist or players are already queued
-     */
     suspend fun enqueue(queueType: String, playerIds: List<UUID>): Result<Queue> {
         val type = types.find(queueType)
             ?: return Result.failure(NoSuchElementException("Queue type '$queueType' not found"))
@@ -100,12 +93,6 @@ class QueueRepository(
         return queue
     }
 
-    /**
-     * Removes a player from their current queue.
-     *
-     * @param playerId The player UUID to dequeue
-     * @return true if the player was successfully removed
-     */
     private suspend fun dequeue(playerId: UUID): Boolean {
         if (!playersToQueue.containsKey(playerId)) {
             logger.debug("Dequeue failed: player {} is not in any queue", playerId)
@@ -125,12 +112,6 @@ class QueueRepository(
         return true
     }
 
-    /**
-     * Removes players from their queues.
-     *
-     * @param playerIds The player UUIDs to dequeue
-     * @return true if all players were successfully removed
-     */
     suspend fun dequeue(playerIds: List<UUID>): Boolean {
         return playerIds.all { dequeue(it) }
     }

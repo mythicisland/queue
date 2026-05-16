@@ -2,13 +2,10 @@ package net.mythicisland.queue.runtime.service
 
 import build.buf.gen.mythicisland.queue.v1.*
 import io.grpc.Status
-import net.mythicisland.queue.shared.extension.asUUID
+import net.mythicisland.moonrise.common.extension.asUUID
 import net.mythicisland.queue.runtime.repository.QueueRepository
 import org.apache.logging.log4j.LogManager
 
-/**
- * gRPC service for queue operations.
- */
 class QueueService(
     private val queues: QueueRepository,
 ) : QueueServiceGrpcKt.QueueServiceCoroutineImplBase() {

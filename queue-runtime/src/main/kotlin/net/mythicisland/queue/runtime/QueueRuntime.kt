@@ -23,12 +23,7 @@ class QueueRuntime(
 ) {
     private val logger = LogManager.getLogger(QueueRuntime::class.java)
 
-    private val manager = MoonriseCommon.createNatsConnectionManager(
-        args.natsUrl,
-        args.natsUser,
-        args.natsSecret,
-        args.natsFailoverReconnectAfter
-    )
+    private val manager = MoonriseCommon.createNatsConnectionManager(args.natsUrl, args.natsUser, args.natsSecret)
 
     private val eventPublisher = EventPublisher(manager.connection())
     private val queueTypeRepository = QueueTypeRepository(args.typesPath)
@@ -36,7 +31,7 @@ class QueueRuntime(
 
     suspend fun start() {
         logger.info("Starting QueueRuntime...")
-        
+
         logger.info("Loading queue types...")
         queueTypeRepository.load()
 
@@ -70,12 +65,7 @@ class QueueRuntime(
                     if (queues.isNotEmpty()) {
                         for (queue in queues) {
                             queue.server?.let { server ->
-                                logger.info("Freeing server {} from queue {}", server.serverId, queue.id)
-                                try {
-                                    finder.freeServer(server)
-                                } catch (e: Exception) {
-                                    logger.warn("Failed to free server {} during shutdown", server.serverId, e)
-                                }
+                                finder.freeServer(server)
                             }
                         }
                     }

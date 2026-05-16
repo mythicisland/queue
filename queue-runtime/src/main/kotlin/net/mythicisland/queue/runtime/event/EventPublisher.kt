@@ -3,7 +3,7 @@ package net.mythicisland.queue.runtime.event
 import build.buf.gen.mythicisland.queue.v1.*
 import io.nats.client.Connection
 import net.mythicisland.moonrise.common.nats.Publisher
-import net.mythicisland.queue.shared.event.QueueEventNames
+import net.mythicisland.queue.shared.event.Subjects
 import net.mythicisland.queue.shared.queue.Queue
 import java.util.UUID
 
@@ -26,7 +26,7 @@ class EventPublisher(
             .addAllPlayerIds(playerIds.map { it.toString() })
             .build()
 
-        publish(QueueEventNames.ENQUEUE, event)
+        publish(Subjects.ENQUEUE, event)
     }
 
     /**
@@ -41,7 +41,7 @@ class EventPublisher(
             .addAllPlayerIds(playerIds.map { it.toString() })
             .build()
 
-        publish(QueueEventNames.DEQUEUE, event)
+        publish(Subjects.DEQUEUE, event)
     }
 
     /**
@@ -54,7 +54,7 @@ class EventPublisher(
             .setQueue(queue.toDefinition())
             .build()
 
-        publish(QueueEventNames.QUEUE_CREATED, event)
+        publish(Subjects.QUEUE_CREATED, event)
     }
 
     /**
@@ -72,7 +72,7 @@ class EventPublisher(
             .setAfter(after)
             .build()
 
-        publish(QueueEventNames.QUEUE_UPDATED, event)
+        publish(Subjects.QUEUE_UPDATED, event)
     }
 
     /**
@@ -89,7 +89,7 @@ class EventPublisher(
             .setNewStatus(newStatus)
             .build()
 
-        publish(QueueEventNames.QUEUE_STATUS_UPDATED, event)
+        publish(Subjects.QUEUE_STATUS_UPDATED, event)
     }
 
     /**
@@ -102,7 +102,7 @@ class EventPublisher(
             .setQueue(queue.toDefinition())
             .build()
 
-        publish(QueueEventNames.QUEUE_DELETED, event)
+        publish(Subjects.QUEUE_DELETED, event)
     }
 
     /**
@@ -117,7 +117,7 @@ class EventPublisher(
             .setServerId(serverId)
             .build()
 
-        publish(QueueEventNames.QUEUE_SERVER_ASSIGNED, event)
+        publish(Subjects.QUEUE_SERVER_ASSIGNED, event)
     }
 
     /**
@@ -134,7 +134,7 @@ class EventPublisher(
             .addAllPlayerIds(playerIds.map { it.toString() })
             .build()
 
-        publish(QueueEventNames.QUEUE_TRANSFER, event)
+        publish(Subjects.QUEUE_TRANSFER, event)
     }
 
 }

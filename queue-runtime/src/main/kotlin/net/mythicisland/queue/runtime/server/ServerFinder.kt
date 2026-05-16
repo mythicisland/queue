@@ -52,11 +52,6 @@ class ServerFinder(
     /**
      * Attempts to reserve an available server, or requests a new one if none available.
      *
-     * First tries to reserve an existing server from the pool. If none is available,
-     * queues a start request via the SimpleCloud controller. The controller's reconciler
-     * will start the server asynchronously; the queue transitions to WAITING_FOR_SERVER
-     * until the server becomes AVAILABLE.
-     *
      * @param queue The queue to reserve or request a server for
      * @return The reserved server if one was available, null if a new server was requested
      */
@@ -72,8 +67,6 @@ class ServerFinder(
 
     /**
      * Attempts to reserve an available server for the given queue.
-     *
-     * Searches for a server in the queue type's group that can be reserved.
      *
      * @param queue The queue to reserve a server for
      * @return The reserved server, or null if none available or queue type doesn't exist
@@ -97,7 +90,7 @@ class ServerFinder(
      * A server can be reserved if:
      * - It is in [ServerState.AVAILABLE] state
      * - It belongs to the same group as the queue type
-     * - It has no queue-id property, OR the property is empty/null, OR it already belongs to this queue
+     * - It has no queue-id property, OR the property is empty, OR it already belongs to this queue
      *
      * @param queue The queue requesting the server
      * @param server The server to check

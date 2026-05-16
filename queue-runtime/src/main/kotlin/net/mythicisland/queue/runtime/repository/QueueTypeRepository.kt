@@ -1,7 +1,7 @@
 package net.mythicisland.queue.runtime.repository
 
 import net.mythicisland.queue.shared.queue.QueueType
-import net.mythicisland.queue.shared.repository.YamlDirectoryRepository
+import net.mythicisland.moonrise.common.repository.YamlDirectoryRepository
 import java.nio.file.Path
 
 class QueueTypeRepository(

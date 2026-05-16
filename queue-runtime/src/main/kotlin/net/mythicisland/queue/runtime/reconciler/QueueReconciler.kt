@@ -45,11 +45,11 @@ class QueueReconciler(
         startCountdownReconciliation()
         startWaitingCountdownReconciliation()
         startServerRetryReconciliation()
-        registerServerRegistrationSubscriber()
+        registerServerListener()
     }
 
     /**
-     * Shutdowns the reconciler and cleanup resources.
+     * Shutdowns the reconciler.
      */
     fun shutdown() {
         logger.info("Shutting down queue reconciler...")
@@ -58,7 +58,6 @@ class QueueReconciler(
 
     /**
      * Reconciles a queue's status based on its current state.
-     * Handles cascading transitions when a status change occurs immediately.
      *
      * @param queueId The ID of the queue to reconcile
      */
@@ -340,7 +339,7 @@ class QueueReconciler(
      * Registers a listener for server state changes.
      * When a server becomes AVAILABLE, checks if waiting queues can use it.
      */
-    fun registerServerRegistrationSubscriber() {
+    fun registerServerListener() {
         api.event().server().onStateChanged { event ->
             val server = event.server ?: return@onStateChanged
             if (server.serverBase?.type != GroupServerType.SERVER) return@onStateChanged

@@ -2,22 +2,16 @@ package net.mythicisland.queue.runtime.service
 
 import build.buf.gen.mythicisland.queue.v1.*
 import io.grpc.Status
-import net.mythicisland.queue.shared.extension.asUUID
+import net.mythicisland.moonrise.common.extension.asUUID
 import net.mythicisland.queue.shared.queue.QueueType
 import net.mythicisland.queue.runtime.repository.QueueRepository
 import net.mythicisland.queue.runtime.repository.QueueTypeRepository
 
-/**
- * gRPC service for queue data queries.
- */
 class QueueDataService(
     private val queues: QueueRepository,
     private val types: QueueTypeRepository,
 ) : QueueDataServiceGrpcKt.QueueDataServiceCoroutineImplBase() {
 
-    /**
-     * Gets a queue by its ID.
-     */
     override suspend fun getQueue(request: GetQueueRequest): GetQueueResponse {
         val id = request.queueId.asUUID()
         val queue = queues.getQueue(id)
@@ -28,9 +22,6 @@ class QueueDataService(
         return getQueueResponse { this.queue = queue.toDefinition() }
     }
 
-    /**
-     * Gets all active queues.
-     */
     override suspend fun getAllQueues(request: GetAllQueuesRequest): GetAllQueuesResponse {
         val queues = queues.getAllQueues()
 
@@ -41,9 +32,6 @@ class QueueDataService(
         }
     }
 
-    /**
-     * Gets all active queues of a specific type.
-     */
     override suspend fun getQueuesByType(request: GetQueuesByTypeRequest): GetQueuesByTypeResponse {
         val queues = queues.getAllQueuesByType(request.type)
 
@@ -54,9 +42,6 @@ class QueueDataService(
         }
     }
 
-    /**
-     * Gets the queue a player is currently in.
-     */
     override suspend fun getQueueByPlayer(request: GetQueueByPlayerRequest): GetQueueByPlayerResponse {
         val player = request.playerId.asUUID()
         val queue = queues.getQueueByPlayer(player)
@@ -67,9 +52,6 @@ class QueueDataService(
         return getQueueByPlayerResponse { this.queue = queue.toDefinition() }
     }
 
-    /**
-     * Gets a player's position in their current queue.
-     */
     override suspend fun getPlayerPosition(request: GetPlayerPositionRequest): GetPlayerPositionResponse {
         val player = request.playerId.asUUID()
         val queue = queues.getQueueByPlayer(player)
@@ -85,9 +67,6 @@ class QueueDataService(
         }
     }
 
-    /**
-     * Gets a queue type by its name.
-     */
     override suspend fun getQueueType(request: GetQueueTypeRequest): GetQueueTypeResponse {
         val type = types.find(request.name)
             ?: throw Status.NOT_FOUND
@@ -97,11 +76,6 @@ class QueueDataService(
         return getQueueTypeResponse { this.queueType = type.toDefinition() }
     }
 
-    /**
-     * Gets all available queue types.
-     *
-     * @return The response containing all queue type configurations
-     */
     override suspend fun getAllQueueTypes(request: GetAllQueueTypesRequest): GetAllQueueTypesResponse {
         val types = types.getAll()
 

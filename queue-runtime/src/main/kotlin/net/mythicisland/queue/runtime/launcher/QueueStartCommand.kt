@@ -1,9 +1,7 @@
 package net.mythicisland.queue.runtime.launcher
 
 import com.github.ajalt.clikt.command.SuspendingCliktCommand
-import com.github.ajalt.clikt.core.BadParameterValue
 import com.github.ajalt.clikt.core.context
-import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
@@ -13,11 +11,6 @@ import com.github.ajalt.clikt.sources.ValueSource
 import net.mythicisland.queue.runtime.QueueRuntime
 import java.io.File
 import java.nio.file.Path
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.hours
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.minutes
-import kotlin.time.Duration.Companion.seconds
 
 object QueueStartCommand : SuspendingCliktCommand() {
 
@@ -27,60 +20,37 @@ object QueueStartCommand : SuspendingCliktCommand() {
         }
     }
 
-    val grpcPort: Int by option(help = "gRPC Port", envvar = "GRPC_PORT")
+    val grpcPort: Int by option(help = "Port for the Queue gRPC server (default: 4564)", envvar = "GRPC_PORT")
         .int().default(4564)
 
-    val natsUser: String by option(help = "NATS User", envvar = "NATS_USER")
-        .default("your-nats-user")
+    val natsUrl: String by option(help = "URL from the NATS server used for event publishing (default: nats://localhost:4222)", envvar = "NATS_URL")
+        .default("nats://localhost:4222")
 
-    val natsSecret: String by option(help = "NATS secret", envvar = "NATS_SECRET")
-        .default("your-nats-secret")
+    val natsUser: String by option(help = "User from the NATS server (default: admin)", envvar = "NATS_USER")
+        .default("admin")
 
-    val natsUrl: String by option(help = "NATS URL", envvar = "NATS_URL")
-        .default("nats://your-nats-url:4222")
+    val natsSecret: String by option(help = "Secret from the NATS server (default: sup3rS3cr3t)", envvar = "NATS_SECRET")
+        .default("sup3rS3cr3t")
 
-    val natsFailoverReconnectAfter: Duration by option(help = "Force a full NATS reconnect after this reconnecting duration (e.g. 30s, 2m, 1h)", envvar = "NATS_FAILOVER_RECONNECT_AFTER")
-        .convert { parseDuration(it) }
-        .default(30.seconds)
-
-    val typesPath: Path by option(help = "Directory for queue types", envvar = "TYPE_PATH")
+    val typesPath: Path by option(help = "Path used for queue types (default: types)", envvar = "TYPE_PATH")
         .path()
         .default(Path.of("types"))
 
-    val networkId: String by option(help = "Simplecloud Network ID", envvar = "NETWORK_ID")
-        .default("your-network-id")
+    // Values for the SimpleCloud API
+    val networkId: String by option(help = "Your SimpleCloud Network ID (default: id)", envvar = "NETWORK_ID")
+        .default("default")
 
-    val networkSecret: String by option(help = "Simplecloud Network Secret", envvar = "NETWORK_SECRET")
-        .default("your-network-secret")
+    val networkSecret: String by option(help = "Your SimpleCloud Network Secret (default: sup3rS3cr3t)", envvar = "NETWORK_SECRET")
+        .default("sup3rS3cr3t")
 
-    val controllerUrl: String by option(help = "Simplecloud Controller URL", envvar = "CONTROLLER_URL")
+    val controllerUrl: String by option(help = "The URL from your SimpleCloud Controller (default: https://controller.simplecloud.app)", envvar = "CONTROLLER_URL")
         .default("https://controller.simplecloud.app")
 
-    val controllerNatsUrl: String by option(help = "Simplecloud Controller Nats URL", envvar = "CONTROLLER_NATS_URL")
+    val controllerNatsUrl: String by option(help = "The URL from your SimpleCloud NATS server (default: wss://nats.simplecloud.app:443)", envvar = "CONTROLLER_NATS_URL")
         .default("wss://nats.simplecloud.app:443")
 
     override suspend fun run() {
         QueueRuntime(this).start()
     }
-
-    private fun parseDuration(value: String): Duration {
-        val trimmed = value.trim().lowercase()
-        val match = DURATION_PATTERN.matchEntire(trimmed)
-            ?: throw BadParameterValue("Invalid duration '$value'. Expected format like '30s', '2m', '500ms', '1h'.")
-
-        val amount = match.groupValues[1].toLongOrNull()
-            ?: throw BadParameterValue("Invalid duration value '$value'.")
-        val unit = match.groupValues[2]
-
-        return when (unit) {
-            "ms" -> amount.milliseconds
-            "s" -> amount.seconds
-            "m" -> amount.minutes
-            "h" -> amount.hours
-            else -> throw BadParameterValue("Unsupported duration unit in '$value'. Use ms, s, m, or h.")
-        }
-    }
-
-    private val DURATION_PATTERN = Regex("^(\\d+)(ms|s|m|h)$")
 
 }

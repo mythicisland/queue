@@ -1,6 +1,6 @@
 package net.mythicisland.queue.shared.event
 
-object QueueEventNames {
+object Subjects {
 
     private const val PREFIX = "queue.event"
 
