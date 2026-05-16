@@ -13,7 +13,6 @@ import com.github.ajalt.clikt.sources.ValueSource
 import net.mythicisland.queue.runtime.QueueRuntime
 import java.io.File
 import java.nio.file.Path
-import java.nio.file.Paths
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
@@ -58,7 +57,7 @@ object QueueStartCommand : SuspendingCliktCommand() {
         .default("https://controller.simplecloud.app")
 
     val controllerNatsUrl: String by option(help = "Simplecloud Controller Nats URL", envvar = "CONTROLLER_NATS_URL")
-        .default("nats://platform.simplecloud.app:4222")
+        .default("wss://nats.simplecloud.app:443")
 
     override suspend fun run() {
         QueueRuntime(this).start()
