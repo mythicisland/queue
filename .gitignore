@@ -15,6 +15,8 @@ build/
 .vscode/
 .cursor/
 
+# Development
 moonrise/
+types/
 logs/
 queue.properties
