@@ -35,8 +35,8 @@ flowchart TD
 Queue types are defined as YAML files in the types directory:
 
 ```yml
-name: minekart
-group: minekart
+name: bedwars
+group: bedwars
 max-capacity: 6
 min-capacity: 12
 waiting-countdown-seconds: 30

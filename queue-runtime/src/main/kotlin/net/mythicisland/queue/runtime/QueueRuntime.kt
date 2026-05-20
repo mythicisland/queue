@@ -31,27 +31,14 @@ class QueueRuntime(
     private val queueRepository = QueueRepository(queueTypeRepository, eventPublisher)
 
     suspend fun start() {
-        logger.info("Starting QueueRuntime...")
+        logger.info("Starting Queue...")
 
         logger.info("Loading queue types...")
         queueTypeRepository.load()
 
-        val api = MoonriseCommon.connectToController(
-            args.networkId,
-            args.networkSecret,
-            args.controllerUrl,
-            args.controllerNatsUrl
-        )
+        val api = MoonriseCommon.connectToController(args.networkId, args.networkSecret, args.controllerUrl, args.controllerNatsUrl)
         val finder = ServerFinder(api, queueTypeRepository)
-        
-        val reconciler = QueueReconciler(
-            queueRepository,
-            queueTypeRepository,
-            api,
-            finder,
-            eventPublisher,
-        )
-
+        val reconciler = QueueReconciler(queueRepository, queueTypeRepository, api, finder, eventPublisher)
         queueRepository.setReconciler(reconciler)
         reconciler.start()
 
@@ -60,7 +47,7 @@ class QueueRuntime(
 
         suspendCancellableCoroutine { continuation ->
             Runtime.getRuntime().addShutdownHook(Thread {
-                logger.info("Shutting down QueueRuntime...")
+                logger.info("Shutting down Queue...")
                 runBlocking {
                     val queues = queueRepository.getAllQueues()
                     if (queues.isNotEmpty()) {

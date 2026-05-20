@@ -12,15 +12,11 @@ data class Queue(
     val capacity: Long = 0,
     var server: Server? = null,
 ) {
-    /** Absolute timestamp (ms) at which the waiting countdown ends, or null if not active. */
     var waitingCountdownEndsAt: Long? = null
-
-    /** Absolute timestamp (ms) at which the game countdown ends, or null if not active. */
     var countdownEndsAt: Long? = null
 
     val waitingCountdownRemaining: Long
         get() = waitingCountdownEndsAt?.let { (it - System.currentTimeMillis()).coerceAtLeast(0) } ?: 0
-
     val countdownRemaining: Long
         get() = countdownEndsAt?.let { (it - System.currentTimeMillis()).coerceAtLeast(0) } ?: 0
 
