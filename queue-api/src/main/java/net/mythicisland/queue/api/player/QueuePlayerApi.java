@@ -8,43 +8,43 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * API for queue player operations.
+ * API for performing player-related queuing operations.
  */
 public interface QueuePlayerApi {
 
     /**
-     * Enqueues players into a queue of the specified type.
+     * Enqueues a group of players into a queue of the specified type.
      *
-     * @param type      the queue type name (e.g. "minekart")
-     * @param playerIds the UUIDs of the players to enqueue
-     * @return a future completing with the enqueue response
+     * @param type      the name of the queue type to join
+     * @param playerIds a list of UUIDs of the players to enqueue together
+     * @return a future completing with the result of the enqueue operation
      */
     CompletableFuture<EnqueueResponse> enqueue(String type, List<UUID> playerIds);
 
     /**
      * Enqueues a single player into a queue of the specified type.
      *
-     * @param type     the queue type name
+     * @param type     the name of the queue type to join
      * @param playerId the UUID of the player to enqueue
-     * @return a future completing with the enqueue response
+     * @return a future completing with the result of the enqueue operation
      */
     default CompletableFuture<EnqueueResponse> enqueue(String type, UUID playerId) {
         return enqueue(type, List.of(playerId));
     }
 
     /**
-     * Dequeues players from their current queues.
+     * Dequeues a group of players from their current queues.
      *
-     * @param playerIds the UUIDs of the players to dequeue
-     * @return a future completing with the dequeue response
+     * @param playerIds a list of UUIDs of the players to remove from their queues
+     * @return a future completing with the result of the dequeue operation
      */
     CompletableFuture<DequeueResponse> dequeue(List<UUID> playerIds);
 
     /**
      * Dequeues a single player from their current queue.
      *
-     * @param playerId the UUID of the player to dequeue
-     * @return a future completing with the dequeue response
+     * @param playerId the UUID of the player to remove from their queue
+     * @return a future completing with the result of the dequeue operation
      */
     default CompletableFuture<DequeueResponse> dequeue(UUID playerId) {
         return dequeue(List.of(playerId));

@@ -1,4 +1,4 @@
-package net.mythicisland.queue.api.internal.event;
+package net.mythicisland.queue.api.internal.event.queue;
 
 import net.mythicisland.queue.api.event.queue.QueueUpdatedEvent;
 import net.mythicisland.queue.api.queue.QueueStatus;

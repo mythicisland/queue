@@ -4,75 +4,71 @@ import build.buf.gen.mythicisland.queue.v1.QueueDataServiceGrpc;
 import build.buf.gen.mythicisland.queue.v1.QueueServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.nats.client.Connection;
+import io.nats.client.Nats;
+import io.nats.client.Options;
 import net.mythicisland.queue.api.QueueApi;
 import net.mythicisland.queue.api.QueueApiOptions;
 import net.mythicisland.queue.api.data.QueueDataApi;
 import net.mythicisland.queue.api.event.EventApi;
 import net.mythicisland.queue.api.internal.data.QueueDataApiImpl;
 import net.mythicisland.queue.api.internal.event.EventApiImpl;
-import net.mythicisland.queue.api.internal.nats.NatsFailoverConnectionManager;
 import net.mythicisland.queue.api.internal.player.QueuePlayerApiImpl;
 import net.mythicisland.queue.api.player.QueuePlayerApi;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public final class QueueApiImpl implements QueueApi {
 
-    private static final Logger LOGGER = Logger.getLogger(QueueApiImpl.class.getName());
-
-    private final ManagedChannel grpcChannel;
-    private final NatsFailoverConnectionManager natsManager;
+    private final ManagedChannel channel;
+    private final Connection nc;
     private final QueuePlayerApi playerApi;
     private final QueueDataApi dataApi;
     private final EventApi eventApi;
 
     public QueueApiImpl(QueueApiOptions options) {
-        this.grpcChannel = ManagedChannelBuilder
+        this.channel = ManagedChannelBuilder
                 .forAddress(options.getGrpcHost(), options.getGrpcPort())
                 .usePlaintext()
                 .build();
 
-        NatsFailoverConnectionManager nats;
         try {
-            nats = new NatsFailoverConnectionManager(
-                    options.getNatsUrl(),
-                    options.getNatsUser(),
-                    options.getNatsSecret(),
-                    options.getNatsFailoverReconnectAfter()
+            this.nc = Nats.connect(
+                    Options.builder()
+                            .server(options.getNatsUrl())
+                            .userInfo(options.getNatsUser(), options.getNatsSecret())
+                            .maxReconnects(-1)
+                            .build()
             );
         } catch (IOException | InterruptedException e) {
-            grpcChannel.shutdownNow();
+            channel.shutdownNow();
             throw new RuntimeException("Failed to establish NATS connection", e);
         }
-        this.natsManager = nats;
 
-        QueueServiceGrpc.QueueServiceFutureStub stub = QueueServiceGrpc.newFutureStub(grpcChannel);
+        QueueServiceGrpc.QueueServiceFutureStub stub = QueueServiceGrpc.newFutureStub(channel);
         this.playerApi = new QueuePlayerApiImpl(stub);
 
-        QueueDataServiceGrpc.QueueDataServiceFutureStub dataStub = QueueDataServiceGrpc.newFutureStub(grpcChannel);
+        QueueDataServiceGrpc.QueueDataServiceFutureStub dataStub = QueueDataServiceGrpc.newFutureStub(channel);
         this.dataApi = new QueueDataApiImpl(dataStub);
 
-        this.eventApi = new EventApiImpl(natsManager.getConnection());
+        this.eventApi = new EventApiImpl(nc);
     }
 
     @Override
     public void close() {
         try {
-            natsManager.shutdown();
-        } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Failed to shutdown NATS connection manager", e);
+            nc.close();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
-
         try {
-            grpcChannel.shutdown();
-            if (!grpcChannel.awaitTermination(5, TimeUnit.SECONDS)) {
-                grpcChannel.shutdownNow();
+            channel.shutdown();
+            if (!channel.awaitTermination(5, TimeUnit.SECONDS)) {
+                channel.shutdownNow();
             }
         } catch (InterruptedException e) {
-            grpcChannel.shutdownNow();
+            channel.shutdownNow();
             Thread.currentThread().interrupt();
         }
     }

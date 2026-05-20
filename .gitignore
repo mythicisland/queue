@@ -16,7 +16,7 @@ build/
 .cursor/
 
 # Development
-moonrise/
+common/
 types/
 logs/
 queue.properties

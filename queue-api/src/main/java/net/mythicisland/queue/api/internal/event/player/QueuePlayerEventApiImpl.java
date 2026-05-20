@@ -1,4 +1,4 @@
-package net.mythicisland.queue.api.internal.event;
+package net.mythicisland.queue.api.internal.event.player;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.nats.client.Connection;
@@ -7,18 +7,14 @@ import net.mythicisland.queue.api.event.Subscription;
 import net.mythicisland.queue.api.event.player.DequeueEvent;
 import net.mythicisland.queue.api.event.player.EnqueueEvent;
 import net.mythicisland.queue.api.event.player.QueuePlayerEventApi;
-import net.mythicisland.queue.api.internal.ProtoConversionUtil;
+import net.mythicisland.queue.api.internal.ProtoUtil;
+import net.mythicisland.queue.api.internal.event.NatsSubscription;
+import net.mythicisland.queue.api.internal.event.QueueEventSubjects;
 
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/**
- * NATS-backed implementation of {@link QueuePlayerEventApi}.
- *
- * <p>Subscribes to NATS subjects, deserializes protobuf messages, converts
- * them to the public API event types, and dispatches to consumer handlers.</p>
- */
 public final class QueuePlayerEventApiImpl implements QueuePlayerEventApi {
 
     private static final Logger LOGGER = Logger.getLogger(QueuePlayerEventApiImpl.class.getName());
@@ -37,11 +33,11 @@ public final class QueuePlayerEventApiImpl implements QueuePlayerEventApi {
                 var queue = proto.getQueue();
 
                 handler.accept(new EnqueueEventImpl(
-                        ProtoConversionUtil.toQueueId(queue),
+                        ProtoUtil.toQueueId(queue),
                         queue.getType(),
-                        ProtoConversionUtil.toApiStatus(queue.getStatus()),
-                        ProtoConversionUtil.toUuidList(queue.getPlayerIdsList()),
-                        ProtoConversionUtil.toUuidList(proto.getPlayerIdsList())
+                        ProtoUtil.toApiStatus(queue.getStatus()),
+                        ProtoUtil.toUuidList(queue.getPlayerIdsList()),
+                        ProtoUtil.toUuidList(proto.getPlayerIdsList())
                 ));
             } catch (InvalidProtocolBufferException e) {
                 LOGGER.log(Level.WARNING, "Failed to deserialize EnqueueEvent", e);
@@ -60,11 +56,11 @@ public final class QueuePlayerEventApiImpl implements QueuePlayerEventApi {
                 var queue = proto.getQueue();
 
                 handler.accept(new DequeueEventImpl(
-                        ProtoConversionUtil.toQueueId(queue),
+                        ProtoUtil.toQueueId(queue),
                         queue.getType(),
-                        ProtoConversionUtil.toApiStatus(queue.getStatus()),
-                        ProtoConversionUtil.toUuidList(queue.getPlayerIdsList()),
-                        ProtoConversionUtil.toUuidList(proto.getPlayerIdsList())
+                        ProtoUtil.toApiStatus(queue.getStatus()),
+                        ProtoUtil.toUuidList(queue.getPlayerIdsList()),
+                        ProtoUtil.toUuidList(proto.getPlayerIdsList())
                 ));
             } catch (InvalidProtocolBufferException e) {
                 LOGGER.log(Level.WARNING, "Failed to deserialize DequeueEvent", e);

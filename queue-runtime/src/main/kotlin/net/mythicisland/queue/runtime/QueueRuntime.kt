@@ -7,7 +7,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
-import net.mythicisland.moonrise.common.MoonriseCommon
+import net.mythicisland.common.MoonriseCommon
+import net.mythicisland.common.nats.createNatsConnectionManager
 import net.mythicisland.queue.runtime.launcher.QueueStartCommand
 import net.mythicisland.queue.runtime.event.EventPublisher
 import net.mythicisland.queue.runtime.reconciler.QueueReconciler
@@ -23,7 +24,7 @@ class QueueRuntime(
 ) {
     private val logger = LogManager.getLogger(QueueRuntime::class.java)
 
-    private val manager = MoonriseCommon.createNatsConnectionManager(args.natsUrl, args.natsUser, args.natsSecret)
+    private val manager = createNatsConnectionManager(args.natsUrl, args.natsUser, args.natsSecret)
 
     private val eventPublisher = EventPublisher(manager.connection())
     private val queueTypeRepository = QueueTypeRepository(args.typesPath)

@@ -4,12 +4,6 @@ plugins {
     id("maven-publish")
 }
 
-java {
-    toolchain.languageVersion.set(JavaLanguageVersion.of(21))
-    withJavadocJar()
-    withSourcesJar()
-}
-
 dependencies {
     api(libs.queue.proto)
     api(libs.bundles.grpc)
@@ -26,6 +20,11 @@ tasks.named<ShadowJar>("shadowJar") {
     relocate("build.buf", "net.mythicisland.queue.api.shaded.buf")
 }
 
+java {
+    withJavadocJar()
+    withSourcesJar()
+}
+
 val isSnapshot = version.toString().contains(Regex("dev|snapshot", RegexOption.IGNORE_CASE))
 
 publishing {
@@ -40,18 +39,12 @@ publishing {
 
             pom {
                 name.set("Queue API")
-                description.set("Queue Java and Kotlin API.")
+                description.set("API to interact with Queue")
                 url.set("https://github.com/mythicisland/queue")
                 licenses {
                     license {
                         name.set("The Apache License, Version 2.0")
                         url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-                    }
-                }
-                developers {
-                    developer {
-                        id.set("xxjanisxx")
-                        name.set("Janis")
                     }
                 }
                 scm {
@@ -67,8 +60,8 @@ publishing {
         maven {
             name = if (isSnapshot) "snapshots" else "releases"
             url = uri(
-                if (isSnapshot) "https://repo.xxjanisxx.dev/private-snapshots"
-                else "https://repo.xxjanisxx.dev/private-production"
+                if (isSnapshot) "https://repo.xxjanisxx.dev/snapshots"
+                else "https://repo.xxjanisxx.dev/releases"
             )
             credentials {
                 username = findProperty("repoUser") as String? ?: System.getenv("REPO_USER")

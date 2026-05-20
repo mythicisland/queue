@@ -6,63 +6,61 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * API for queue data queries.
+ * API for querying queue data.
  */
 public interface QueueDataApi {
 
     /**
-     * Gets a single queue by its ID.
+     * Retrieves detailed information about a specific queue.
      *
-     * @param queueId the unique ID of the queue
-     * @return a future completing with the queue, or failing with {@code NOT_FOUND}
+     * @param queueId the unique identifier of the queue
+     * @return a future completing with the queue details
      */
     CompletableFuture<GetQueueResponse> getQueue(UUID queueId);
 
     /**
-     * Gets all active queues.
+     * Retrieves a list of all currently active queues across all types.
      *
-     * @return a future completing with all queues
+     * @return a future completing with a list of all active queues
      */
     CompletableFuture<GetAllQueuesResponse> getAllQueues();
 
     /**
-     * Gets all active queues of a specific type.
+     * Retrieves all active queues of a specific type (e.g., "skyblock", "bedwars").
      *
-     * @param type the queue type name (e.g. "dev")
-     * @return a future completing with the matching queues
+     * @param type the name of the queue type
+     * @return a future completing with a list of matching queues
      */
     CompletableFuture<GetQueuesByTypeResponse> getQueuesByType(String type);
 
     /**
-     * Gets the queue a player is currently in.
+     * Finds the queue that a specific player is currently a member of.
      *
-     * @param playerId the UUID of the player
-     * @return a future completing with the player's queue, or failing with {@code NOT_FOUND}
+     * @param playerId the unique identifier of the player
+     * @return a future completing with the queue containing the player, or an empty response if not in any queue
      */
     CompletableFuture<GetQueueByPlayerResponse> getQueueByPlayer(UUID playerId);
 
     /**
-     * Gets a player's position in their current queue.
+     * Retrieves a player's current position and progress within their queue.
      *
-     * <p>The position is 1-based (first player = position 1).</p>
-     *
-     * @param playerId the UUID of the player
-     * @return a future completing with the queue and position, or failing with {@code NOT_FOUND}
+     * @param playerId the unique identifier of the player
+     * @return a future completing with the player's position information
      */
     CompletableFuture<GetPlayerPositionResponse> getPlayerPosition(UUID playerId);
 
     /**
-     * Gets a single queue type configuration by its name.
+     * Retrieves the configuration and metadata for a specific queue type.
      *
-     * @param name the queue type name
-     * @return a future completing with the queue type, or failing with {@code NOT_FOUND}
+     * @param name the name of the queue type
+     * @return a future completing with the queue type configuration
      */
     CompletableFuture<GetQueueTypeResponse> getQueueType(String name);
 
     /**
-     * Gets all available queue types.
+     * Retrieves a list of all registered queue types and their configurations.
      *
-     * @return a future completing with all queue type configurations
+     * @return a future completing with all available queue types
      */
     CompletableFuture<GetAllQueueTypesResponse> getAllQueueTypes();
 }
