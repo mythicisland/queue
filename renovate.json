@@ -1,17 +1,24 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
-  ],
-  "schedule": ["after 6am and before 7am on Monday"],
-  "timezone": "Europe/Berlin",
+  "extends": ["config:recommended"],
   "labels": ["dependencies"],
-  "dependencyDashboard": true,
-  "hourlyLimit": 0,
+  "schedule": ["at 7am on monday"],
+  "timezone": "Europe/Berlin",
+  "packageRules": [
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions"
+    },
+    {
+      "matchManagers": ["!github-actions"],
+      "groupName": "all dependencies"
+    }
+  ],
+  "prHourlyLimit": 10,
   "rebaseWhen": "conflicted",
   "rebaseLabel": "s: rebase",
   "stopUpdatingLabel": "s: stop updates",
   "commitMessagePrefix": "chore: ",
   "commitMessageAction": "update",
-  "commitBody": "[skip ci]"
+  "commitMessageSuffix": " [skip ci]"
 }
