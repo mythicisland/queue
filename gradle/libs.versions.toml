@@ -4,7 +4,7 @@ kotlin = "2.3.21"
 
 # Logging
 log4j = "2.26.0"
-slf4j = "2.0.17"
+slf4j = "2.0.18"
 
 # Configurate
 configurate = "4.2.0"
@@ -16,12 +16,12 @@ shadow = "9.4.1"
 kotlinx-coroutines = "1.11.0"
 clikt = "5.1.0"
 jnats = "2.25.3"
-adventure = "5.0.1"
+adventure = "5.1.1"
 cloud-api = "0.1.0-platform.29-dev.1777216779595-3228d3d"
 queue-proto = "1.5.0.3.20260404223810.d11d2b06e28c"
 
 # Proto Buf
-protobuf = "4.34.1"
+protobuf = "4.35.0"
 grpc = "1.81.0"
 grpc-kotlin = "1.5.0"
 
