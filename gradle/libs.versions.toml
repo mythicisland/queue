@@ -10,7 +10,7 @@ slf4j = "2.0.18"
 configurate = "4.2.0"
 
 # Plugins
-shadow = "9.4.2"
+shadow = "9.4.3"
 
 # Other dependencies
 kotlinx-coroutines = "1.11.0"
@@ -18,11 +18,11 @@ clikt = "5.1.0"
 jnats = "2.25.3"
 adventure = "5.1.1"
 cloud-api = "0.1.0-platform.30-dev.1779808903098-53ec137"
-queue-proto = "1.5.0.3.20260404223810.d11d2b06e28c"
+queue-proto = "1.5.0.4.20260404223810.d11d2b06e28c"
 
 # Proto Buf
 protobuf = "4.35.1"
-grpc = "1.82.0"
+grpc = "1.82.1"
 grpc-kotlin = "1.5.0"
 
 [libraries]
