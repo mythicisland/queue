@@ -20,7 +20,12 @@ import java.nio.file.WatchEvent
 import java.nio.file.WatchKey
 import kotlin.io.path.isDirectory
 
-data class EntityWithFile<E>(
+/**
+ * Represents an entity.
+ *
+ * @param E The type of the entity.
+ */
+data class Entity<E>(
     val entity: E,
     val fileName: String,
     val relativePath: String,
@@ -28,6 +33,16 @@ data class EntityWithFile<E>(
     val file: File,
 )
 
+/**
+ * An abstract repository capable of managing, loading, and automatically watching
+ * YAML configuration files mapped to specific Kotlin objects.
+ *
+ * @param E The entity type managed by this repository.
+ * @param I The unique identifier type used to map filenames to specific entities.
+ * @property directory The root directory where files are stored and watched.
+ * @property clazz The Java class of the entity, required for Configurate serialization.
+ * @property watcherEvents Contextual event callbacks for file creations, modifications, and deletions.
+ */
 abstract class YamlDirectoryRepository<E, I>(
     private val directory: Path,
     private val clazz: Class<E>,
@@ -35,107 +50,112 @@ abstract class YamlDirectoryRepository<E, I>(
 ) {
 
     private val logger = LogManager.getLogger(this::class.java)
-
     private val watchService = FileSystems.getDefault().newWatchService()
     private val loaders = mutableMapOf<File, YamlConfigurationLoader>()
-    protected val entities = mutableMapOf<File, EntityWithFile<E>>()
     private val watchKeys = mutableSetOf<WatchKey>()
 
+    protected val entities = mutableMapOf<File, Entity<E>>()
+
+    /**
+     * Maps an identifier to its corresponding expected filename.
+     *
+     * @param identifier The identifier to map.
+     * @return The expected filename (with or without `.yml` extension).
+     */
     abstract fun getFileName(identifier: I): String
 
+    /**
+     * Deletes the file associated with the given element and removes it from the cache.
+     *
+     * @param element The entity instance to delete.
+     * @return `true` if the file was successfully deleted and removed from cache, `false` otherwise.
+     */
     fun delete(element: E): Boolean {
         val entityWithFile = entities.values.find { it.entity == element } ?: return false
         return deleteFile(entityWithFile.file)
     }
 
+    /**
+     * Retrieves all currently loaded entities.
+     *
+     * @return A list containing all cached entities.
+     */
     fun getAll(): List<E> {
         return entities.values.map { it.entity }
     }
 
     /**
-     * Finds an entity by its identifier using the [getFileName] mapping.
+     * Finds a single entity by its identifier using the [getFileName] mapping.
      *
-     * @param identifier The identifier to look up
-     * @return The entity, or null if not found
+     * @param identifier The identifier to look up.
+     * @return The entity, or null if no matching file/cache exists.
      */
     fun find(identifier: I): E? {
         val fileName = getFileName(identifier).removeSuffix(".yml")
         return findByFileName(fileName)
     }
 
-    fun getAllWithFiles(): List<EntityWithFile<E>> {
+    /**
+     * Retrieves all currently loaded entities wrapped with their file metadata.
+     *
+     * @return A list of [Entity] structures.
+     */
+    fun getAllWithFiles(): List<Entity<E>> {
         return entities.values.toList()
     }
 
+    /**
+     * Filters all cached entities by their filename.
+     *
+     * @param fileName The name of the file to filter by (without extension).
+     * @return A list of entities matching the filename criteria.
+     */
     fun filterByFileName(fileName: String): List<E> {
         return entities.values
             .filter { it.fileName == fileName }
             .map { it.entity }
     }
 
-    fun filterByFileNamePattern(pattern: String): List<E> {
-        val regex = pattern.replace("*", ".*").toRegex()
-        return entities.values
-            .filter { regex.matches(it.fileName) }
-            .map { it.entity }
-    }
-
-    fun filterByRelativePath(relativePath: String): List<E> {
-        return entities.values
-            .filter { it.relativePath == relativePath }
-            .map { it.entity }
-    }
-
-    fun filterByNamespaceId(namespaceId: String): List<E> {
-        return entities.values
-            .filter { it.namespaceId == namespaceId }
-            .map { it.entity }
-    }
-
-    fun filterByNamespaceIdPattern(pattern: String): List<E> {
-        val regex = pattern.replace("*", ".*").toRegex()
-        return entities.values
-            .filter { regex.matches(it.namespaceId) }
-            .map { it.entity }
-    }
-
+    /**
+     * Finds a single cached entity matching the exact filename.
+     *
+     * @param fileName The name of the file to search for (without extension).
+     * @return The entity instance, or null if not found.
+     */
     fun findByFileName(fileName: String): E? {
         return entities.values
             .find { it.fileName == fileName }
             ?.entity
     }
 
-    fun findByNamespaceId(namespaceId: String): E? {
-        return entities.values
-            .find { it.namespaceId == namespaceId }
-            ?.entity
-    }
-
-    fun findByNamespaceIdAndFileName(namespaceId: String, fileName: String): E? {
-        return entities.values
-            .find { it.namespaceId == namespaceId && it.fileName == fileName }
-            ?.entity
-    }
-
-    fun findByNamespaceIdAndFileName(text: String): E? {
-        return entities.values
-            .firstOrNull { it.namespaceId == text.split("/")[0] && it.fileName == text.split("/")[1] }?.entity
-    }
-
+    /**
+     * Retrieves all distinct namespaces present among the currently loaded entities.
+     *
+     * @return A unique set of namespace identifier strings.
+     */
     fun getAllNamespaces(): Set<String> {
         return entities.values.map { it.namespaceId }.toSet()
     }
 
+    /**
+     * Initializes the repository by creating the target directory if necessary,
+     * registering filesystem listeners, and loading all existing YAML files.
+     *
+     * @return A list of all successfully loaded entities.
+     */
     fun load(): List<E> {
-        if (!directory.toFile().exists()) {
-            directory.toFile().mkdirs()
+        val dirFile = directory.toFile()
+        if (!dirFile.exists()) {
+            dirFile.mkdirs()
         }
 
         registerWatcherRecursively()
-
         return loadFromDirectory(directory)
     }
 
+    /**
+     * Walks the given directory tree to find and parse all `.yml` files.
+     */
     private fun loadFromDirectory(dir: Path): List<E> {
         val results = mutableListOf<E>()
 
@@ -151,54 +171,44 @@ abstract class YamlDirectoryRepository<E, I>(
         }
 
         logger.info("Loaded ${results.size} entities")
-
         return results
     }
 
+    /**
+     * Parses a single YAML file, constructs its metadata, and caches the result.
+     */
     private fun load(file: File): E? {
         try {
             val loader = getOrCreateLoader(file)
             val node = loader.load(ConfigurationOptions.defaults())
             val entity = node.get(clazz) ?: return null
-
             val relativePath = directory.relativize(file.toPath()).toString()
             val namespaceId = extractNamespaceId(file.toPath())
-
-            val entityWithFile = EntityWithFile<E>(
-                entity = entity,
-                fileName = file.nameWithoutExtension,
-                relativePath = relativePath,
-                namespaceId = namespaceId,
-                file = file
-            )
+            val entityWithFile = Entity<E>(entity, file.nameWithoutExtension, relativePath, namespaceId, file)
 
             entities[file] = entityWithFile
             return entity
-        } catch (ex: ParsingException) {
-            val existedBefore = entities.containsKey(file)
-            if (existedBefore) {
+        } catch (_: ParsingException) {
+            if (entities.containsKey(file)) {
                 logger.error("Could not load file ${file.name}. Switching back to an older version.")
-                return null
+            } else {
+                logger.error("Could not load file ${file.name}. Make sure it's correctly formatted!")
             }
-
-            logger.error("Could not load file ${file.name}. Make sure it's correctly formatted!")
             return null
         }
     }
 
+    /**
+     * Determines the namespace string derived from the subdirectories leading up to the file.
+     */
     private fun extractNamespaceId(filePath: Path): String {
         val relativePath = directory.relativize(filePath)
         val pathParts = relativePath.toString().split(File.separator)
-
-        // Remove the filename from the path parts
         val directoryParts = pathParts.dropLast(1)
 
-        if (directoryParts.isEmpty()) {
-            return ""
-        }
+        if (directoryParts.isEmpty()) return ""
 
         val lastUniqueIndex = findLastUniqueDirectoryIndex(directoryParts)
-
         return if (lastUniqueIndex >= 0) {
             directoryParts.drop(lastUniqueIndex).joinToString("/")
         } else {
@@ -206,28 +216,19 @@ abstract class YamlDirectoryRepository<E, I>(
         }
     }
 
+    /**
+     * Helper to find duplicates within the sub-paths to avoid conflicts and isolate distinct namespaces.
+     */
     private fun findLastUniqueDirectoryIndex(pathParts: List<String>): Int {
-        // Create a map to track the last occurrence of each directory name
         val lastOccurrences = mutableMapOf<String, Int>()
+        pathParts.forEachIndexed { index, part -> lastOccurrences[part] = index }
 
-        pathParts.forEachIndexed { index, part ->
-            lastOccurrences[part] = index
-        }
+        val duplicateDirectories = pathParts.filterIndexed { index, part ->
+            lastOccurrences[part] != index
+        }.toSet()
 
-        // Find directories that appear multiple times
-        val duplicateDirectories = mutableSetOf<String>()
-        pathParts.forEachIndexed { index, part ->
-            if (lastOccurrences[part] != index) {
-                duplicateDirectories.add(part)
-            }
-        }
+        if (duplicateDirectories.isEmpty()) return -1
 
-        // If no duplicates, return -1 to use the full path
-        if (duplicateDirectories.isEmpty()) {
-            return -1
-        }
-
-        // Find the last occurrence of any duplicate directory
         var lastDuplicateIndex = -1
         pathParts.forEachIndexed { index, part ->
             if (part in duplicateDirectories) {
@@ -238,17 +239,25 @@ abstract class YamlDirectoryRepository<E, I>(
         return lastDuplicateIndex
     }
 
+    /**
+     * Internal implementation to delete the file handle and purge it from memory.
+     */
     private fun deleteFile(file: File): Boolean {
         val deletedSuccessfully = file.delete()
         val removedSuccessfully = entities.remove(file) != null
         return deletedSuccessfully && removedSuccessfully
     }
 
+    /**
+     * Saves an entity to a file under the root directory or a specific subdirectory path.
+     *
+     * @param fileName The target filename (without extension).
+     * @param entity The entity instance to serialize.
+     * @param subDirectory Optional relative sub-paths where the file should be placed.
+     */
     protected fun save(fileName: String, entity: E, subDirectory: String = "") {
         val targetDir = if (subDirectory.isNotEmpty()) {
-            directory.resolve(subDirectory).also {
-                it.toFile().mkdirs()
-            }
+            directory.resolve(subDirectory).also { it.toFile().mkdirs() }
         } else {
             directory
         }
@@ -264,7 +273,7 @@ abstract class YamlDirectoryRepository<E, I>(
         val relativePath = directory.relativize(file.toPath()).toString()
         val namespaceId = extractNamespaceId(file.toPath())
 
-        val entityWithFile = EntityWithFile(
+        val entityWithFile = Entity(
             entity = entity,
             fileName = fileName,
             relativePath = relativePath,
@@ -275,11 +284,21 @@ abstract class YamlDirectoryRepository<E, I>(
         entities[file] = entityWithFile
     }
 
+    /**
+     * Saves an entity using a pre-determined namespace ID to define its folder layout.
+     *
+     * @param fileName The target filename (without extension).
+     * @param entity The entity instance to serialize.
+     * @param namespaceId The namespace string (slashes will be replaced by platform folder separators).
+     */
     protected fun saveWithNamespace(fileName: String, entity: E, namespaceId: String) {
         val namespacePath = namespaceId.replace("/", File.separator)
         save(fileName, entity, namespacePath)
     }
 
+    /**
+     * Caches and builds Configurate loaders.
+     */
     private fun getOrCreateLoader(file: File): YamlConfigurationLoader {
         return loaders.getOrPut(file) {
             YamlConfigurationLoader.builder()
@@ -294,11 +313,12 @@ abstract class YamlDirectoryRepository<E, I>(
         }
     }
 
+    /**
+     * Recursively walks existing trees, maps listeners.
+     */
     private fun registerWatcherRecursively(): Job {
-        // Register the root directory
         registerDirectoryWatcher(directory)
 
-        // Register all existing subdirectories
         try {
             Files.walk(directory).use { paths ->
                 paths.filter { it.isDirectory() && it != directory }
@@ -322,29 +342,22 @@ abstract class YamlDirectoryRepository<E, I>(
                     when (kind) {
                         StandardWatchEventKinds.ENTRY_CREATE -> {
                             if (resolvedPath.isDirectory()) {
-                                // New directory created, register watcher for it
                                 registerDirectoryWatcher(resolvedPath)
                             } else if (resolvedPath.toString().endsWith(".yml")) {
-                                val entity = load(resolvedPath.toFile())
-                                if (entity != null) {
-                                    watcherEvents.onCreate(entity)
-                                }
+                                load(resolvedPath.toFile())?.let { watcherEvents.onCreate(it) }
                             }
                         }
 
                         StandardWatchEventKinds.ENTRY_MODIFY -> {
                             if (!resolvedPath.isDirectory() && resolvedPath.toString().endsWith(".yml")) {
-                                val entity = load(resolvedPath.toFile())
-                                if (entity != null) {
-                                    watcherEvents.onModify(entity)
-                                }
+                                load(resolvedPath.toFile())?.let { watcherEvents.onModify(it) }
                             }
                         }
 
                         StandardWatchEventKinds.ENTRY_DELETE -> {
-                            val entityWithFile = entities[resolvedPath.toFile()]
-                            if (entityWithFile != null) {
-                                entities.remove(resolvedPath.toFile())
+                            val targetFile = resolvedPath.toFile()
+                            entities[targetFile]?.let { entityWithFile ->
+                                entities.remove(targetFile)
                                 watcherEvents.onDelete(entityWithFile.entity)
                             }
                         }
@@ -355,6 +368,9 @@ abstract class YamlDirectoryRepository<E, I>(
         }
     }
 
+    /**
+     * Registers a single folder path into the JDK WatchService tracker.
+     */
     private fun registerDirectoryWatcher(dir: Path) {
         try {
             val key = dir.register(
@@ -364,12 +380,15 @@ abstract class YamlDirectoryRepository<E, I>(
                 StandardWatchEventKinds.ENTRY_MODIFY
             )
             watchKeys.add(key)
-            logger.debug("Registered watcher for directory: $dir")
+            logger.debug("Registered watcher for directory: {}", dir)
         } catch (ex: Exception) {
             logger.error("Failed to register watcher for directory $dir: ${ex.message}")
         }
     }
 
+    /**
+     * Converts a generic file event into a string.
+     */
     private fun getChangeStatus(kind: WatchEvent.Kind<*>): String {
         return when (kind) {
             StandardWatchEventKinds.ENTRY_CREATE -> "Created"
@@ -379,6 +398,9 @@ abstract class YamlDirectoryRepository<E, I>(
         }
     }
 
+    /**
+     * Clear WatchKeys and close the WatchService.
+     */
     fun close() {
         watchKeys.forEach { it.cancel() }
         watchKeys.clear()
@@ -389,12 +411,23 @@ abstract class YamlDirectoryRepository<E, I>(
         }
     }
 
+    /**
+     * Interface for file watch events.
+     *
+     * @param E The entity type.
+     */
     interface WatcherEvents<E> {
+        /** Invoked when a new entity file is detected on the filesystem. */
         fun onCreate(entity: E)
+        /** Invoked when a tracked entity file is deleted from the filesystem. */
         fun onDelete(entity: E)
+        /** Invoked when an existing entity file is modified on the filesystem. */
         fun onModify(entity: E)
 
         companion object {
+            /**
+             * Generates an empty implementation.
+             */
             fun <E> empty(): WatcherEvents<E> = object : WatcherEvents<E> {
                 override fun onCreate(entity: E) {}
                 override fun onDelete(entity: E) {}
@@ -414,7 +447,7 @@ abstract class YamlDirectoryRepository<E, I>(
             @Suppress("UNCHECKED_CAST")
             return try {
                 java.lang.Enum.valueOf(type as Class<out Enum<*>>, value)
-            } catch (e: IllegalArgumentException) {
+            } catch (_: IllegalArgumentException) {
                 throw SerializationException("Invalid enum constant")
             }
         }

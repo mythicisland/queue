@@ -169,11 +169,11 @@ class QueueReconciler(
             val server = finder.reserveOrRequestServer(queue)
 
             if (server != null) {
-                logger.info("Queue {} reserved server {}", queue.id, server.serverId)
+                logger.info("Queue {} assigned server {}", queue.id, server.serverId)
                 publisher.publishServerAssigned(queue, server.serverId)
                 updateStatus(queue, QueueStatus.SERVER_READY)
             } else {
-                logger.info("Queue {} requested new server, waiting for it to start", queue.id)
+                logger.info("Queue {} requested new server", queue.id)
                 updateStatus(queue, QueueStatus.WAITING_FOR_SERVER)
             }
         } catch (e: Exception) {

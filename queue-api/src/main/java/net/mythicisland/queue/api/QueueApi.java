@@ -6,7 +6,7 @@ import net.mythicisland.queue.api.internal.QueueApiImpl;
 import net.mythicisland.queue.api.player.QueuePlayerApi;
 
 /**
- * Main API entry point.
+ * Main entrypoint to interacting with queue.
  */
 public interface QueueApi extends AutoCloseable {
 
@@ -20,7 +20,7 @@ public interface QueueApi extends AutoCloseable {
     }
 
     /**
-     * Creates a new instance of the API with the specified options.
+     * Creates a new instance of the API with specified options.
      *
      * @param options the configuration options for the API
      * @return a new QueueApi instance
@@ -30,9 +30,9 @@ public interface QueueApi extends AutoCloseable {
     }
 
     /**
-     * API for performing player-related queuing operations
+     * Provides player related operations.
      *
-     * @return the player operation API
+     * @return the queue player API
      */
     QueuePlayerApi player();
 
@@ -44,9 +44,9 @@ public interface QueueApi extends AutoCloseable {
     QueueDataApi data();
 
     /**
-     * Provides access to event subscriptions.
+     * Provides access to the event API.
      *
-     * @return the event subscription API
+     * @return the event API
      */
     EventApi event();
 

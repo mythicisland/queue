@@ -31,6 +31,8 @@ public final class QueueApiImpl implements QueueApi {
         this.channel = ManagedChannelBuilder
                 .forAddress(options.getGrpcHost(), options.getGrpcPort())
                 .usePlaintext()
+                .keepAliveTime(30, TimeUnit.SECONDS)
+                .keepAliveTimeout(10, TimeUnit.SECONDS)
                 .build();
 
         try {
@@ -69,7 +71,6 @@ public final class QueueApiImpl implements QueueApi {
             }
         } catch (InterruptedException e) {
             channel.shutdownNow();
-            Thread.currentThread().interrupt();
         }
     }
 

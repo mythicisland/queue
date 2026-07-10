@@ -1,22 +1,14 @@
 package net.mythicisland.queue.api;
 
-import java.time.Duration;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 /**
  * Configuration options for the {@link QueueApi}.
- *
- * <p>Contains connection details for both gRPC (data) and NATS (events).</p>
  */
 public class QueueApiOptions {
 
     /**
-     * Default options, loaded from environment variables or sensible defaults.
+     * Default options, loaded from environment variables.
      */
     public static final QueueApiOptions DEFAULT = new Builder().build();
-
-    private static final Pattern DURATION_PATTERN = Pattern.compile("^(\\d+)(ms|s|m|h)$");
 
     private final String grpcHost;
     private final int grpcPort;
@@ -103,7 +95,7 @@ public class QueueApiOptions {
          */
         public Builder() {
             this.grpcHost = System.getenv().getOrDefault("QUEUE_GRPC_HOST", "localhost");
-            this.grpcPort = parsePort(System.getenv("QUEUE_GRPC_PORT"), 4564);
+            this.grpcPort = parsePort(System.getenv("QUEUE_GRPC_PORT"));
             this.natsUrl = System.getenv().getOrDefault("QUEUE_NATS_URL", "nats://localhost:4222");
             this.natsUser = System.getenv().getOrDefault("QUEUE_NATS_USER", "admin");
             this.natsSecret = System.getenv().getOrDefault("QUEUE_NATS_SECRET", "sup3rS3cr3t");
@@ -181,9 +173,9 @@ public class QueueApiOptions {
             return new QueueApiOptions(this);
         }
 
-        private static int parsePort(String raw, int defaultValue) {
+        private static int parsePort(String raw) {
             if (raw == null || raw.isBlank()) {
-                return defaultValue;
+                return 4564;
             }
             try {
                 int port = Integer.parseInt(raw.trim());
@@ -196,33 +188,5 @@ public class QueueApiOptions {
             }
         }
 
-        private static Duration parseDuration(String raw, Duration defaultValue) {
-            if (raw == null || raw.isBlank()) {
-                return defaultValue;
-            }
-
-            String value = raw.trim().toLowerCase();
-            Matcher matcher = DURATION_PATTERN.matcher(value);
-            if (matcher.matches()) {
-                long amount = Long.parseLong(matcher.group(1));
-                return switch (matcher.group(2)) {
-                    case "ms" -> Duration.ofMillis(amount);
-                    case "s" -> Duration.ofSeconds(amount);
-                    case "m" -> Duration.ofMinutes(amount);
-                    case "h" -> Duration.ofHours(amount);
-                    default -> defaultValue;
-                };
-            }
-
-            try {
-                Duration duration = Duration.parse(raw);
-                if (duration.isNegative()) {
-                    throw new IllegalArgumentException("Duration must be >= 0");
-                }
-                return duration;
-            } catch (Exception e) {
-                throw new IllegalArgumentException(e);
-            }
-        }
     }
 }

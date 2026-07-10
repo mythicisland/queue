@@ -2,21 +2,12 @@
 .gradle/
 build/
 
-# Intellij IDEA
-.idea/
-
 # Kotlin
 .kotlin/
 
 # MacOS
 .DS_STORE
 
-# Vscode
+# IDE
 .vscode/
-.cursor/
-
-# Development
-common/
-types/
-logs/
-queue.properties
+.idea/

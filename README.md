@@ -1,6 +1,6 @@
 # Queue
 
-A SimpleCloud droplet for queuing players into minigames.
+A microservice for queuing players into minigames.
 
 ## Architecture
 
@@ -51,3 +51,6 @@ countdown-seconds: 10
 | `max-capacity`              | Maximum players per queue (starts immediately when full)       |
 | `waiting-countdown-seconds` | Seconds to wait for more players after minimum is reached      |
 | `countdown-seconds`         | Seconds to count down before teleporting after server is ready |
+
+## TODO
+- [ x ] **Multi Queue**: Queue players in multiplie queues

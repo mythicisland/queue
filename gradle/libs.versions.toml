@@ -1,56 +1,43 @@
 [versions]
-# Kotlin
 kotlin = "2.4.0"
+kotlinx-coroutines = "1.11.0"
 
-# Logging
+shadow = "9.5.1"
+
 log4j = "2.26.1"
 slf4j = "2.0.18"
 
-# Configurate
-configurate = "4.2.0"
-
-# Plugins
-shadow = "9.5.1"
-
-# Other dependencies
-kotlinx-coroutines = "1.11.0"
 clikt = "5.1.0"
 jnats = "2.26.0"
 adventure = "5.2.0"
+configurate = "4.2.0"
 cloud-api = "0.1.0-platform.37"
-queue-proto = "1.5.0.4.20260404223810.d11d2b06e28c"
+queue-proto = "1.5.0.4.20260710134554.c3cd3d34e56f"
 
-# Proto Buf
 protobuf = "4.35.1"
 grpc = "1.82.2"
 grpc-kotlin = "1.5.0"
 
 [libraries]
-# Kotlin
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 
-# Logging
 log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "log4j" }
 log4j-api = { module = "org.apache.logging.log4j:log4j-api", version.ref = "log4j" }
 log4j-slf4j-impl = { module = "org.apache.logging.log4j:log4j-slf4j2-impl", version.ref = "log4j" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 
-# Configurate
 configurate-yaml = { module = "org.spongepowered:configurate-yaml", version.ref = "configurate" }
 configurate-extra-kotlin = { module = "org.spongepowered:configurate-extra-kotlin", version.ref = "configurate" }
 
-# Other dependencies
 clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
 jnats = { module = "io.nats:jnats", version.ref = "jnats" }
 cloud-api = { module = "app.simplecloud.api:api", version.ref = "cloud-api" }
 queue-proto = { module = "build.buf.gen:mythicisland_queue_grpc_kotlin", version.ref = "queue-proto" }
 
-# Adventure
 adventure-api = { module = "net.kyori:adventure-api", version.ref = "adventure" }
 adventure-text-minimessage = { module = "net.kyori:adventure-text-minimessage", version.ref = "adventure" }
 
-# Proto Buf
 protobuf-kotlin = { module = "com.google.protobuf:protobuf-kotlin", version.ref = "protobuf" }
 
 grpc-stub = { module = "io.grpc:grpc-stub", version.ref = "grpc" }

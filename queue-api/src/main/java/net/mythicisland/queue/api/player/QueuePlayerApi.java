@@ -8,23 +8,23 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * API for performing player-related queuing operations.
+ * API for performing player related queuing operations.
  */
 public interface QueuePlayerApi {
 
     /**
      * Enqueues a group of players into a queue of the specified type.
      *
-     * @param type      the name of the queue type to join
+     * @param type the name of the queue type to join
      * @param playerIds a list of UUIDs of the players to enqueue together
      * @return a future completing with the result of the enqueue operation
      */
     CompletableFuture<EnqueueResponse> enqueue(String type, List<UUID> playerIds);
 
     /**
-     * Enqueues a single player into a queue of the specified type.
+     * Enqueues a player into a queue of the specified type.
      *
-     * @param type     the name of the queue type to join
+     * @param type the name of the queue type to join
      * @param playerId the UUID of the player to enqueue
      * @return a future completing with the result of the enqueue operation
      */

@@ -58,6 +58,7 @@ class QueueRuntime(
                         }
                     }
                     reconciler.shutdown()
+                    queueTypeRepository.close()
                     manager.shutdown()
                 }
                 server.shutdown()

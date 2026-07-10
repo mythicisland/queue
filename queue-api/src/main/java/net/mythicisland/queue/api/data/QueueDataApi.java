@@ -11,7 +11,7 @@ import java.util.concurrent.CompletableFuture;
 public interface QueueDataApi {
 
     /**
-     * Retrieves detailed information about a specific queue.
+     * Retrieves information about a specific queue.
      *
      * @param queueId the unique identifier of the queue
      * @return a future completing with the queue details

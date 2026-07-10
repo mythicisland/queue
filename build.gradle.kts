@@ -13,7 +13,6 @@ allprojects {
     repositories {
         mavenCentral()
         maven("https://repo.simplecloud.app/snapshots")
-        maven("https://repo.xxjanisxx.dev/releases")
         maven("https://buf.build/gen/maven")
     }
 }
@@ -21,7 +20,6 @@ allprojects {
 subprojects {
     apply {
         plugin("kotlin")
-        plugin("java")
         plugin("com.gradleup.shadow")
     }
 
@@ -30,21 +28,21 @@ subprojects {
         implementation(rootProject.libs.kotlinx.coroutines.core)
     }
 
-    tasks.test {
-        useJUnitPlatform()
-    }
-
     kotlin {
         jvmToolchain(21)
         compilerOptions {
-            apiVersion = KotlinVersion.KOTLIN_2_3
             jvmTarget = JvmTarget.JVM_21
-            freeCompilerArgs = listOf("-Xannotation-default-target=param-property")
+            languageVersion = KotlinVersion.KOTLIN_2_4
+            apiVersion = KotlinVersion.KOTLIN_2_4
         }
     }
 
     java {
         toolchain.languageVersion.set(JavaLanguageVersion.of(21))
+    }
+
+    tasks.test {
+        useJUnitPlatform()
     }
 
     tasks.shadowJar {

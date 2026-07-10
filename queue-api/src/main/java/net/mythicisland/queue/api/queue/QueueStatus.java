@@ -16,7 +16,7 @@ public enum QueueStatus {
     WAITING_COUNTDOWN,
 
     /**
-     * The system is actively looking for an available game server for this queue.
+     * The system is looking for an available game server for this queue.
      */
     SEARCHING_SERVER,
 
@@ -31,7 +31,7 @@ public enum QueueStatus {
     SERVER_READY,
 
     /**
-     * The final countdown before players are teleported or the match begins.
+     * The final countdown before players are teleported.
      */
     COUNTDOWN,
 
@@ -41,7 +41,7 @@ public enum QueueStatus {
     TELEPORTING,
 
     /**
-     * The queue lifecycle has completed successfully.
+     * The queue lifecycle has been completed successfully.
      */
     FINISHED;
 
