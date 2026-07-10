@@ -5,29 +5,50 @@ package mythicisland.queue.v1;
 option java_package = "net.mythicisland.queue.v1";
 option java_multiple_files = true;
 
+// Represents an active queue.
 message Queue {
+  // The UUID from this Queue.
   string unique_id = 1;
+  // The queue type from this queue.
   string type = 2;
+  // The current status from this queue.
   QueueStatus status = 3;
+  // The UUID's from the players in this queue.
   repeated string player_ids = 5;
 }
 
+// Represents a queue type.
 message QueueType {
+  // The name of this queue type.
   string name = 1;
+  // The simplecloud group to start servers.
   string group = 2;
+  // The Minimum capacity (min players to start a match).
   uint32 min_capacity = 3;
+  // The Max Capacity (max players to join a active queue).
   uint32 max_capacity = 4;
+  // The waiting countdown for more players in milliseconds.
   optional int64 waiting_countdown_millis = 5;
+  // The game countdown before teleporting to the assigned server in milliseconds.
   optional int64 countdown_millis = 6;
 }
 
+// Represents the status of a active queue.
 enum QueueStatus {
+  // Not enough players for start a match.
   NOT_ENOUGH_PLAYERS = 0;
+  // Reached the min capacity and start a countdown for still waiting for players.
   WAITING_COUNTDOWN = 1;
+  // Searching for a free server in the group from the queue type.
   SEARCHING_SERVER = 2;
+  // Waiting for a new server.
   WAITING_FOR_SERVER = 3;
+  // Server is ready.
   SERVER_READY = 4;
+  // Countdown before teleport the players.
   COUNTDOWN = 5;
+  // Teleporting the players.
   TELEPORTING = 6;
+  // Queue Lifecycle finished.
   FINISHED = 7;
 }

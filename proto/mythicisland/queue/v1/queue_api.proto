@@ -83,14 +83,11 @@ message GetAllQueueTypesResponse {
 }
 
 service QueueDataService {
-  // Queue queries
   rpc GetQueue(GetQueueRequest) returns (GetQueueResponse);
   rpc GetAllQueues(GetAllQueuesRequest) returns (GetAllQueuesResponse);
   rpc GetQueuesByType(GetQueuesByTypeRequest) returns (GetQueuesByTypeResponse);
   rpc GetQueueByPlayer(GetQueueByPlayerRequest) returns (GetQueueByPlayerResponse);
   rpc GetPlayerPosition(GetPlayerPositionRequest) returns (GetPlayerPositionResponse);
-
-  // Queue type queries
   rpc GetQueueType(GetQueueTypeRequest) returns (GetQueueTypeResponse);
   rpc GetAllQueueTypes(GetAllQueueTypesRequest) returns (GetAllQueueTypesResponse);
 }
