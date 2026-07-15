@@ -6,6 +6,7 @@ dependencies {
     api(libs.queue.proto)
     api(libs.bundles.grpc)
     api(libs.jnats)
+    implementation(libs.moonrise.common)
 }
 
 maven {

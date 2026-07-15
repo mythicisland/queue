@@ -15,6 +15,7 @@ public class QueueApiOptions {
     private final String natsUrl;
     private final String natsUser;
     private final String natsSecret;
+    private final String token;
 
     private QueueApiOptions(Builder builder) {
         this.grpcHost = builder.grpcHost;
@@ -22,6 +23,7 @@ public class QueueApiOptions {
         this.natsUrl = builder.natsUrl;
         this.natsUser = builder.natsUser;
         this.natsSecret = builder.natsSecret;
+        this.token = builder.token;
     }
 
     /**
@@ -70,6 +72,15 @@ public class QueueApiOptions {
     }
 
     /**
+     * Gets the shared auth token sent with every gRPC call.
+     *
+     * @return the auth token
+     */
+    public String getToken() {
+        return token;
+    }
+
+    /**
      * Creates a new builder for {@link QueueApiOptions}.
      *
      * @return a new builder
@@ -89,6 +100,7 @@ public class QueueApiOptions {
         private String natsUrl;
         private String natsUser;
         private String natsSecret;
+        private String token;
 
         /**
          * Initializes a new builder with default values.
@@ -99,6 +111,7 @@ public class QueueApiOptions {
             this.natsUrl = System.getenv().getOrDefault("QUEUE_NATS_URL", "nats://localhost:4222");
             this.natsUser = System.getenv().getOrDefault("QUEUE_NATS_USER", "admin");
             this.natsSecret = System.getenv().getOrDefault("QUEUE_NATS_SECRET", "sup3rS3cr3t");
+            this.token = System.getenv().getOrDefault("QUEUE_TOKEN", "");
         }
 
         /**
@@ -161,6 +174,17 @@ public class QueueApiOptions {
          */
         public Builder natsSecret(String natsSecret) {
             this.natsSecret = natsSecret;
+            return this;
+        }
+
+        /**
+         * Sets the shared auth token sent with every gRPC call.
+         *
+         * @param token the auth token
+         * @return this builder
+         */
+        public Builder token(String token) {
+            this.token = token;
             return this;
         }
 

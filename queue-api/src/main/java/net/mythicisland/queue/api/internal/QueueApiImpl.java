@@ -7,6 +7,7 @@ import io.grpc.ManagedChannelBuilder;
 import io.nats.client.Connection;
 import io.nats.client.Nats;
 import io.nats.client.Options;
+import net.mythicisland.moonrise.common.auth.AuthCredentials;
 import net.mythicisland.queue.api.QueueApi;
 import net.mythicisland.queue.api.QueueApiOptions;
 import net.mythicisland.queue.api.data.QueueDataApi;
@@ -48,10 +49,14 @@ public final class QueueApiImpl implements QueueApi {
             throw new RuntimeException("Failed to establish NATS connection", e);
         }
 
-        QueueServiceGrpc.QueueServiceFutureStub stub = QueueServiceGrpc.newFutureStub(channel);
+        AuthCredentials credentials = new AuthCredentials(options.getToken());
+
+        QueueServiceGrpc.QueueServiceFutureStub stub = QueueServiceGrpc.newFutureStub(channel)
+                .withCallCredentials(credentials);
         this.playerApi = new QueuePlayerApiImpl(stub);
 
-        QueueDataServiceGrpc.QueueDataServiceFutureStub dataStub = QueueDataServiceGrpc.newFutureStub(channel);
+        QueueDataServiceGrpc.QueueDataServiceFutureStub dataStub = QueueDataServiceGrpc.newFutureStub(channel)
+                .withCallCredentials(credentials);
         this.dataApi = new QueueDataApiImpl(dataStub);
 
         this.eventApi = new EventApiImpl(nc);
