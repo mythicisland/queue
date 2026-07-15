@@ -8,6 +8,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import net.mythicisland.moonrise.common.Moonrise
+import net.mythicisland.moonrise.common.auth.AuthInterceptor
+import net.mythicisland.moonrise.common.auth.AuthSecret
 import net.mythicisland.queue.runtime.launcher.QueueStartCommand
 import net.mythicisland.queue.runtime.event.EventPublisher
 import net.mythicisland.queue.runtime.reconciler.QueueReconciler
@@ -30,7 +32,7 @@ class QueueRuntime(
     private val queueRepository = QueueRepository(queueTypeRepository, eventPublisher)
 
     suspend fun start() {
-        logger.info("Starting Queue...")
+        logger.info("Starting Queue Service...")
 
         logger.info("Loading queue types...")
         queueTypeRepository.load()
@@ -83,7 +85,11 @@ class QueueRuntime(
     }
 
     private fun createGrpcServer(): Server {
+        logger.info("Loading auth secret from {}...", args.authKeyPath)
+        val token = AuthSecret.loadOrCreate(args.authKeyPath)
+
         return ServerBuilder.forPort(args.grpcPort)
+            .intercept(AuthInterceptor(token))
             .addService(QueueService(queueRepository))
             .addService(QueueDataService(queueRepository, queueTypeRepository))
             .build()
