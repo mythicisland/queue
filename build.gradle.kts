@@ -8,12 +8,13 @@ plugins {
 
 allprojects {
     group = "net.mythicisland.queue"
-    version = "1.0.0-beta.1"
+    version = "1.0.0"
 
     repositories {
         mavenCentral()
         maven("https://repo.simplecloud.app/snapshots")
         maven("https://buf.build/gen/maven")
+        maven("https://repo.mythicisland.net/public")
     }
 }
 

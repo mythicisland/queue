@@ -2,7 +2,7 @@ package net.mythicisland.queue.runtime.event
 
 import build.buf.gen.mythicisland.queue.v1.*
 import io.nats.client.Connection
-import net.mythicisland.common.nats.Publisher
+import net.mythicisland.moonrise.common.nats.Publisher
 import net.mythicisland.queue.shared.event.Subjects
 import net.mythicisland.queue.shared.queue.Queue
 import java.util.UUID

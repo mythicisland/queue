@@ -7,8 +7,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
-import net.mythicisland.common.MoonriseCommon
-import net.mythicisland.common.nats.createNatsConnectionManager
+import net.mythicisland.moonrise.common.Moonrise
+import net.mythicisland.moonrise.common.auth.AuthInterceptor
+import net.mythicisland.moonrise.common.auth.AuthSecret
 import net.mythicisland.queue.runtime.launcher.QueueStartCommand
 import net.mythicisland.queue.runtime.event.EventPublisher
 import net.mythicisland.queue.runtime.reconciler.QueueReconciler
@@ -24,19 +25,19 @@ class QueueRuntime(
 ) {
     private val logger = LogManager.getLogger(QueueRuntime::class.java)
 
-    private val manager = createNatsConnectionManager(args.natsUrl, args.natsUser, args.natsSecret)
+    private val manager = Moonrise.createNatsConnectionManager(args.natsUrl, args.natsUser, args.natsSecret)
 
     private val eventPublisher = EventPublisher(manager.connection())
     private val queueTypeRepository = QueueTypeRepository(args.typesPath)
     private val queueRepository = QueueRepository(queueTypeRepository, eventPublisher)
 
     suspend fun start() {
-        logger.info("Starting Queue...")
+        logger.info("Starting Queue Service...")
 
         logger.info("Loading queue types...")
         queueTypeRepository.load()
 
-        val api = MoonriseCommon.connectToController(args.networkId, args.networkSecret, args.controllerUrl, args.controllerNatsUrl)
+        val api = Moonrise.connectToController(args.networkId, args.networkSecret, args.controllerUrl, args.controllerNatsUrl)
         val finder = ServerFinder(api, queueTypeRepository)
         val reconciler = QueueReconciler(queueRepository, queueTypeRepository, api, finder, eventPublisher)
         queueRepository.setReconciler(reconciler)
@@ -84,7 +85,11 @@ class QueueRuntime(
     }
 
     private fun createGrpcServer(): Server {
+        logger.info("Loading auth secret from {}...", args.authKeyPath)
+        val token = AuthSecret.loadOrCreate(args.authKeyPath)
+
         return ServerBuilder.forPort(args.grpcPort)
+            .intercept(AuthInterceptor(token))
             .addService(QueueService(queueRepository))
             .addService(QueueDataService(queueRepository, queueTypeRepository))
             .build()

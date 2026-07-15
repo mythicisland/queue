@@ -36,6 +36,10 @@ object QueueStartCommand : SuspendingCliktCommand() {
         .path()
         .default(Path.of("types"))
 
+    val authKeyPath: Path by option(help = "Path to the gRPC auth secret (default: .secrets/auth.key)", envvar = "AUTH_KEY_PATH")
+        .path()
+        .default(Path.of(".secrets/auth.key"))
+
     // Values for the SimpleCloud API
     val networkId: String by option(help = "Your SimpleCloud Network ID (default: id)", envvar = "NETWORK_ID")
         .default("default")
