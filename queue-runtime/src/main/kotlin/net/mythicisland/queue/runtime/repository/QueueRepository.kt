@@ -12,7 +12,7 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Repository for manage active queues.
+ * Repository for managing active queues.
  *
  * @param types the repository for queue types.
  * @param publisher the publisher to publish events to NATS.
@@ -34,48 +34,72 @@ class QueueRepository(
     /**
      * Sets the [QueueReconciler] to reconcile queues.
      *
-     * @param reconciler the QueueReconciler to set.
+     * @param reconciler the reconciler to set.
      */
     fun setReconciler(reconciler: QueueReconciler) {
         this.reconciler = reconciler
     }
 
     /**
-     * Gets a queue by a player.
+     * Gets a queue by its id.
      *
-     * @param id the UUID from the player.
-     * @return the Queue by the player.
+     * @param queueId the UUID of the queue.
+     * @return the queue, or null if no queue with that id exists.
+     */
+    fun getQueue(queueId: UUID): Queue? {
+        return queues[queueId]
+    }
+
+    /**
+     * Gets the queue a player is in.
+     *
+     * @param id the UUID of the player.
+     * @return the queue the player is in, or null if the player is not queued.
      */
     fun getQueueByPlayer(id: UUID): Queue? {
         return playersToQueue[id]?.let { queues[it] }
     }
 
     /**
-     * Deletes a queue.
+     * Gets all active queues.
      *
-     * @param queueId the UUID from the queue to delete
-     * @return true if the queue was successfully deleted
+     * @return all active queues.
      */
-    fun deleteQueue(queueId: UUID): Boolean {
-        val queue = queues[queueId] ?: return false
-        queues.remove(queueId)
-        snapshots.remove(queueId)
-        var removedCount = 0
-        playersToQueue.entries.removeAll { (_, id) ->
-            (id == queueId).also { if (it) removedCount++ }
+    fun getAllQueues(): List<Queue> {
+        return queues.values.toList()
+    }
+
+    /**
+     * Gets all active queues of a type.
+     *
+     * @param type the name of the queue type.
+     * @return all active queues of that type.
+     */
+    fun getAllQueuesByType(type: String): List<Queue> {
+        return queues.values.filter { it.type == type }
+    }
+
+    /**
+     * Finds a queue of a type that is still waiting and has room for more players.
+     *
+     * @param queueType the name of the queue type.
+     * @param playerAmount the amount of players that want to join.
+     * @return a matching queue, or null if none has enough room.
+     */
+    private fun findQueue(queueType: String, playerAmount: Int): Queue? {
+        return queues.values.firstOrNull {
+            it.type == queueType
+                && (it.status == QueueStatus.NOT_ENOUGH_PLAYERS || it.status == QueueStatus.WAITING_COUNTDOWN)
+                && playerAmount + it.players.size <= it.capacity
         }
-        reconciler?.clear(queueId)
-        publisher.publishQueueDeleted(queue)
-        logger.info("Deleted queue $queueId")
-        return true
     }
 
     /**
      * Enqueues a single player or a group of players.
      *
-     * @param queueType the Queue type to enqueue.
-     * @param playerIds the UUID's from the players or the player to enqueue.
-     * @return a Result with the Queue.
+     * @param queueType the name of the queue type to enqueue into.
+     * @param playerIds the UUIDs of the players to enqueue.
+     * @return a result with the queue the players joined.
      */
     suspend fun enqueue(queueType: String, playerIds: List<UUID>): Result<Queue> {
         val type = types.find(queueType)
@@ -111,29 +135,20 @@ class QueueRepository(
     }
 
     /**
-     * Creates a Queue by a type.
+     * Dequeues a single player or a group of players.
      *
-     * @param type the Queue type from creating a queue.
-     * @return the created Queue
+     * @param playerIds the UUIDs of the players to dequeue.
+     * @return true if every player was successfully dequeued.
      */
-    private fun createQueue(type: QueueType): Queue {
-        val queue = Queue(
-            id = UUID.randomUUID(),
-            type = type.name,
-            capacity = type.maxCapacity,
-            players = mutableListOf(),
-            status = QueueStatus.NOT_ENOUGH_PLAYERS,
-        )
-        queues[queue.id] = queue
-        snapshots[queue.id] = queue.toDefinition()
-        return queue
+    suspend fun dequeue(playerIds: List<UUID>): Boolean {
+        return playerIds.all { dequeue(it) }
     }
 
     /**
      * Dequeues a player.
      *
-     * @param playerId the UUID from the player to dequeue.
-     * @return true if the player was successfully dequeued
+     * @param playerId the UUID of the player to dequeue.
+     * @return true if the player was successfully dequeued.
      */
     private suspend fun dequeue(playerId: UUID): Boolean {
         if (!playersToQueue.containsKey(playerId)) {
@@ -154,22 +169,30 @@ class QueueRepository(
         return true
     }
 
-    suspend fun dequeue(playerIds: List<UUID>): Boolean {
-        return playerIds.all { dequeue(it) }
+    /**
+     * Creates a new queue of a type.
+     *
+     * @param type the queue type to create the queue for.
+     * @return the created queue.
+     */
+    private fun createQueue(type: QueueType): Queue {
+        val queue = Queue(
+            id = UUID.randomUUID(),
+            type = type.name,
+            capacity = type.maxCapacity,
+            players = mutableListOf(),
+            status = QueueStatus.NOT_ENOUGH_PLAYERS,
+        )
+        queues[queue.id] = queue
+        snapshots[queue.id] = queue.toDefinition()
+        return queue
     }
 
-    fun getAllQueues(): List<Queue> {
-        return queues.values.toList()
-    }
-
-    fun getAllQueuesByType(type: String): List<Queue> {
-        return queues.values.filter { it.type == type }
-    }
-
-    fun getQueue(queueId: UUID): Queue? {
-        return queues[queueId]
-    }
-
+    /**
+     * Updates a queue and publishes an update event if anything changed.
+     *
+     * @param queue the queue to update.
+     */
     fun updateQueue(queue: Queue) {
         if (!queues.containsKey(queue.id)) return
 
@@ -183,12 +206,24 @@ class QueueRepository(
         }
     }
 
-    private fun findQueue(queueType: String, playerAmount: Int): Queue? {
-        return queues.values.firstOrNull {
-            it.type == queueType
-                && (it.status == QueueStatus.NOT_ENOUGH_PLAYERS || it.status == QueueStatus.WAITING_COUNTDOWN)
-                && playerAmount + it.players.size <= it.capacity
+    /**
+     * Deletes a queue.
+     *
+     * @param queueId the UUID of the queue to delete.
+     * @return true if the queue was successfully deleted.
+     */
+    fun deleteQueue(queueId: UUID): Boolean {
+        val queue = queues[queueId] ?: return false
+        queues.remove(queueId)
+        snapshots.remove(queueId)
+        var removedCount = 0
+        playersToQueue.entries.removeAll { (_, id) ->
+            (id == queueId).also { if (it) removedCount++ }
         }
+        reconciler?.clear(queueId)
+        publisher.publishQueueDeleted(queue)
+        logger.info("Successfully deleted queue $queueId")
+        return true
     }
 
 }
