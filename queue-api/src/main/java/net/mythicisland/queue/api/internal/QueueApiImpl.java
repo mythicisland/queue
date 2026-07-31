@@ -30,7 +30,7 @@ public final class QueueApiImpl implements QueueApi {
 
     public QueueApiImpl(QueueApiOptions options) {
         this.channel = ManagedChannelBuilder
-                .forAddress(options.getGrpcHost(), options.getGrpcPort())
+                .forAddress(options.grpcHost(), options.grpcPort())
                 .usePlaintext()
                 .keepAliveTime(30, TimeUnit.SECONDS)
                 .keepAliveTimeout(10, TimeUnit.SECONDS)
@@ -39,8 +39,8 @@ public final class QueueApiImpl implements QueueApi {
         try {
             this.nc = Nats.connect(
                     Options.builder()
-                            .server(options.getNatsUrl())
-                            .userInfo(options.getNatsUser(), options.getNatsSecret())
+                            .server(options.natsUrl())
+                            .userInfo(options.natsUser(), options.natsSecret())
                             .maxReconnects(-1)
                             .build()
             );
@@ -49,7 +49,7 @@ public final class QueueApiImpl implements QueueApi {
             throw new RuntimeException("Failed to establish NATS connection", e);
         }
 
-        AuthCredentials credentials = new AuthCredentials(options.getToken());
+        AuthCredentials credentials = new AuthCredentials(options.token());
 
         QueueServiceGrpc.QueueServiceFutureStub stub = QueueServiceGrpc.newFutureStub(channel)
                 .withCallCredentials(credentials);

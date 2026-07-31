@@ -7,34 +7,16 @@ import java.util.UUID;
 
 /**
  * Event fired when a queue instance is deleted, typically after it has finished its lifecycle.
+ *
+ * @param queueId the unique ID of the deleted queue
+ * @param queueType the queue type name
+ * @param queueStatus the queue's final status
+ * @param queuePlayerIds the player UUIDs that were in the queue at deletion time
  */
-public interface QueueDeletedEvent {
-
-    /**
-     * Gets the unique identifier of the deleted queue.
-     *
-     * @return the unique ID of the deleted queue
-     */
-    UUID queueId();
-
-    /**
-     * Gets the name of the queue type.
-     *
-     * @return the queue type name
-     */
-    String queueType();
-
-    /**
-     * Gets the final status of the queue before it was deleted.
-     *
-     * @return the queue's final status
-     */
-    QueueStatus queueStatus();
-
-    /**
-     * Gets the list of players that were in the queue at the time of deletion.
-     *
-     * @return the player UUIDs that were in the queue at deletion time
-     */
-    List<UUID> queuePlayerIds();
+public record QueueDeletedEvent(
+        UUID queueId,
+        String queueType,
+        QueueStatus queueStatus,
+        List<UUID> queuePlayerIds
+) {
 }

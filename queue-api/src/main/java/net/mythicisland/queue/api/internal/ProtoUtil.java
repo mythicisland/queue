@@ -55,4 +55,26 @@ public final class ProtoUtil {
     public static UUID toQueueId(build.buf.gen.mythicisland.queue.v1.Queue proto) {
         return UUID.fromString(proto.getUniqueId());
     }
+
+    /**
+     * Unpacks the fields shared by every queue event and hands them to {@code factory}.
+     */
+    public static <E> E fromQueue(build.buf.gen.mythicisland.queue.v1.Queue queue, QueueFactory<E> factory) {
+        return factory.create(
+                toQueueId(queue),
+                queue.getType(),
+                toApiStatus(queue.getStatus()),
+                toUuidList(queue.getPlayerIdsList())
+        );
+    }
+
+    /**
+     * Builds an event from the fields shared by every queue event.
+     *
+     * @param <E> the API event type
+     */
+    @FunctionalInterface
+    public interface QueueFactory<E> {
+        E create(UUID queueId, String queueType, QueueStatus queueStatus, List<UUID> queuePlayerIds);
+    }
 }

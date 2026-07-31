@@ -7,41 +7,18 @@ import java.util.UUID;
 
 /**
  * Event fired when a queue transitions from one lifecycle status to another.
+ *
+ * @param queueId the unique ID of the queue
+ * @param queueType the queue type name
+ * @param queuePlayerIds the player UUIDs in the queue
+ * @param oldStatus the status before the transition
+ * @param newStatus the status after the transition
  */
-public interface QueueStatusUpdatedEvent {
-
-    /**
-     * Gets the unique identifier of the queue.
-     *
-     * @return the unique ID of the queue
-     */
-    UUID queueId();
-
-    /**
-     * Gets the name of the queue type.
-     *
-     * @return the queue type name
-     */
-    String queueType();
-
-    /**
-     * Gets the list of players currently in the queue.
-     *
-     * @return the player UUIDs in the queue
-     */
-    List<UUID> queuePlayerIds();
-
-    /**
-     * Gets the status of the queue before the update.
-     *
-     * @return the status before the transition
-     */
-    QueueStatus oldStatus();
-
-    /**
-     * Gets the new status of the queue.
-     *
-     * @return the status after the transition
-     */
-    QueueStatus newStatus();
+public record QueueStatusUpdatedEvent(
+        UUID queueId,
+        String queueType,
+        List<UUID> queuePlayerIds,
+        QueueStatus oldStatus,
+        QueueStatus newStatus
+) {
 }

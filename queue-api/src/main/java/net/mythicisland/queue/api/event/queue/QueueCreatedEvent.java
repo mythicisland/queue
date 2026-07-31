@@ -7,34 +7,16 @@ import java.util.UUID;
 
 /**
  * Event fired when a new queue instance is created.
+ *
+ * @param queueId the unique ID of the created queue
+ * @param queueType the queue type name (e.g., "skyblock")
+ * @param queueStatus the queue's initial status
+ * @param queuePlayerIds the player UUIDs in the queue at creation time
  */
-public interface QueueCreatedEvent {
-
-    /**
-     * Gets the unique identifier of the created queue.
-     *
-     * @return the unique ID of the created queue
-     */
-    UUID queueId();
-
-    /**
-     * Gets the name of the queue type (e.g., "skyblock").
-     *
-     * @return the queue type name
-     */
-    String queueType();
-
-    /**
-     * Gets the initial status assigned to the queue.
-     *
-     * @return the queue's initial status
-     */
-    QueueStatus queueStatus();
-
-    /**
-     * Gets the list of players that were in the queue at the moment of creation.
-     *
-     * @return the player UUIDs in the queue at creation time
-     */
-    List<UUID> queuePlayerIds();
+public record QueueCreatedEvent(
+        UUID queueId,
+        String queueType,
+        QueueStatus queueStatus,
+        List<UUID> queuePlayerIds
+) {
 }

@@ -11,6 +11,12 @@ import org.apache.logging.log4j.LogManager
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
+/**
+ * Repository for manage active queues.
+ *
+ * @param types the repository for queue types.
+ * @param publisher the publisher to publish events to NATS.
+ */
 class QueueRepository(
     private val types: QueueTypeRepository,
     private val publisher: EventPublisher
@@ -25,14 +31,31 @@ class QueueRepository(
 
     private var reconciler: QueueReconciler? = null
 
+    /**
+     * Sets the [QueueReconciler] to reconcile queues.
+     *
+     * @param reconciler the QueueReconciler to set.
+     */
     fun setReconciler(reconciler: QueueReconciler) {
         this.reconciler = reconciler
     }
 
-    fun getQueueByPlayer(playerId: UUID): Queue? {
-        return playersToQueue[playerId]?.let { queues[it] }
+    /**
+     * Gets a queue by a player.
+     *
+     * @param id the UUID from the player.
+     * @return the Queue by the player.
+     */
+    fun getQueueByPlayer(id: UUID): Queue? {
+        return playersToQueue[id]?.let { queues[it] }
     }
 
+    /**
+     * Deletes a queue.
+     *
+     * @param queueId the UUID from the queue to delete
+     * @return true if the queue was successfully deleted
+     */
     fun deleteQueue(queueId: UUID): Boolean {
         val queue = queues[queueId] ?: return false
         queues.remove(queueId)
@@ -47,6 +70,13 @@ class QueueRepository(
         return true
     }
 
+    /**
+     * Enqueues a single player or a group of players.
+     *
+     * @param queueType the Queue type to enqueue.
+     * @param playerIds the UUID's from the players or the player to enqueue.
+     * @return a Result with the Queue.
+     */
     suspend fun enqueue(queueType: String, playerIds: List<UUID>): Result<Queue> {
         val type = types.find(queueType)
             ?: return Result.failure(NoSuchElementException("Queue type '$queueType' not found"))
@@ -80,6 +110,12 @@ class QueueRepository(
         }
     }
 
+    /**
+     * Creates a Queue by a type.
+     *
+     * @param type the Queue type from creating a queue.
+     * @return the created Queue
+     */
     private fun createQueue(type: QueueType): Queue {
         val queue = Queue(
             id = UUID.randomUUID(),
@@ -93,6 +129,12 @@ class QueueRepository(
         return queue
     }
 
+    /**
+     * Dequeues a player.
+     *
+     * @param playerId the UUID from the player to dequeue.
+     * @return true if the player was successfully dequeued
+     */
     private suspend fun dequeue(playerId: UUID): Boolean {
         if (!playersToQueue.containsKey(playerId)) {
             logger.debug("Dequeue failed: player {} is not in any queue", playerId)
