@@ -15,7 +15,6 @@ import net.mythicisland.queue.runtime.repository.QueueRepository
 import net.mythicisland.queue.runtime.repository.QueueTypeRepository
 import net.mythicisland.queue.runtime.server.ServerFinder
 import org.apache.logging.log4j.LogManager
-
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.milliseconds

@@ -1,16 +1,41 @@
 package net.mythicisland.queue.api.internal;
 
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import net.mythicisland.queue.api.queue.QueueStatus;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 
 public final class ProtoUtil {
 
     private ProtoUtil() {}
 
-    public static QueueStatus toApiStatus(build.buf.gen.mythicisland.queue.v1.QueueStatus proto) {
-        return switch (proto) {
+    private static final Executor executor = ForkJoinPool.commonPool();
+
+    public static <T> CompletableFuture<T> toCompletableFuture(ListenableFuture<T> listenableFuture) {
+        CompletableFuture<T> future = new CompletableFuture<>();
+        Futures.addCallback(listenableFuture, new FutureCallback<>() {
+            @Override
+            public void onSuccess(T result) {
+                future.complete(result);
+            }
+
+            @Override
+            public void onFailure(@NotNull Throwable t) {
+                future.completeExceptionally(t);
+            }
+        }, executor);
+        return future;
+    }
+
+    public static QueueStatus toApiStatus(build.buf.gen.mythicisland.queue.v1.QueueStatus status) {
+        return switch (status) {
             case NOT_ENOUGH_PLAYERS -> QueueStatus.NOT_ENOUGH_PLAYERS;
             case WAITING_COUNTDOWN -> QueueStatus.WAITING_COUNTDOWN;
             case SEARCHING_SERVER -> QueueStatus.SEARCHING_SERVER;
@@ -19,7 +44,7 @@ public final class ProtoUtil {
             case COUNTDOWN -> QueueStatus.COUNTDOWN;
             case TELEPORTING -> QueueStatus.TELEPORTING;
             case FINISHED -> QueueStatus.FINISHED;
-            default -> throw new IllegalArgumentException("Unknown proto QueueStatus: " + proto);
+            default -> throw new IllegalArgumentException("Unknown QueueStatus: " + status);
         };
     }
 
