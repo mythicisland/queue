@@ -14,11 +14,4 @@ import java.util.UUID;
  * @param queuePlayerIds all player UUIDs remaining in the queue
  * @param playerIds the UUIDs of the players that were dequeued
  */
-public record DequeueEvent(
-        UUID queueId,
-        String queueType,
-        QueueStatus queueStatus,
-        List<UUID> queuePlayerIds,
-        List<UUID> playerIds
-) {
-}
+public record DequeueEvent(UUID queueId, String queueType, QueueStatus queueStatus, List<UUID> queuePlayerIds, List<UUID> playerIds) { }

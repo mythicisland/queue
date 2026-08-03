@@ -1,0 +1,110 @@
+syntax = "proto3";
+
+package mythicisland.queue.v2;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+option java_package = "net.mythicisland.queue.v2";
+option java_multiple_files = true;
+
+// A Ticket represents a single player or a group of players.
+message Ticket {
+  // The unique identifier of this ticket.
+  string id = 1;
+  // The players this ticket belongs to.
+  repeated string player_ids = 2;
+  // The queue types this ticket is searching in.
+  repeated string queue_types = 3;
+  // The current state of this ticket.
+  TicketState state = 4;
+  // The match this ticket was put into. Empty while still searching.
+  string match_id = 5;
+  // The server to connect to. Only set once the match got a server.
+  Assignment assignment = 6;
+  // When the countdown ends and the players get transferred. Mirrored from the
+  // match so consumers can show the countdown without loading the match.
+  google.protobuf.Timestamp countdown_end_time = 7;
+  // When the ticket entered matchmaking. Used to decide when a match with at
+  // least min_players may start instead of waiting for a full lobby.
+  google.protobuf.Timestamp created_at = 8;
+}
+
+enum TicketState {
+  TICKET_STATE_UNSPECIFIED = 0;
+  // Waiting in one or more queue types.
+  TICKET_STATE_SEARCHING = 1;
+  // Part of a match that is waiting for a server or counting down.
+  TICKET_STATE_MATCHED = 2;
+  // A server was allocated, the players are being transferred.
+  TICKET_STATE_ASSIGNED = 3;
+}
+
+// A Match is a set of tickets that will play together on one server.
+message Match {
+  // The unique identifier of this match.
+  string id = 1;
+  // The queue type this match was created for.
+  string queue_type = 2;
+  // The tickets forming this match. They stay grouped.
+  repeated Ticket tickets = 3;
+  // The current state of this match.
+  MatchState state = 4;
+  // The server allocated for this match. Empty while allocating.
+  Assignment assignment = 5;
+  // When the countdown ends and the players get transferred.
+  google.protobuf.Timestamp countdown_end_time = 6;
+  // When the match was formed.
+  google.protobuf.Timestamp created_at = 7;
+}
+
+enum MatchState {
+  MATCH_STATE_UNSPECIFIED = 0;
+  // A server is being searched or started for this match.
+  MATCH_STATE_ALLOCATING = 1;
+  // The server is ready, counting down before the transfer.
+  MATCH_STATE_COUNTDOWN = 2;
+  // The players are being transferred to the server.
+  MATCH_STATE_TRANSFERRING = 3;
+  // Every player was transferred, the match is handed over to the game server.
+  MATCH_STATE_COMPLETED = 4;
+  // No server could be allocated, the tickets went back to searching.
+  MATCH_STATE_FAILED = 5;
+}
+
+// The result of matchmaking: the server the players have to connect to.
+message Assignment {
+  // The unique identifier of the simplecloud server.
+  string server_id = 1;
+  // The name of the server used to connect players, for example: battle-1
+  string server_name = 2;
+}
+
+// The configuration of one queue.
+message QueueType {
+  // The name of this queue type, for example: battle
+  string name = 1;
+  // The simplecloud group used to start game servers, for example: battle
+  string group = 2;
+  // The minimum amount of players needed before a match may start.
+  uint32 min_players = 3;
+  // The maximum amount of players a match can hold. Reaching it starts the
+  // match immediately, without waiting.
+  uint32 max_players = 4;
+  // How long to wait for more players after min_players was reached.
+  google.protobuf.Duration waiting_duration = 5;
+  // How long to count down after the server is ready, before transferring.
+  google.protobuf.Duration countdown_duration = 6;
+}
+
+// Live numbers for one queue type, for example to show "12 players searching".
+message QueueStats {
+  // The queue type these numbers belong to.
+  string queue_type = 1;
+  // The tickets currently searching in this queue type.
+  uint32 searching_tickets = 2;
+  // The players behind those tickets, parties counted fully.
+  uint32 searching_players = 3;
+  // The matches of this queue type that are allocating or counting down.
+  uint32 active_matches = 4;
+}

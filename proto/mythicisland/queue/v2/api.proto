@@ -1,0 +1,122 @@
+syntax = "proto3";
+
+package mythicisland.queue.v2;
+
+import "types.proto";
+
+option java_package = "net.mythicisland.queue.v2";
+option java_multiple_files = true;
+
+service TicketService {
+  // Creates a ticket for a single player or a party.
+  rpc CreateTicket(CreateTicketRequest) returns (CreateTicketResponse);
+  // Removes a ticket from matchmaking. Always removes the whole party.
+  rpc DeleteTicket(DeleteTicketRequest) returns (DeleteTicketResponse);
+}
+
+message CreateTicketRequest {
+  // The players to enqueue. One entry = solo, multiple = party.
+  repeated string player_ids = 1;
+  // The queue types to search in. At least one entry is required.
+  repeated string queue_types = 2;
+}
+
+message CreateTicketResponse {
+  Ticket ticket = 1;
+}
+
+message DeleteTicketRequest {
+  oneof target {
+    // Deletes this ticket.
+    string ticket_id = 1;
+    // Deletes the ticket this player belongs to, including their party.
+    string player_id = 2;
+  }
+}
+
+message DeleteTicketResponse {}
+
+service QueueDataService {
+  rpc GetTicket(GetTicketRequest) returns (GetTicketResponse);
+  rpc GetTicketByPlayer(GetTicketByPlayerRequest) returns (GetTicketByPlayerResponse);
+  rpc ListTickets(ListTicketsRequest) returns (ListTicketsResponse);
+
+  rpc GetMatch(GetMatchRequest) returns (GetMatchResponse);
+  rpc ListMatches(ListMatchesRequest) returns (ListMatchesResponse);
+
+  rpc GetQueueType(GetQueueTypeRequest) returns (GetQueueTypeResponse);
+  rpc ListQueueTypes(ListQueueTypesRequest) returns (ListQueueTypesResponse);
+
+  rpc GetQueueStats(GetQueueStatsRequest) returns (GetQueueStatsResponse);
+  rpc ListQueueStats(ListQueueStatsRequest) returns (ListQueueStatsResponse);
+}
+
+message GetTicketRequest {
+  string ticket_id = 1;
+}
+
+message GetTicketResponse {
+  Ticket ticket = 1;
+}
+
+message GetTicketByPlayerRequest {
+  string player_id = 1;
+}
+
+message GetTicketByPlayerResponse {
+  Ticket ticket = 1;
+}
+
+message ListTicketsRequest {
+  // Only return tickets searching in this queue type. Empty returns all.
+  string queue_type = 1;
+}
+
+message ListTicketsResponse {
+  repeated Ticket tickets = 1;
+}
+
+message GetMatchRequest {
+  string match_id = 1;
+}
+
+message GetMatchResponse {
+  Match match = 1;
+}
+
+message ListMatchesRequest {
+  // Only return matches of this queue type. Empty returns all.
+  string queue_type = 1;
+}
+
+message ListMatchesResponse {
+  repeated Match matches = 1;
+}
+
+message GetQueueTypeRequest {
+  string name = 1;
+}
+
+message GetQueueTypeResponse {
+  QueueType queue_type = 1;
+}
+
+message ListQueueTypesRequest {}
+
+message ListQueueTypesResponse {
+  repeated QueueType queue_types = 1;
+}
+
+message GetQueueStatsRequest {
+  string queue_type = 1;
+}
+
+message GetQueueStatsResponse {
+  QueueStats stats = 1;
+}
+
+message ListQueueStatsRequest {}
+
+message ListQueueStatsResponse {
+  repeated QueueStats stats = 1;
+}
