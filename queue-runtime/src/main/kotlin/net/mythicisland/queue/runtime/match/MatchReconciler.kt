@@ -20,17 +20,7 @@ import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Drives a match from the moment it was formed until its players are on the
- * game server.
- *
- * ```
- * ALLOCATING -> COUNTDOWN -> TRANSFERRING -> COMPLETED
- *      |                                        |
- *      +--------------> FAILED <----------------+
- * ```
- *
- * Everything runs in a single loop, so a match is never reconciled twice at
- * the same time and the states cannot interleave.
+ * Drives a match from the moment it was formed until its players are on the game server.
  */
 class MatchReconciler(
     private val tickets: TicketStore,
@@ -41,13 +31,6 @@ class MatchReconciler(
     private val publisher: EventPublisher,
 ) {
 
-    private companion object {
-        val INTERVAL = 500.milliseconds
-
-        /** How long a match may look for a server before it is given up on. */
-        const val ALLOCATION_TIMEOUT_SECONDS = 60L
-    }
-
     private val logger = LogManager.getLogger(MatchReconciler::class.java)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -55,10 +38,10 @@ class MatchReconciler(
      * Starts the reconciliation loop.
      */
     fun start() {
-        logger.info("Starting up match reconciler (interval={})", INTERVAL)
+        logger.info("Starting up match reconciler")
         scope.launch {
             while (isActive) {
-                delay(INTERVAL)
+                delay(500.milliseconds)
                 tick()
             }
         }
@@ -115,8 +98,8 @@ class MatchReconciler(
         }
 
         val waited = Duration.between(match.createdAt, Instant.now()).seconds
-        if (waited >= ALLOCATION_TIMEOUT_SECONDS) {
-            fail(match, "no server became available within ${ALLOCATION_TIMEOUT_SECONDS}s")
+        if (waited >= 60L) {
+            fail(match, "no server became available within ${60L}s")
             return
         }
 
@@ -203,7 +186,6 @@ class MatchReconciler(
         val matchTickets = tickets.getAll(match.ticketIds)
 
         if (match.state == MatchState.MATCH_STATE_COMPLETED) {
-            // The server stays ingame, it is running the match from now on.
             matchTickets.forEach { ticket ->
                 tickets.remove(ticket.id)
                 publisher.publishTicketDeleted(ticket, TicketDeleteReason.TICKET_DELETE_REASON_TRANSFERRED)

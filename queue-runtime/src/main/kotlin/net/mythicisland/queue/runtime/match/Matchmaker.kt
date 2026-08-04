@@ -19,10 +19,6 @@ import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Forms matches out of the tickets that are waiting.
- *
- * The matchmaker runs a pass over every queue type on a fixed interval. All it
- * does is pick tickets and hand the result to the [MatchRepository], driving
- * the match afterwards is the job of the [MatchReconciler].
  */
 class Matchmaker(
     private val tickets: TicketStore,
@@ -32,10 +28,6 @@ class Matchmaker(
     private val publisher: EventPublisher,
 ) {
 
-    private companion object {
-        val INTERVAL = 500.milliseconds
-    }
-
     private val logger = LogManager.getLogger(Matchmaker::class.java)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -43,10 +35,10 @@ class Matchmaker(
      * Starts the matchmaking loop.
      */
     fun start() {
-        logger.info("Starting up matchmaker (interval={})", INTERVAL)
+        logger.info("Starting up matchmaker")
         scope.launch {
             while (isActive) {
-                delay(INTERVAL)
+                delay(500.milliseconds)
                 try {
                     tick()
                 } catch (e: CancellationException) {
@@ -96,8 +88,6 @@ class Matchmaker(
             createdAt = Instant.now(),
         )
 
-        // Fails when one of the tickets was matched or cancelled in between,
-        // the next pass simply tries again with what is left.
         val matched = tickets.matched(match.ticketIds, match.id)
         if (matched == null) {
             logger.debug("Dropped match for '{}', one of its tickets is no longer searching", type.name)
@@ -105,11 +95,7 @@ class Matchmaker(
         }
 
         matches.add(match)
-        logger.info(
-            "Created match {} for '{}' with {} tickets / {} players",
-            match.id, type.name, matched.size, matched.sumOf { it.playerCount },
-        )
-
+        logger.info("Created match {} for '{}' with {} tickets / {} players", match.id, type.name, matched.size, matched.sumOf { it.playerCount },)
         publisher.publishMatchCreated(match, matched)
         matched.forEach { publisher.publishTicketStateChanged(it, TicketState.TICKET_STATE_SEARCHING) }
         return match
@@ -132,8 +118,6 @@ class Matchmaker(
         if (candidates.isEmpty()) return null
 
         val selected = candidates.fold(emptyList<Ticket>()) { picked, ticket ->
-            // Parties that do not fit into the remaining slots are skipped, the
-            // smaller tickets behind them can still get in.
             val players = picked.sumOf { it.playerCount }
             if (players + ticket.playerCount <= type.maxPlayers) picked + ticket else picked
         }
