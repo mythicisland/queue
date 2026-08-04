@@ -37,7 +37,7 @@ class Matchmaker(
     }
 
     private val logger = LogManager.getLogger(Matchmaker::class.java)
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
      * Starts the matchmaking loop.
@@ -47,8 +47,13 @@ class Matchmaker(
         scope.launch {
             while (isActive) {
                 delay(INTERVAL)
-                runCatching { tick() }
-                    .onFailure { logger.error("Matchmaking pass failed", it) }
+                try {
+                    tick()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    logger.error("Matchmaking pass failed", e)
+                }
             }
         }
     }
@@ -64,7 +69,7 @@ class Matchmaker(
     /**
      * Runs one matchmaking pass over every queue type.
      */
-    fun tick() {
+    suspend fun tick() {
         types.getAll().forEach { type ->
             // A queue type can fill more than one match per pass when a lot of
             // players are waiting, so keep going until nothing fits anymore.
@@ -79,7 +84,7 @@ class Matchmaker(
      *
      * @return the created match, or null if the queue type cannot start one yet.
      */
-    private fun createMatch(type: QueueType): Match? {
+    private suspend fun createMatch(type: QueueType): Match? {
         val candidates = pool.searching(type.name)
         val selected = select(candidates, type, Instant.now()) ?: return null
 

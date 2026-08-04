@@ -1,6 +1,8 @@
 package net.mythicisland.queue.runtime.ticket
 
 import build.buf.gen.mythicisland.queue.v2.TicketState
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import net.mythicisland.queue.shared.match.Ticket
 import org.apache.logging.log4j.LogManager
 import java.util.UUID
@@ -8,15 +10,12 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Holds every ticket that is currently in matchmaking.
- *
- * Reads go straight to the maps, writes that touch more than one map are
- * guarded by a lock so a ticket and its player index can never drift apart.
  */
 class TicketStore {
 
     private val logger = LogManager.getLogger(TicketStore::class.java)
 
-    private val lock = Any()
+    private val mutex = Mutex()
     private val tickets = ConcurrentHashMap<UUID, Ticket>()
     private val playerToTicket = ConcurrentHashMap<UUID, UUID>()
 
@@ -53,8 +52,8 @@ class TicketStore {
      *
      * @return true if the ticket was added.
      */
-    fun add(ticket: Ticket): Boolean {
-        synchronized(lock) {
+    suspend fun add(ticket: Ticket): Boolean {
+        mutex.withLock {
             val queued = ticket.playerIds.filter { playerToTicket.containsKey(it) }
             if (queued.isNotEmpty()) {
                 logger.debug("Rejected ticket {}, players {} are already queued", ticket.id, queued)
@@ -72,8 +71,8 @@ class TicketStore {
      *
      * @return the stored ticket, or null if it was removed in the meantime.
      */
-    fun update(ticket: Ticket): Ticket? {
-        synchronized(lock) {
+    suspend fun update(ticket: Ticket): Ticket? {
+        mutex.withLock {
             if (!tickets.containsKey(ticket.id)) {
                 logger.debug("Skipped update of ticket {}, it is no longer stored", ticket.id)
                 return null
@@ -89,8 +88,8 @@ class TicketStore {
      *
      * @return the removed ticket, or null if it was not stored.
      */
-    fun remove(id: UUID): Ticket? {
-        synchronized(lock) {
+    suspend fun remove(id: UUID): Ticket? {
+        mutex.withLock {
             val ticket = tickets.remove(id) ?: return null
             ticket.playerIds.forEach { playerToTicket.remove(it, id) }
             return ticket
@@ -104,8 +103,8 @@ class TicketStore {
      *
      * @return the updated tickets, or null if one of them was not searching anymore.
      */
-    fun matched(ids: List<UUID>, matchId: UUID): List<Ticket>? {
-        synchronized(lock) {
+    suspend fun matched(ids: List<UUID>, matchId: UUID): List<Ticket>? {
+        mutex.withLock {
             val found = ids.map { tickets[it] ?: return null }
             if (found.any { it.state != TicketState.TICKET_STATE_SEARCHING }) return null
 

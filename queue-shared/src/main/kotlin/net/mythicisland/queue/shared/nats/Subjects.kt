@@ -2,13 +2,10 @@ package net.mythicisland.queue.shared.nats
 
 /**
  * The NATS subjects queue publishes its events on.
- *
- * The version is part of the subject so v1 and v2 can run side by side while
- * consumers are migrated.
  */
 object Subjects {
 
-    private const val PREFIX = "queue.v2"
+    private const val PREFIX = "queue"
 
     private const val TICKET_PREFIX = "${PREFIX}.ticket"
 

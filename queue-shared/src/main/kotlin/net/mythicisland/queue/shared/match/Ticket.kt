@@ -7,11 +7,7 @@ import java.time.Instant
 import java.util.UUID
 
 /**
- * A ticket is a single player or a party that wants to play. It is the atomic
- * unit of matchmaking, a party is never split up.
- *
- * Tickets are immutable, every change creates a copy. That keeps them safe to
- * hand out to other threads while the runtime keeps working with them.
+ * A ticket is a single player or a party that wants to play.
  *
  * @param id the unique id of this ticket.
  * @param playerIds the players behind this ticket, one entry means solo.
@@ -33,9 +29,6 @@ data class Ticket(
     val countdownEndsAt: Instant? = null,
 ) {
 
-    /**
-     * The amount of players this ticket brings into a match.
-     */
     val playerCount: Int
         get() = playerIds.size
 
@@ -53,9 +46,6 @@ data class Ticket(
         }
     }
 
-    /**
-     * Returns a copy that is searching again, without any match leftovers.
-     */
     fun asSearching(): Ticket {
         return copy(
             state = TicketState.TICKET_STATE_SEARCHING,

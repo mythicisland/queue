@@ -1,5 +1,6 @@
 package net.mythicisland.queue.runtime
 
+import build.buf.gen.mythicisland.queue.v2.MatchState
 import io.grpc.Server
 import io.grpc.ServerBuilder
 import kotlinx.coroutines.CoroutineScope
@@ -59,8 +60,11 @@ class QueueRuntime(
             Runtime.getRuntime().addShutdownHook(Thread {
                 logger.info("Shutting down Queue...")
                 runBlocking {
-                    // Free the servers of matches that never made it to a transfer.
-                    matchRepository.getAll().forEach { allocator.release(it) }
+                    // Hand back the servers of matches that never started, they
+                    // would stay ingame without anybody on them.
+                    matchRepository.getAll()
+                        .filter { it.state != MatchState.MATCH_STATE_COMPLETED }
+                        .forEach { allocator.release(it) }
 
                     matchmaker.shutdown()
                     reconciler.shutdown()

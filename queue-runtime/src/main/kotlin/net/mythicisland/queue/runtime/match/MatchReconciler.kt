@@ -79,6 +79,8 @@ class MatchReconciler(
         matches.getAll().forEach { match ->
             try {
                 reconcile(match)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.error("Failed to reconcile match {}", match.id, e)
             }
@@ -201,7 +203,7 @@ class MatchReconciler(
         val matchTickets = tickets.getAll(match.ticketIds)
 
         if (match.state == MatchState.MATCH_STATE_COMPLETED) {
-            allocator.forget(match)
+            // The server stays ingame, it is running the match from now on.
             matchTickets.forEach { ticket ->
                 tickets.remove(ticket.id)
                 publisher.publishTicketDeleted(ticket, TicketDeleteReason.TICKET_DELETE_REASON_TRANSFERRED)
@@ -223,7 +225,7 @@ class MatchReconciler(
      * Mirrors the server and the countdown onto the tickets of a match, so a
      * consumer never has to load the match to show them.
      */
-    private fun assignTickets(match: Match, assignment: Assignment, countdownEndsAt: Instant) {
+    private suspend fun assignTickets(match: Match, assignment: Assignment, countdownEndsAt: Instant) {
         tickets.getAll(match.ticketIds).forEach { ticket ->
             val assigned = ticket.copy(
                 state = TicketState.TICKET_STATE_ASSIGNED,
@@ -239,7 +241,7 @@ class MatchReconciler(
     /**
      * Moves a match into a new state and tells everyone about it.
      */
-    private fun transition(match: Match, state: MatchState) {
+    private suspend fun transition(match: Match, state: MatchState) {
         val updated = matches.update(match.copy(state = state))
         if (updated == null) {
             logger.debug("Match {} vanished before it could move to {}", match.id, state)
@@ -250,7 +252,7 @@ class MatchReconciler(
         publisher.publishMatchStateChanged(updated, tickets.getAll(updated.ticketIds), match.state)
     }
 
-    private fun fail(match: Match, reason: String) {
+    private suspend fun fail(match: Match, reason: String) {
         logger.warn("Match {} failed: {}", match.id, reason)
         transition(match, MatchState.MATCH_STATE_FAILED)
     }

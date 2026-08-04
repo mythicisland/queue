@@ -10,9 +10,6 @@ import java.util.UUID
 
 /**
  * Publishes ticket and match events to NATS.
- *
- * Matches only store ticket ids, so every match event takes the resolved
- * tickets as well instead of looking them up itself.
  */
 class EventPublisher(
     connection: Connection

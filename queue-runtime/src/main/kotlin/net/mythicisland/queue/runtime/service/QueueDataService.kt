@@ -11,9 +11,6 @@ import net.mythicisland.queue.shared.match.Match
 import net.mythicisland.queue.shared.queue.QueueStats
 import net.mythicisland.queue.shared.queue.QueueType
 
-/**
- * Read only access to tickets, matches and the queue configuration.
- */
 class QueueDataService(
     private val tickets: TicketStore,
     private val pool: TicketPool,
@@ -105,9 +102,6 @@ class QueueDataService(
         }
     }
 
-    /**
-     * Builds the protobuf of a match, resolving its tickets from the store.
-     */
     private fun toDefinition(match: Match): build.buf.gen.mythicisland.queue.v2.Match {
         return match.toDefinition(tickets.getAll(match.ticketIds))
     }

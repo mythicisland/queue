@@ -12,12 +12,6 @@ import org.apache.logging.log4j.LogManager
 import java.time.Instant
 import java.util.UUID
 
-/**
- * Puts players into matchmaking and takes them back out.
- *
- * Everything that happens afterwards is published as an event, see
- * [net.mythicisland.queue.shared.nats.Subjects].
- */
 class TicketService(
     private val tickets: TicketStore,
     private val matches: MatchRepository,
@@ -51,8 +45,6 @@ class TicketService(
                 .asRuntimeException()
         }
 
-        // A party bigger than the match itself would never be picked, so say so
-        // instead of letting it search forever.
         val tooBig = queueTypes.mapNotNull { types.find(it) }.filter { playerIds.size > it.maxPlayers }
         if (tooBig.isNotEmpty()) {
             logger.warn("Rejected ticket for {} players, too big for {}", playerIds.size, tooBig.map { it.name })

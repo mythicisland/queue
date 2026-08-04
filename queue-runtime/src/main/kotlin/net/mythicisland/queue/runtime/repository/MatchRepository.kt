@@ -1,6 +1,8 @@
 package net.mythicisland.queue.runtime.repository
 
 import build.buf.gen.mythicisland.queue.v2.MatchState
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import net.mythicisland.queue.shared.match.Match
 import org.apache.logging.log4j.LogManager
 import java.util.UUID
@@ -16,7 +18,7 @@ class MatchRepository {
 
     private val logger = LogManager.getLogger(MatchRepository::class.java)
 
-    private val lock = Any()
+    private val mutex = Mutex()
     private val matches = ConcurrentHashMap<UUID, Match>()
     private val ticketToMatch = ConcurrentHashMap<UUID, UUID>()
 
@@ -58,8 +60,8 @@ class MatchRepository {
     /**
      * Adds a newly formed match.
      */
-    fun add(match: Match) {
-        synchronized(lock) {
+    suspend fun add(match: Match) {
+        mutex.withLock {
             matches[match.id] = match
             match.ticketIds.forEach { ticketToMatch[it] = match.id }
         }
@@ -70,8 +72,8 @@ class MatchRepository {
      *
      * @return the stored match, or null if it was removed in the meantime.
      */
-    fun update(match: Match): Match? {
-        synchronized(lock) {
+    suspend fun update(match: Match): Match? {
+        mutex.withLock {
             if (!matches.containsKey(match.id)) {
                 logger.debug("Skipped update of match {}, it is no longer stored", match.id)
                 return null
@@ -88,8 +90,8 @@ class MatchRepository {
      *
      * @return the match the ticket was dropped from, or null if it was in none.
      */
-    fun removeTicket(ticketId: UUID): Match? {
-        synchronized(lock) {
+    suspend fun removeTicket(ticketId: UUID): Match? {
+        mutex.withLock {
             val matchId = ticketToMatch.remove(ticketId) ?: return null
             val match = matches[matchId] ?: return null
 
@@ -105,8 +107,8 @@ class MatchRepository {
      *
      * @return the removed match, or null if it was not stored.
      */
-    fun remove(id: UUID): Match? {
-        synchronized(lock) {
+    suspend fun remove(id: UUID): Match? {
+        mutex.withLock {
             val match = matches.remove(id) ?: return null
             match.ticketIds.forEach { ticketToMatch.remove(it, id) }
             return match
