@@ -19,7 +19,7 @@ for what.
 
 ```mermaid
 flowchart TD
-    A["CreateTicket(players, types)"] --> B["Ticket: SEARCHING"]
+    A["CreateTicket"] --> B["Ticket: SEARCHING"]
     B --> C{"Matchmaker"}
     C -->|not enough players yet| B
     C -->|full, or minimum reached<br/>and the oldest ticket waited long enough| D["Match: ALLOCATING"]
