@@ -3,7 +3,7 @@
 A microservice for queuing players into minigames.
 
 ## TODO
-- [ ] **Proto Specs**: Write the Protocol Buffers for v2
+- [x] **Proto Specs**: Write the Protocol Buffers for v2
 - [ ] **Runtime Implementation**: Make the microservice work
 - [ ] **API Implementation**: Write the Java and Kotlin API for v2
 - [ ] **Multi Queue**: After v2 ist working good implement multi-queue for players

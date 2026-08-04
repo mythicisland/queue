@@ -1,140 +1,110 @@
 package net.mythicisland.queue.runtime.event
 
-import build.buf.gen.mythicisland.queue.v1.*
+import build.buf.gen.mythicisland.queue.v2.*
 import io.nats.client.Connection
 import net.mythicisland.moonrise.common.nats.Publisher
-import net.mythicisland.queue.shared.event.Subjects
-import net.mythicisland.queue.shared.queue.Queue
+import net.mythicisland.queue.shared.match.Match
+import net.mythicisland.queue.shared.match.Ticket
+import net.mythicisland.queue.shared.nats.Subjects
 import java.util.UUID
 
 /**
- * Publishes queue lifecycle events to NATS.
+ * Publishes ticket and match events to NATS.
+ *
+ * Matches only store ticket ids, so every match event takes the resolved
+ * tickets as well instead of looking them up itself.
  */
 class EventPublisher(
     connection: Connection
 ) : Publisher(connection) {
 
     /**
-     * Publishes an [EnqueueEvent] when players join a queue.
+     * Publishes a [TicketCreatedEvent] when a player or party entered matchmaking.
      *
-     * @param queue The queue that players joined
-     * @param playerIds The UUIDs of the players that were enqueued
+     * @param ticket the created ticket.
      */
-    fun publishEnqueue(queue: Queue, playerIds: List<UUID>) {
-        val event = EnqueueEvent.newBuilder()
-            .setQueue(queue.toDefinition())
-            .addAllPlayerIds(playerIds.map { it.toString() })
-            .build()
+    fun publishTicketCreated(ticket: Ticket) {
+        val event = ticketCreatedEvent {
+            this.ticket = ticket.toDefinition()
+        }
 
-        publish(Subjects.ENQUEUE, event)
+        publish(Subjects.TICKET_CREATED, event)
     }
 
     /**
-     * Publishes a [DequeueEvent] when players leave a queue.
+     * Publishes a [TicketStateChangedEvent] when a ticket moved to a new state.
      *
-     * @param queue The queue that players left
-     * @param playerIds The UUIDs of the players that were dequeued
+     * @param ticket the ticket in its new state.
+     * @param previousState the state the ticket was in before.
      */
-    fun publishDequeue(queue: Queue, playerIds: List<UUID>) {
-        val event = DequeueEvent.newBuilder()
-            .setQueue(queue.toDefinition())
-            .addAllPlayerIds(playerIds.map { it.toString() })
-            .build()
+    fun publishTicketStateChanged(ticket: Ticket, previousState: TicketState) {
+        val event = ticketStateChangedEvent {
+            this.ticket = ticket.toDefinition()
+            this.previousState = previousState
+        }
 
-        publish(Subjects.DEQUEUE, event)
+        publish(Subjects.TICKET_STATE_CHANGED, event)
     }
 
     /**
-     * Publishes a [QueueCreatedEvent] when a new queue is created.
+     * Publishes a [TicketDeletedEvent] when a ticket left matchmaking.
      *
-     * @param queue The newly created queue
+     * @param ticket the deleted ticket.
+     * @param reason why the ticket was deleted.
      */
-    fun publishQueueCreated(queue: Queue) {
-        val event = QueueCreatedEvent.newBuilder()
-            .setQueue(queue.toDefinition())
-            .build()
+    fun publishTicketDeleted(ticket: Ticket, reason: TicketDeleteReason) {
+        val event = ticketDeletedEvent {
+            this.ticket = ticket.toDefinition()
+            this.reason = reason
+        }
 
-        publish(Subjects.QUEUE_CREATED, event)
+        publish(Subjects.TICKET_DELETED, event)
     }
 
     /**
-     * Publishes a [QueueUpdatedEvent] when a queue's state changes.
+     * Publishes a [MatchCreatedEvent] when enough tickets were found for a match.
      *
-     * @param before The queue's protobuf snapshot before the change
-     * @param after The queue's protobuf snapshot after the change
+     * @param match the created match.
+     * @param tickets the tickets forming the match.
      */
-    fun publishQueueUpdated(
-        before: build.buf.gen.mythicisland.queue.v1.Queue,
-        after: build.buf.gen.mythicisland.queue.v1.Queue,
-    ) {
-        val event = QueueUpdatedEvent.newBuilder()
-            .setBefore(before)
-            .setAfter(after)
-            .build()
+    fun publishMatchCreated(match: Match, tickets: List<Ticket>) {
+        val event = matchCreatedEvent {
+            this.match = match.toDefinition(tickets)
+        }
 
-        publish(Subjects.QUEUE_UPDATED, event)
+        publish(Subjects.MATCH_CREATED, event)
     }
 
     /**
-     * Publishes a [QueueStatusUpdatedEvent] when a queue transitions between statuses.
+     * Publishes a [MatchStateChangedEvent] when a match moved to a new state.
      *
-     * @param queue The queue whose status changed
-     * @param oldStatus The previous status
-     * @param newStatus The new status
+     * @param match the match in its new state.
+     * @param tickets the tickets forming the match.
+     * @param previousState the state the match was in before.
      */
-    fun publishStatusUpdated(queue: Queue, oldStatus: QueueStatus, newStatus: QueueStatus) {
-        val event = QueueStatusUpdatedEvent.newBuilder()
-            .setQueue(queue.toDefinition())
-            .setOldStatus(oldStatus)
-            .setNewStatus(newStatus)
-            .build()
+    fun publishMatchStateChanged(match: Match, tickets: List<Ticket>, previousState: MatchState) {
+        val event = matchStateChangedEvent {
+            this.match = match.toDefinition(tickets)
+            this.previousState = previousState
+        }
 
-        publish(Subjects.QUEUE_STATUS_UPDATED, event)
+        publish(Subjects.MATCH_STATE_CHANGED, event)
     }
 
     /**
-     * Publishes a [QueueDeletedEvent] when a queue is removed.
+     * Publishes a [MatchTransferredEvent] after the players were sent to their server.
      *
-     * @param queue The queue that was deleted
+     * @param match the transferred match.
+     * @param tickets the tickets forming the match.
+     * @param transferredPlayerIds the players that actually made it onto the server.
      */
-    fun publishQueueDeleted(queue: Queue) {
-        val event = QueueDeletedEvent.newBuilder()
-            .setQueue(queue.toDefinition())
-            .build()
+    fun publishMatchTransferred(match: Match, tickets: List<Ticket>, transferredPlayerIds: List<UUID>) {
+        val event = matchTransferredEvent {
+            this.match = match.toDefinition(tickets)
+            this.transferredPlayerIds.addAll(transferredPlayerIds.map(UUID::toString))
+        }
 
-        publish(Subjects.QUEUE_DELETED, event)
-    }
-
-    /**
-     * Publishes a [QueueServerAssignedEvent] when a server is reserved for a queue.
-     *
-     * @param queue The queue that received a server
-     * @param serverId The ID of the assigned server
-     */
-    fun publishServerAssigned(queue: Queue, serverId: String) {
-        val event = QueueServerAssignedEvent.newBuilder()
-            .setQueue(queue.toDefinition())
-            .setServerId(serverId)
-            .build()
-
-        publish(Subjects.QUEUE_SERVER_ASSIGNED, event)
-    }
-
-    /**
-     * Publishes a [QueueTransferEvent] when players are teleported to a game server.
-     *
-     * @param queue The queue whose players were transferred
-     * @param serverId The ID of the target server
-     * @param playerIds The UUIDs of the transferred players
-     */
-    fun publishTransfer(queue: Queue, serverId: String, playerIds: List<UUID>) {
-        val event = QueueTransferEvent.newBuilder()
-            .setQueue(queue.toDefinition())
-            .setServerId(serverId)
-            .addAllPlayerIds(playerIds.map { it.toString() })
-            .build()
-
-        publish(Subjects.QUEUE_TRANSFER, event)
+        publish(Subjects.MATCH_TRANSFERRED, event)
     }
 
 }

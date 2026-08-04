@@ -1,6 +1,6 @@
 version: v2
 modules:
-  - path: mythicisland/queue/v1
+  - path: mythicisland/queue/v2
     name: buf.build/mythicisland/queue
 lint:
   use:
