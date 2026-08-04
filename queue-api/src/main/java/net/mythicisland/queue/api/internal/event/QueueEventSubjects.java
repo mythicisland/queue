@@ -5,17 +5,17 @@ public final class QueueEventSubjects {
     private QueueEventSubjects() {
     }
 
-    private static final String PREFIX = "queue.event.";
+    private static final String PREFIX = "queue.";
 
-    public static final String ENQUEUE = PREFIX + "enqueue";
-    public static final String DEQUEUE = PREFIX + "dequeue";
+    private static final String TICKET_PREFIX = PREFIX + "ticket.";
 
-    private static final String QUEUE_PREFIX = PREFIX + "queue.";
+    public static final String TICKET_CREATED = TICKET_PREFIX + "created";
+    public static final String TICKET_STATE_CHANGED = TICKET_PREFIX + "state.changed";
+    public static final String TICKET_DELETED = TICKET_PREFIX + "deleted";
 
-    public static final String QUEUE_CREATED = QUEUE_PREFIX + "created";
-    public static final String QUEUE_UPDATED = QUEUE_PREFIX + "updated";
-    public static final String QUEUE_DELETED = QUEUE_PREFIX + "deleted";
-    public static final String QUEUE_TRANSFER = QUEUE_PREFIX + "transfer";
-    public static final String QUEUE_STATUS_UPDATED = QUEUE_PREFIX + "status.updated";
-    public static final String QUEUE_SERVER_ASSIGNED = QUEUE_PREFIX + "server.assigned";
+    private static final String MATCH_PREFIX = PREFIX + "match.";
+
+    public static final String MATCH_CREATED = MATCH_PREFIX + "created";
+    public static final String MATCH_STATE_CHANGED = MATCH_PREFIX + "state.changed";
+    public static final String MATCH_TRANSFERRED = MATCH_PREFIX + "transferred";
 }

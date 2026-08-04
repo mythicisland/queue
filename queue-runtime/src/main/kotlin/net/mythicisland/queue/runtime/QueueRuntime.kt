@@ -1,5 +1,6 @@
 package net.mythicisland.queue.runtime
 
+import build.buf.gen.mythicisland.queue.v2.MatchState
 import io.grpc.Server
 import io.grpc.ServerBuilder
 import kotlinx.coroutines.CoroutineScope
@@ -10,14 +11,17 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import net.mythicisland.moonrise.common.Moonrise
 import net.mythicisland.moonrise.common.auth.AuthInterceptor
 import net.mythicisland.moonrise.common.auth.AuthSecret
-import net.mythicisland.queue.runtime.launcher.QueueStartCommand
 import net.mythicisland.queue.runtime.event.EventPublisher
-import net.mythicisland.queue.runtime.reconciler.QueueReconciler
-import net.mythicisland.queue.runtime.repository.QueueRepository
+import net.mythicisland.queue.runtime.launcher.QueueStartCommand
+import net.mythicisland.queue.runtime.match.MatchReconciler
+import net.mythicisland.queue.runtime.match.Matchmaker
+import net.mythicisland.queue.runtime.repository.MatchRepository
 import net.mythicisland.queue.runtime.repository.QueueTypeRepository
-import net.mythicisland.queue.runtime.server.ServerFinder
+import net.mythicisland.queue.runtime.server.ServerAllocator
 import net.mythicisland.queue.runtime.service.QueueDataService
-import net.mythicisland.queue.runtime.service.QueueService
+import net.mythicisland.queue.runtime.service.TicketService
+import net.mythicisland.queue.runtime.ticket.TicketPool
+import net.mythicisland.queue.runtime.ticket.TicketStore
 import org.apache.logging.log4j.LogManager
 
 class QueueRuntime(
@@ -29,18 +33,24 @@ class QueueRuntime(
 
     private val eventPublisher = EventPublisher(manager.connection())
     private val queueTypeRepository = QueueTypeRepository(args.typesPath)
-    private val queueRepository = QueueRepository(queueTypeRepository, eventPublisher)
+    private val matchRepository = MatchRepository()
+    private val ticketStore = TicketStore()
+    private val ticketPool = TicketPool(ticketStore)
 
     suspend fun start() {
         logger.info("Starting Queue Service...")
 
         logger.info("Loading queue types...")
-        queueTypeRepository.load()
+        val types = queueTypeRepository.load()
+        logger.info("Loaded {} queue types: {}", types.size, types.map { it.name })
 
         val api = Moonrise.connectToController(args.networkId, args.networkSecret, args.controllerUrl, args.controllerNatsUrl)
-        val finder = ServerFinder(api, queueTypeRepository)
-        val reconciler = QueueReconciler(queueRepository, queueTypeRepository, api, finder, eventPublisher)
-        queueRepository.setReconciler(reconciler)
+        val allocator = ServerAllocator(api)
+
+        val matchmaker = Matchmaker(ticketStore, ticketPool, matchRepository, queueTypeRepository, eventPublisher)
+        val reconciler = MatchReconciler(ticketStore, matchRepository, queueTypeRepository, allocator, api, eventPublisher)
+
+        matchmaker.start()
         reconciler.start()
 
         val server = createGrpcServer()
@@ -50,14 +60,13 @@ class QueueRuntime(
             Runtime.getRuntime().addShutdownHook(Thread {
                 logger.info("Shutting down Queue...")
                 runBlocking {
-                    val queues = queueRepository.getAllQueues()
-                    if (queues.isNotEmpty()) {
-                        for (queue in queues) {
-                            queue.server?.let { server ->
-                                finder.freeServer(server)
-                            }
-                        }
-                    }
+                    // Hand back the servers of matches that never started, they
+                    // would stay ingame without anybody on them.
+                    matchRepository.getAll()
+                        .filter { it.state != MatchState.MATCH_STATE_COMPLETED }
+                        .forEach { allocator.release(it) }
+
+                    matchmaker.shutdown()
                     reconciler.shutdown()
                     queueTypeRepository.close()
                     manager.shutdown()
@@ -90,8 +99,8 @@ class QueueRuntime(
 
         return ServerBuilder.forPort(args.grpcPort)
             .intercept(AuthInterceptor(token))
-            .addService(QueueService(queueRepository))
-            .addService(QueueDataService(queueRepository, queueTypeRepository))
+            .addService(TicketService(ticketStore, matchRepository, queueTypeRepository, eventPublisher))
+            .addService(QueueDataService(ticketStore, ticketPool, matchRepository, queueTypeRepository))
             .build()
     }
 }

@@ -1,6 +1,6 @@
 package net.mythicisland.queue.api.internal.data;
 
-import build.buf.gen.mythicisland.queue.v1.*;
+import build.buf.gen.mythicisland.queue.v2.*;
 import net.mythicisland.queue.api.data.QueueDataApi;
 
 import java.util.UUID;
@@ -17,44 +17,60 @@ public class QueueDataApiImpl implements QueueDataApi {
     }
 
     @Override
-    public CompletableFuture<GetQueueResponse> getQueue(UUID queueId) {
-        return toCompletableFuture(stub.getQueue(
-                GetQueueRequest.newBuilder()
-                        .setQueueId(queueId.toString())
+    public CompletableFuture<GetTicketResponse> getTicket(UUID ticketId) {
+        return toCompletableFuture(stub.getTicket(
+                GetTicketRequest.newBuilder()
+                        .setTicketId(ticketId.toString())
                         .build()
         ));
     }
 
     @Override
-    public CompletableFuture<GetAllQueuesResponse> getAllQueues() {
-        return toCompletableFuture(stub.getAllQueues(
-                GetAllQueuesRequest.getDefaultInstance()
-        ));
-    }
-
-    @Override
-    public CompletableFuture<GetQueuesByTypeResponse> getQueuesByType(String type) {
-        return toCompletableFuture(stub.getQueuesByType(
-                GetQueuesByTypeRequest.newBuilder()
-                        .setType(type)
-                        .build()
-        ));
-    }
-
-    @Override
-    public CompletableFuture<GetQueueByPlayerResponse> getQueueByPlayer(UUID playerId) {
-        return toCompletableFuture(stub.getQueueByPlayer(
-                GetQueueByPlayerRequest.newBuilder()
+    public CompletableFuture<GetTicketByPlayerResponse> getTicketByPlayer(UUID playerId) {
+        return toCompletableFuture(stub.getTicketByPlayer(
+                GetTicketByPlayerRequest.newBuilder()
                         .setPlayerId(playerId.toString())
                         .build()
         ));
     }
 
     @Override
-    public CompletableFuture<GetPlayerPositionResponse> getPlayerPosition(UUID playerId) {
-        return toCompletableFuture(stub.getPlayerPosition(
-                GetPlayerPositionRequest.newBuilder()
-                        .setPlayerId(playerId.toString())
+    public CompletableFuture<ListTicketsResponse> listTickets() {
+        return toCompletableFuture(stub.listTickets(
+                ListTicketsRequest.getDefaultInstance()
+        ));
+    }
+
+    @Override
+    public CompletableFuture<ListTicketsResponse> listTickets(String queueType) {
+        return toCompletableFuture(stub.listTickets(
+                ListTicketsRequest.newBuilder()
+                        .setQueueType(queueType)
+                        .build()
+        ));
+    }
+
+    @Override
+    public CompletableFuture<GetMatchResponse> getMatch(UUID matchId) {
+        return toCompletableFuture(stub.getMatch(
+                GetMatchRequest.newBuilder()
+                        .setMatchId(matchId.toString())
+                        .build()
+        ));
+    }
+
+    @Override
+    public CompletableFuture<ListMatchesResponse> listMatches() {
+        return toCompletableFuture(stub.listMatches(
+                ListMatchesRequest.getDefaultInstance()
+        ));
+    }
+
+    @Override
+    public CompletableFuture<ListMatchesResponse> listMatches(String queueType) {
+        return toCompletableFuture(stub.listMatches(
+                ListMatchesRequest.newBuilder()
+                        .setQueueType(queueType)
                         .build()
         ));
     }
@@ -69,9 +85,25 @@ public class QueueDataApiImpl implements QueueDataApi {
     }
 
     @Override
-    public CompletableFuture<GetAllQueueTypesResponse> getAllQueueTypes() {
-        return toCompletableFuture(stub.getAllQueueTypes(
-                GetAllQueueTypesRequest.getDefaultInstance()
+    public CompletableFuture<ListQueueTypesResponse> listQueueTypes() {
+        return toCompletableFuture(stub.listQueueTypes(
+                ListQueueTypesRequest.getDefaultInstance()
+        ));
+    }
+
+    @Override
+    public CompletableFuture<GetQueueStatsResponse> getQueueStats(String queueType) {
+        return toCompletableFuture(stub.getQueueStats(
+                GetQueueStatsRequest.newBuilder()
+                        .setQueueType(queueType)
+                        .build()
+        ));
+    }
+
+    @Override
+    public CompletableFuture<ListQueueStatsResponse> listQueueStats() {
+        return toCompletableFuture(stub.listQueueStats(
+                ListQueueStatsRequest.getDefaultInstance()
         ));
     }
 

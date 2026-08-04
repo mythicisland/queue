@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package mythicisland.queue.v2;
+
+import "types.proto";
+
+option java_package = "net.mythicisland.queue.v2";
+option java_multiple_files = true;
+
+// Published when a player or party entered matchmaking.
+message TicketCreatedEvent {
+  Ticket ticket = 1;
+}
+
+// Published on every state transition of a ticket. The ticket already carries
+// the new state, so only the old one is extra.
+message TicketStateChangedEvent {
+  Ticket ticket = 1;
+  TicketState previous_state = 2;
+}
+
+// Published when a ticket leaves matchmaking, for whatever reason.
+message TicketDeletedEvent {
+  Ticket ticket = 1;
+  TicketDeleteReason reason = 2;
+}
+
+enum TicketDeleteReason {
+  TICKET_DELETE_REASON_UNSPECIFIED = 0;
+  // The player or party left the queue on purpose.
+  TICKET_DELETE_REASON_CANCELLED = 1;
+  // The players were transferred to their game server, matchmaking is done.
+  TICKET_DELETE_REASON_TRANSFERRED = 2;
+  // The ticket was dropped, for example because the players went offline.
+  TICKET_DELETE_REASON_EXPIRED = 3;
+}
+
+// Published when enough tickets were found to form a match.
+message MatchCreatedEvent {
+  Match match = 1;
+}
+
+// Published on every state transition of a match.
+message MatchStateChangedEvent {
+  Match match = 1;
+  MatchState previous_state = 2;
+}
+
+// Published after the transfer attempt. Players that were offline or failed to
+// connect are missing from transferred_player_ids.
+message MatchTransferredEvent {
+  Match match = 1;
+  repeated string transferred_player_ids = 2;
+}

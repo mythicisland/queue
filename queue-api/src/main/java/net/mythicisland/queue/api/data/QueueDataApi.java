@@ -1,56 +1,71 @@
 package net.mythicisland.queue.api.data;
 
-import build.buf.gen.mythicisland.queue.v1.*;
+import build.buf.gen.mythicisland.queue.v2.*;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * API for querying queue data.
+ * API for querying tickets, matches and the queue configuration.
  */
 public interface QueueDataApi {
 
     /**
-     * Retrieves information about a specific queue.
+     * Retrieves a specific ticket.
      *
-     * @param queueId the unique identifier of the queue
-     * @return a future completing with the queue details
+     * @param ticketId the unique identifier of the ticket
+     * @return a future completing with the ticket
      */
-    CompletableFuture<GetQueueResponse> getQueue(UUID queueId);
+    CompletableFuture<GetTicketResponse> getTicket(UUID ticketId);
 
     /**
-     * Retrieves a list of all currently active queues across all types.
-     *
-     * @return a future completing with a list of all active queues
-     */
-    CompletableFuture<GetAllQueuesResponse> getAllQueues();
-
-    /**
-     * Retrieves all active queues of a specific type (e.g., "skyblock", "bedwars").
-     *
-     * @param type the name of the queue type
-     * @return a future completing with a list of matching queues
-     */
-    CompletableFuture<GetQueuesByTypeResponse> getQueuesByType(String type);
-
-    /**
-     * Finds the queue that a specific player is currently a member of.
+     * Finds the ticket a player belongs to.
      *
      * @param playerId the unique identifier of the player
-     * @return a future completing with the queue containing the player, or an empty response if not in any queue
+     * @return a future completing with the ticket containing the player
      */
-    CompletableFuture<GetQueueByPlayerResponse> getQueueByPlayer(UUID playerId);
+    CompletableFuture<GetTicketByPlayerResponse> getTicketByPlayer(UUID playerId);
 
     /**
-     * Retrieves a player's current position and progress within their queue.
+     * Retrieves every ticket currently in matchmaking.
      *
-     * @param playerId the unique identifier of the player
-     * @return a future completing with the player's position information
+     * @return a future completing with all tickets
      */
-    CompletableFuture<GetPlayerPositionResponse> getPlayerPosition(UUID playerId);
+    CompletableFuture<ListTicketsResponse> listTickets();
 
     /**
-     * Retrieves the configuration and metadata for a specific queue type.
+     * Retrieves every ticket searching in a specific queue type.
+     *
+     * @param queueType the name of the queue type
+     * @return a future completing with the matching tickets
+     */
+    CompletableFuture<ListTicketsResponse> listTickets(String queueType);
+
+    /**
+     * Retrieves a specific match.
+     *
+     * @param matchId the unique identifier of the match
+     * @return a future completing with the match
+     */
+    CompletableFuture<GetMatchResponse> getMatch(UUID matchId);
+
+    /**
+     * Retrieves every match that has not finished yet.
+     *
+     * @return a future completing with all active matches
+     */
+    CompletableFuture<ListMatchesResponse> listMatches();
+
+    /**
+     * Retrieves every active match of a specific queue type.
+     *
+     * @param queueType the name of the queue type
+     * @return a future completing with the matching matches
+     */
+    CompletableFuture<ListMatchesResponse> listMatches(String queueType);
+
+    /**
+     * Retrieves the configuration of a specific queue type.
      *
      * @param name the name of the queue type
      * @return a future completing with the queue type configuration
@@ -58,9 +73,26 @@ public interface QueueDataApi {
     CompletableFuture<GetQueueTypeResponse> getQueueType(String name);
 
     /**
-     * Retrieves a list of all registered queue types and their configurations.
+     * Retrieves every registered queue type and its configuration.
      *
      * @return a future completing with all available queue types
      */
-    CompletableFuture<GetAllQueueTypesResponse> getAllQueueTypes();
+    CompletableFuture<ListQueueTypesResponse> listQueueTypes();
+
+    /**
+     * Retrieves the live numbers of a queue type, for example to show how many
+     * players are currently searching.
+     *
+     * @param queueType the name of the queue type
+     * @return a future completing with the queue statistics
+     */
+    CompletableFuture<GetQueueStatsResponse> getQueueStats(String queueType);
+
+    /**
+     * Retrieves the live numbers of every queue type.
+     *
+     * @return a future completing with the statistics of all queue types
+     */
+    CompletableFuture<ListQueueStatsResponse> listQueueStats();
+
 }

@@ -3,7 +3,7 @@ package net.mythicisland.queue.api;
 import net.mythicisland.queue.api.data.QueueDataApi;
 import net.mythicisland.queue.api.event.EventApi;
 import net.mythicisland.queue.api.internal.QueueApiImpl;
-import net.mythicisland.queue.api.player.QueuePlayerApi;
+import net.mythicisland.queue.api.ticket.TicketApi;
 
 /**
  * Main entrypoint to interacting with queue.
@@ -30,14 +30,14 @@ public interface QueueApi extends AutoCloseable {
     }
 
     /**
-     * Provides player related operations.
+     * Provides ticket related operations.
      *
-     * @return the queue player API
+     * @return the ticket API
      */
-    QueuePlayerApi player();
+    TicketApi ticket();
 
     /**
-     * Provides access to data query operations for queues and queue types.
+     * Provides access to data query operations for tickets, matches and queue types.
      *
      * @return the data query API
      */

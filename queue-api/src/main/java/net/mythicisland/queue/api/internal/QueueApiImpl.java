@@ -1,7 +1,7 @@
 package net.mythicisland.queue.api.internal;
 
-import build.buf.gen.mythicisland.queue.v1.QueueDataServiceGrpc;
-import build.buf.gen.mythicisland.queue.v1.QueueServiceGrpc;
+import build.buf.gen.mythicisland.queue.v2.QueueDataServiceGrpc;
+import build.buf.gen.mythicisland.queue.v2.TicketServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.nats.client.Connection;
@@ -14,8 +14,8 @@ import net.mythicisland.queue.api.data.QueueDataApi;
 import net.mythicisland.queue.api.event.EventApi;
 import net.mythicisland.queue.api.internal.data.QueueDataApiImpl;
 import net.mythicisland.queue.api.internal.event.EventApiImpl;
-import net.mythicisland.queue.api.internal.player.QueuePlayerApiImpl;
-import net.mythicisland.queue.api.player.QueuePlayerApi;
+import net.mythicisland.queue.api.internal.ticket.TicketApiImpl;
+import net.mythicisland.queue.api.ticket.TicketApi;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -24,7 +24,7 @@ public final class QueueApiImpl implements QueueApi {
 
     private final ManagedChannel channel;
     private final Connection nc;
-    private final QueuePlayerApi playerApi;
+    private final TicketApi ticketApi;
     private final QueueDataApi dataApi;
     private final EventApi eventApi;
 
@@ -51,9 +51,9 @@ public final class QueueApiImpl implements QueueApi {
 
         AuthCredentials credentials = new AuthCredentials(options.token());
 
-        QueueServiceGrpc.QueueServiceFutureStub stub = QueueServiceGrpc.newFutureStub(channel)
+        TicketServiceGrpc.TicketServiceFutureStub stub = TicketServiceGrpc.newFutureStub(channel)
                 .withCallCredentials(credentials);
-        this.playerApi = new QueuePlayerApiImpl(stub);
+        this.ticketApi = new TicketApiImpl(stub);
 
         QueueDataServiceGrpc.QueueDataServiceFutureStub dataStub = QueueDataServiceGrpc.newFutureStub(channel)
                 .withCallCredentials(credentials);
@@ -80,8 +80,8 @@ public final class QueueApiImpl implements QueueApi {
     }
 
     @Override
-    public QueuePlayerApi player() {
-        return playerApi;
+    public TicketApi ticket() {
+        return ticketApi;
     }
 
     @Override
