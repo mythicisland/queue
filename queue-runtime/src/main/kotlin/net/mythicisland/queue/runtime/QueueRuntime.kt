@@ -44,6 +44,7 @@ class QueueRuntime(
         val types = queueTypeRepository.load()
         logger.info("Loaded {} queue types: {}", types.size, types.map { it.name })
 
+        logger.info("Connecting to controller...")
         val api = Moonrise.connectToController(args.networkId, args.networkSecret, args.controllerUrl, args.controllerNatsUrl)
         val allocator = ServerAllocator(api)
 
@@ -60,8 +61,6 @@ class QueueRuntime(
             Runtime.getRuntime().addShutdownHook(Thread {
                 logger.info("Shutting down Queue...")
                 runBlocking {
-                    // Hand back the servers of matches that never started, they
-                    // would stay ingame without anybody on them.
                     matchRepository.getAll()
                         .filter { it.state != MatchState.MATCH_STATE_COMPLETED }
                         .forEach { allocator.release(it) }

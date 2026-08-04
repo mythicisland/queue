@@ -40,7 +40,6 @@ object QueueStartCommand : SuspendingCliktCommand() {
         .path()
         .default(Path.of(".secrets/auth.key"))
 
-    // Values for the SimpleCloud API
     val networkId: String by option(help = "Your SimpleCloud Network ID (default: id)", envvar = "NETWORK_ID")
         .default("default")
 

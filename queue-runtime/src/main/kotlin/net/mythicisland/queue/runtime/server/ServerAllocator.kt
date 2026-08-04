@@ -27,30 +27,27 @@ class ServerAllocator(
     /**
      * Tries to take a free server for a match.
      *
-     * If nothing is free a new server is requested once and null is returned,
-     * the next reconciliation picks it up as soon as it is running.
-     *
      * @param match the match that needs a server.
      * @param type the queue type of the match.
      * @return the assignment, or null if no server is ready yet.
      */
     suspend fun allocate(match: Match, type: QueueType): Assignment? {
         val servers = api.server().getServersByGroup(type.group).await()
-        val free = servers.firstOrNull { it.state == ServerState.AVAILABLE }
+        val server = servers.firstOrNull { it.state == ServerState.AVAILABLE }
 
-        if (free == null) {
+        if (server == null) {
             requestServer(match, type)
             return null
         }
 
-        if (!updateState(free.serverId, ServerState.INGAME)) {
-            logger.error("Failed to take server {} for match {}", free.serverId, match.id)
+        if (!updateState(server.serverId, ServerState.INGAME)) {
+            logger.error("Failed to take server {} for match {}", server.serverId, match.id)
             return null
         }
 
         requested.remove(match.id)
 
-        val assignment = Assignment(free.serverId, "${free.group.name}-${free.numericalId}")
+        val assignment = Assignment(server.serverId, "${server.group.name}-${server.numericalId}")
         logger.info("Took server {} ({}) for match {}", assignment.serverName, assignment.serverId, match.id)
         return assignment
     }
@@ -64,11 +61,7 @@ class ServerAllocator(
     suspend fun release(match: Match) {
         requested.remove(match.id)
 
-        val assignment = match.assignment
-        if (assignment == null) {
-            logger.debug("Match {} had no server to release", match.id)
-            return
-        }
+        val assignment = match.assignment ?: return
 
         if (updateState(assignment.serverId, ServerState.AVAILABLE)) {
             logger.info("Released server {} of match {}", assignment.serverName, match.id)

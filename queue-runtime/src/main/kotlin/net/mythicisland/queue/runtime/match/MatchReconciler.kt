@@ -81,7 +81,7 @@ class MatchReconciler(
             MatchState.MATCH_STATE_ALLOCATING -> handleAllocating(match)
             MatchState.MATCH_STATE_COUNTDOWN -> handleCountdown(match)
             MatchState.MATCH_STATE_TRANSFERRING -> handleTransferring(match)
-            MatchState.MATCH_STATE_COMPLETED, MatchState.MATCH_STATE_FAILED -> cleanUp(match)
+            MatchState.MATCH_STATE_COMPLETED, MatchState.MATCH_STATE_FAILED -> cleanup(match)
             else -> logger.warn("Match {} has unhandled state {}, skipping", match.id, match.state)
         }
     }
@@ -106,10 +106,7 @@ class MatchReconciler(
         val assignment = allocator.allocate(match, type) ?: return
 
         val countdownEndsAt = Instant.now().plusSeconds(type.countdownDurationSeconds)
-        logger.info(
-            "Match {} starts in {}s on server {}",
-            match.id, type.countdownDurationSeconds, assignment.serverName,
-        )
+        logger.info("Match {} starts in {}s on server {}", match.id, type.countdownDurationSeconds, assignment.serverName)
 
         val ready = match.copy(assignment = assignment, countdownEndsAt = countdownEndsAt)
         assignTickets(ready, assignment, countdownEndsAt)
@@ -178,11 +175,8 @@ class MatchReconciler(
 
     /**
      * Removes a finished match.
-     *
-     * Completed matches take their tickets with them, failed ones put the
-     * players back into matchmaking so nobody gets stuck.
      */
-    private suspend fun cleanUp(match: Match) {
+    private suspend fun cleanup(match: Match) {
         val matchTickets = tickets.getAll(match.ticketIds)
 
         if (match.state == MatchState.MATCH_STATE_COMPLETED) {
@@ -224,11 +218,7 @@ class MatchReconciler(
      * Moves a match into a new state and tells everyone about it.
      */
     private suspend fun transition(match: Match, state: MatchState) {
-        val updated = matches.update(match.copy(state = state))
-        if (updated == null) {
-            logger.debug("Match {} vanished before it could move to {}", match.id, state)
-            return
-        }
+        val updated = matches.update(match.copy(state = state)) ?: return
 
         logger.info("Match {} state: {} -> {}", match.id, match.state, state)
         publisher.publishMatchStateChanged(updated, tickets.getAll(updated.ticketIds), match.state)

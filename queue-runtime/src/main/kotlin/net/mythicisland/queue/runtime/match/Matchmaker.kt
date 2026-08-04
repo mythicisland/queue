@@ -18,7 +18,7 @@ import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Forms matches out of the tickets that are waiting.
+ * deploy matches out of the tickets that are waiting.
  */
 class Matchmaker(
     private val tickets: TicketStore,
@@ -63,8 +63,6 @@ class Matchmaker(
      */
     suspend fun tick() {
         types.getAll().forEach { type ->
-            // A queue type can fill more than one match per pass when a lot of
-            // players are waiting, so keep going until nothing fits anymore.
             while (createMatch(type) != null) {
                 continue
             }
@@ -95,7 +93,7 @@ class Matchmaker(
         }
 
         matches.add(match)
-        logger.info("Created match {} for '{}' with {} tickets / {} players", match.id, type.name, matched.size, matched.sumOf { it.playerIds.size },)
+        logger.info("Deployed match {} for '{}' with {} tickets / {} players", match.id, type.name, matched.size, matched.sumOf { it.playerIds.size })
         publisher.publishMatchCreated(match, matched)
         matched.forEach { publisher.publishTicketStateChanged(it, TicketState.TICKET_STATE_SEARCHING) }
         return match
