@@ -1,4 +1,2 @@
-# Only the shadow jar is copied into the image, everything else would just
-# make the build context bigger.
 *
 !queue-runtime/build/libs/queue-runtime.jar
