@@ -19,7 +19,7 @@ for what.
 
 ```mermaid
 flowchart TD
-    A["CreateTicket(players, queueTypes)"] --> B["Ticket: SEARCHING"]
+    A["CreateTicket(players, types)"] --> B["Ticket: SEARCHING"]
     B --> C{"Matchmaker"}
     C -->|not enough players yet| B
     C -->|full, or minimum reached<br/>and the oldest ticket waited long enough| D["Match: ALLOCATING"]
@@ -30,17 +30,11 @@ flowchart TD
     G --> H["Match: COMPLETED<br/>players are on the game server"]
 ```
 
-1. **Searching** — the ticket sits in the pool of every queue type it asked for.
-2. **Matchmaking** — a match is formed as soon as the queue type is full, or once it holds
-   at least `minPlayers` and the oldest ticket has waited longer than `waitingDuration`.
-   There is no countdown to keep track of anywhere; the waiting time is derived from the
-   ticket's own age.
-3. **Allocating** — a free server of the group is moved to `INGAME`, which is what keeps the
-   next match from taking it too.
-4. **Countdown** — the ticket learns its server and when it will be moved, so a client can
-   render the countdown itself instead of polling.
-5. **Transferring** — every player is connected, then the match is done and its tickets are
-   removed.
+1. **Searching**: the ticket sits in the pool of every queue type it asked for.
+2. **Matchmaking**: a match is formed as soon as the queue type is full
+3. **Allocating**: a free server of the group is moved to `INGAME`, which i.s what keeps the next match from taking it too.
+4. **Countdown**: the ticket learns its server and when it will be moved, so a client can render the countdown itself instead of polling.
+5. **Transferring**: every player is connected, then the match is done and its tickets are removed.
 
 ## Multi-Queue
 
@@ -49,13 +43,10 @@ up first:
 
 ```kotlin
 api.ticket().create {
-    party(leader, member)
+    party(members)
     queues("battle", "skywars")
 }
 ```
-
-The ticket shows up in both pools. The moment one of them takes it, its state flips to
-`MATCHED` and it disappears from the other — a ticket can never end up in two matches.
 
 ## Modules
 
@@ -93,13 +84,9 @@ Everything else comes from environment variables or a `queue.properties`
 
 ## TODO
 
-- [x] **Proto Specs**: Write the Protocol Buffers for v2
-- [x] **Runtime Implementation**: Make the microservice work
-- [x] **API Implementation**: Write the Java and Kotlin API for v2
 - [x] **Multi Queue**: Let a player search in several queue types at once
-- [x] **Readme and Concepts**: Cool readme, concepts and api docs
 - [ ] **Ticket TTL**: Drop tickets whose players went offline without leaving the queue
 - [ ] **Metrics**: Time to match, fill rate, allocation latency, failed matches
 - [ ] **Estimated wait**: Show players how long they will probably wait
 - [ ] **Drain mode**: Finish the running matches before shutting down
-- [ ] **Queue Rating**: Rate queues by how alive they are — Good, Okay, Dead
+- [ ] **Queue Rating**: Rate queues by how alive they are
