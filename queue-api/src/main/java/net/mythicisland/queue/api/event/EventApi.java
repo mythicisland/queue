@@ -1,7 +1,7 @@
 package net.mythicisland.queue.api.event;
 
-import net.mythicisland.queue.api.event.player.QueuePlayerEventApi;
-import net.mythicisland.queue.api.event.queue.QueueEventApi;
+import net.mythicisland.queue.api.event.match.MatchEventApi;
+import net.mythicisland.queue.api.event.ticket.TicketEventApi;
 
 /**
  * API for subscribing to events.
@@ -9,17 +9,17 @@ import net.mythicisland.queue.api.event.queue.QueueEventApi;
 public interface EventApi {
 
     /**
-     * Provides access to queue lifecycle and status events.
+     * Provides access to ticket lifecycle events.
      *
-     * @return the queue event subscription API
+     * @return the ticket event subscription API
      */
-    QueueEventApi queue();
+    TicketEventApi ticket();
 
     /**
-     * Provides access to events related to players.
+     * Provides access to match lifecycle events.
      *
-     * @return the player event subscription API
+     * @return the match event subscription API
      */
-    QueuePlayerEventApi player();
+    MatchEventApi match();
 
 }

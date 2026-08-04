@@ -12,3 +12,11 @@ dependencies {
     implementation(libs.jnats)
     implementation(libs.moonrise.common)
 }
+
+tasks.named<Tar>("distTar") {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.named<Zip>("distZip") {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}

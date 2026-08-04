@@ -29,9 +29,6 @@ data class Ticket(
     val countdownEndsAt: Instant? = null,
 ) {
 
-    val playerCount: Int
-        get() = playerIds.size
-
     fun toDefinition(): build.buf.gen.mythicisland.queue.v2.Ticket {
         return ticket {
             id = this@Ticket.id.toString()

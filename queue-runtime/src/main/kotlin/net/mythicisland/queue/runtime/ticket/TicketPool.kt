@@ -40,7 +40,7 @@ class TicketPool(
         return QueueStats(
             queueType = queueType,
             searchingTickets = searching.size,
-            searchingPlayers = searching.sumOf { it.playerCount },
+            searchingPlayers = searching.sumOf { it.playerIds.size },
             activeMatches = activeMatches,
         )
     }

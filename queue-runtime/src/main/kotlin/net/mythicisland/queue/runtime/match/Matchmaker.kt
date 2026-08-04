@@ -95,7 +95,7 @@ class Matchmaker(
         }
 
         matches.add(match)
-        logger.info("Created match {} for '{}' with {} tickets / {} players", match.id, type.name, matched.size, matched.sumOf { it.playerCount },)
+        logger.info("Created match {} for '{}' with {} tickets / {} players", match.id, type.name, matched.size, matched.sumOf { it.playerIds.size },)
         publisher.publishMatchCreated(match, matched)
         matched.forEach { publisher.publishTicketStateChanged(it, TicketState.TICKET_STATE_SEARCHING) }
         return match
@@ -118,11 +118,11 @@ class Matchmaker(
         if (candidates.isEmpty()) return null
 
         val selected = candidates.fold(emptyList<Ticket>()) { picked, ticket ->
-            val players = picked.sumOf { it.playerCount }
-            if (players + ticket.playerCount <= type.maxPlayers) picked + ticket else picked
+            val players = picked.sumOf { it.playerIds.size }
+            if (players + ticket.playerIds.size <= type.maxPlayers) picked + ticket else picked
         }
 
-        val players = selected.sumOf { it.playerCount }
+        val players = selected.sumOf { it.playerIds.size }
         if (players < type.minPlayers) return null
         if (players >= type.maxPlayers) return selected
 
