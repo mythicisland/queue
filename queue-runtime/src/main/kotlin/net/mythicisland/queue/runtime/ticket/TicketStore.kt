@@ -17,7 +17,7 @@ class TicketStore {
 
     private val mutex = Mutex()
     private val tickets = ConcurrentHashMap<UUID, Ticket>()
-    private val playerToTicket = ConcurrentHashMap<UUID, UUID>()
+    private val assignments = ConcurrentHashMap<UUID, UUID>()
 
     /**
      * Gets a ticket by its id.
@@ -30,7 +30,7 @@ class TicketStore {
      * Gets the ticket a player belongs to.
      */
     fun getByPlayer(playerId: UUID): Ticket? {
-        return playerToTicket[playerId]?.let { tickets[it] }
+        return assignments[playerId]?.let { tickets[it] }
     }
 
     /**
@@ -54,14 +54,14 @@ class TicketStore {
      */
     suspend fun add(ticket: Ticket): Boolean {
         mutex.withLock {
-            val queued = ticket.playerIds.filter { playerToTicket.containsKey(it) }
+            val queued = ticket.playerIds.filter { assignments.containsKey(it) }
             if (queued.isNotEmpty()) {
                 logger.debug("Rejected ticket {}, players {} are already queued", ticket.id, queued)
                 return false
             }
 
             tickets[ticket.id] = ticket
-            ticket.playerIds.forEach { playerToTicket[it] = ticket.id }
+            ticket.playerIds.forEach { assignments[it] = ticket.id }
             return true
         }
     }
@@ -91,7 +91,7 @@ class TicketStore {
     suspend fun remove(id: UUID): Ticket? {
         mutex.withLock {
             val ticket = tickets.remove(id) ?: return null
-            ticket.playerIds.forEach { playerToTicket.remove(it, id) }
+            ticket.playerIds.forEach { assignments.remove(it, id) }
             return ticket
         }
     }
