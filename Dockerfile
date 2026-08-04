@@ -4,12 +4,8 @@ ARG JAR=queue-runtime/build/libs/queue-runtime.jar
 
 WORKDIR /app
 
-RUN useradd --system --uid 1000 queue \
-    && mkdir -p types .secrets logs \
-    && chown -R queue:queue /app
+RUN mkdir -p types .secrets logs
 
-COPY --chown=queue:queue ${JAR} queue-runtime.jar
-
-USER queue
+COPY ${JAR} queue-runtime.jar
 
 ENTRYPOINT ["java","-jar", "queue-runtime.jar"]
