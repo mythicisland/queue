@@ -69,7 +69,7 @@ jobs:
 
       - name: Set up Docker Buildx
         if: steps.existing.outputs.exists == 'false'
-        uses: useblacksmith/setup-docker-builder@v1
+        uses: useblacksmith/setup-docker-builder@v2
 
       - name: Log in to GitHub Container Registry
         if: steps.existing.outputs.exists == 'false'
