@@ -1,4 +1,5 @@
 dependencies {
+    api(libs.common)
     api(libs.queue.proto)
     api(libs.cloud.api)
     api(libs.bundles.grpc)

@@ -10,7 +10,6 @@ dependencies {
     implementation(project(":queue-shared"))
     implementation(libs.clikt)
     implementation(libs.jnats)
-    implementation(libs.moonrise.common)
 }
 
 tasks.named<Tar>("distTar") {

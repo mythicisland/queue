@@ -2,7 +2,7 @@ package net.mythicisland.queue.shared.match
 
 import build.buf.gen.mythicisland.queue.v2.TicketState
 import build.buf.gen.mythicisland.queue.v2.ticket
-import net.mythicisland.queue.shared.protobuf.toTimestamp
+import net.mythicisland.common.util.protobuf.toTimestamp
 import java.time.Instant
 import java.util.UUID
 

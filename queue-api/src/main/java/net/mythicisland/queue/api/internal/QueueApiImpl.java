@@ -7,7 +7,7 @@ import io.grpc.ManagedChannelBuilder;
 import io.nats.client.Connection;
 import io.nats.client.Nats;
 import io.nats.client.Options;
-import net.mythicisland.moonrise.common.auth.AuthCredentials;
+import net.mythicisland.common.auth.AuthCredentials;
 import net.mythicisland.queue.api.QueueApi;
 import net.mythicisland.queue.api.QueueApiOptions;
 import net.mythicisland.queue.api.data.QueueDataApi;

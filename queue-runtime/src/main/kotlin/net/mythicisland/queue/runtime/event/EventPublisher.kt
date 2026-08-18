@@ -2,7 +2,7 @@ package net.mythicisland.queue.runtime.event
 
 import build.buf.gen.mythicisland.queue.v2.*
 import io.nats.client.Connection
-import net.mythicisland.moonrise.common.nats.Publisher
+import net.mythicisland.common.nats.Publisher
 import net.mythicisland.queue.shared.match.Match
 import net.mythicisland.queue.shared.match.Ticket
 import net.mythicisland.queue.shared.nats.Subjects

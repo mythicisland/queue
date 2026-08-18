@@ -44,7 +44,7 @@ class Matchmaker(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    logger.error("Matchmaking pass failed", e)
+                    logger.error("Error in Matchmaking", e)
                 }
             }
         }

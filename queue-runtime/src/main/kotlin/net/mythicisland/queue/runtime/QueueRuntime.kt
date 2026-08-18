@@ -8,9 +8,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
-import net.mythicisland.moonrise.common.Moonrise
-import net.mythicisland.moonrise.common.auth.AuthInterceptor
-import net.mythicisland.moonrise.common.auth.AuthSecret
+import net.mythicisland.common.Connector
+import net.mythicisland.common.auth.AuthInterceptor
+import net.mythicisland.common.auth.AuthSecret
 import net.mythicisland.queue.runtime.event.EventPublisher
 import net.mythicisland.queue.runtime.launcher.QueueStartCommand
 import net.mythicisland.queue.runtime.match.MatchReconciler
@@ -29,7 +29,7 @@ class QueueRuntime(
 ) {
     private val logger = LogManager.getLogger(QueueRuntime::class.java)
 
-    private val manager = Moonrise.createNatsConnectionManager(args.natsUrl, args.natsUser, args.natsSecret)
+    private val manager = Connector.connectToNats(args.natsUrl, args.natsUser, args.natsSecret)
 
     private val eventPublisher = EventPublisher(manager.connection())
     private val queueTypeRepository = QueueTypeRepository(args.typesPath)
@@ -45,7 +45,7 @@ class QueueRuntime(
         logger.info("Loaded {} queue types: {}", types.size, types.map { it.name })
 
         logger.info("Connecting to controller...")
-        val api = Moonrise.connectToController(args.networkId, args.networkSecret, args.controllerUrl, args.controllerNatsUrl)
+        val api = Connector.connectToController(args.networkId, args.networkSecret, args.controllerUrl, args.controllerNatsUrl)
         val allocator = ServerAllocator(api)
 
         val matchmaker = Matchmaker(ticketStore, ticketPool, matchRepository, queueTypeRepository, eventPublisher)
@@ -67,7 +67,6 @@ class QueueRuntime(
 
                     matchmaker.shutdown()
                     reconciler.shutdown()
-                    queueTypeRepository.close()
                     manager.shutdown()
                 }
                 server.shutdown()

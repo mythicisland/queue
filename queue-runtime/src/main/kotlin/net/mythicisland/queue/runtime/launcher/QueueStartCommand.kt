@@ -21,7 +21,8 @@ object QueueStartCommand : SuspendingCliktCommand() {
     }
 
     val grpcPort: Int by option(help = "Port for the Queue gRPC server (default: 4564)", envvar = "GRPC_PORT")
-        .int().default(4564)
+        .int()
+        .default(4564)
 
     val natsUrl: String by option(help = "URL from the NATS server used for event publishing (default: nats://localhost:4222)", envvar = "NATS_URL")
         .default("nats://localhost:4222")

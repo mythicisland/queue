@@ -2,7 +2,7 @@ package net.mythicisland.queue.runtime.service
 
 import build.buf.gen.mythicisland.queue.v2.*
 import io.grpc.Status
-import net.mythicisland.moonrise.common.extension.asUUID
+import net.mythicisland.common.util.asUUID
 import net.mythicisland.queue.runtime.repository.MatchRepository
 import net.mythicisland.queue.runtime.repository.QueueTypeRepository
 import net.mythicisland.queue.runtime.ticket.TicketPool

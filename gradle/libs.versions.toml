@@ -13,7 +13,7 @@ jnats = "2.26.0"
 configurate = "4.2.0"
 cloud-api = "0.1.0-platform.45"
 queue-proto = "1.5.0.4.20260803235217.273a6fa06034"
-moonrise = "1.2.1"
+common = "0.0.1"
 
 protobuf = "4.35.1"
 grpc = "1.83.1"
@@ -35,7 +35,7 @@ clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
 jnats = { module = "io.nats:jnats", version.ref = "jnats" }
 cloud-api = { module = "app.simplecloud.api:api", version.ref = "cloud-api" }
 queue-proto = { module = "build.buf.gen:mythicisland_queue_grpc_kotlin", version.ref = "queue-proto" }
-moonrise-common = { module = "net.mythicisland.moonrise:moonrise-common", version.ref = "moonrise" }
+common = { module = "net.mythicisland:common", version.ref = "common" }
 
 protobuf-kotlin = { module = "com.google.protobuf:protobuf-kotlin", version.ref = "protobuf" }
 

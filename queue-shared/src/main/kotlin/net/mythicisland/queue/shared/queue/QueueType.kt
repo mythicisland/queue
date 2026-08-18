@@ -1,7 +1,7 @@
 package net.mythicisland.queue.shared.queue
 
 import build.buf.gen.mythicisland.queue.v2.queueType
-import net.mythicisland.queue.shared.protobuf.toProtoDuration
+import net.mythicisland.common.util.protobuf.secondsToProtobufDuration
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
 /**
@@ -30,8 +30,8 @@ data class QueueType(
             group = this@QueueType.group
             minPlayers = this@QueueType.minPlayers
             maxPlayers = this@QueueType.maxPlayers
-            waitingDuration = this@QueueType.waitingDurationSeconds.toProtoDuration()
-            countdownDuration = this@QueueType.countdownDurationSeconds.toProtoDuration()
+            waitingDuration = this@QueueType.waitingDurationSeconds.secondsToProtobufDuration()
+            countdownDuration = this@QueueType.countdownDurationSeconds.secondsToProtobufDuration()
         }
     }
 
