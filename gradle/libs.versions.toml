@@ -9,13 +9,13 @@ log4j = "2.26.1"
 slf4j = "2.0.18"
 
 clikt = "5.1.0"
-jnats = "2.26.0"
+jnats = "2.26.2"
 configurate = "4.2.0"
 cloud-api = "0.1.0-platform.45"
 queue-proto = "1.5.0.4.20260803235217.273a6fa06034"
 common = "0.0.1"
 
-protobuf = "4.35.1"
+protobuf = "4.36.0"
 grpc = "1.83.1"
 grpc-kotlin = "1.5.0"
 
