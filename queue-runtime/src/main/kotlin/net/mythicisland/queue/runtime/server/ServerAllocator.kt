@@ -11,11 +11,6 @@ import org.apache.logging.log4j.LogManager
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
-/**
- * Handle server allocation.
- *
- * @param api the simplecloud api.
- */
 class ServerAllocator(
     private val api: CloudApi,
 ) {
@@ -24,13 +19,6 @@ class ServerAllocator(
 
     private val requested = ConcurrentHashMap.newKeySet<UUID>()
 
-    /**
-     * Tries to take a free server for a match.
-     *
-     * @param match the match that needs a server.
-     * @param type the queue type of the match.
-     * @return the assignment, or null if no server is ready yet.
-     */
     suspend fun allocate(match: Match, type: QueueType): Assignment? {
         val servers = api.server().getServersByGroup(type.group).await()
         val server = servers.firstOrNull { it.state == ServerState.AVAILABLE }
@@ -41,23 +29,17 @@ class ServerAllocator(
         }
 
         if (!updateState(server.serverId, ServerState.INGAME)) {
-            logger.error("Failed to take server {} for match {}", server.serverId, match.id)
+            logger.error("Failed to reserve server {} for match {}", server.serverId, match.id)
             return null
         }
 
         requested.remove(match.id)
 
         val assignment = Assignment(server.serverId, "${server.group.name}-${server.numericalId}")
-        logger.info("Took server {} ({}) for match {}", assignment.serverName, assignment.serverId, match.id)
+        logger.info("Assigned server {} for match {}", assignment.serverName, match.id)
         return assignment
     }
 
-    /**
-     * Puts the server of a match that never made it to the transfer back to
-     * available, so it can be handed to the next match.
-     *
-     * @param match the failed match.
-     */
     suspend fun release(match: Match) {
         requested.remove(match.id)
 
@@ -66,15 +48,12 @@ class ServerAllocator(
         if (updateState(assignment.serverId, ServerState.AVAILABLE)) {
             logger.info("Released server {} of match {}", assignment.serverName, match.id)
         } else {
-            logger.error("Failed to release server {} of match {}", assignment.serverName, match.id)
+            logger.error("Failed to update state for server {} of match {}", assignment.serverName, match.id)
         }
     }
 
     private suspend fun requestServer(match: Match, type: QueueType) {
-        if (!requested.add(match.id)) {
-            logger.debug("Match {} is still waiting for its requested server in group '{}'", match.id, type.group)
-            return
-        }
+        if (!requested.add(match.id)) return
 
         try {
             val group = api.group().getGroupByName(type.group).await()
@@ -97,7 +76,7 @@ class ServerAllocator(
             api.server().updateServer(serverId, request).await()
             true
         } catch (e: Exception) {
-            logger.error("Failed to update server {} to state {}", serverId, state, e)
+            logger.error("Failed to update state from server {} to state {}", serverId, state, e)
             false
         }
     }

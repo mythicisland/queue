@@ -8,14 +8,12 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * API for putting players into matchmaking and taking them back out.
+ * API for to interact with tickets.
  */
 public interface TicketApi {
 
     /**
-     * Creates a ticket for a party, searching in one or more queue types.
-     *
-     * <p>Passing several queue types means the party joins whichever match fills up first.</p>
+     * Creates a ticket for a group of players, searching in one or more queue types.
      *
      * @param playerIds the UUIDs of the players to enqueue together
      * @param queueTypes the names of the queue types to search in
@@ -54,7 +52,7 @@ public interface TicketApi {
     CompletableFuture<DeleteTicketResponse> deleteTicket(UUID ticketId);
 
     /**
-     * Removes the ticket a player belongs to, including the rest of their party.
+     * Removes the ticket a player belongs to.
      *
      * @param playerId the UUID of the player
      * @return a future completing when the ticket was removed

@@ -3,7 +3,7 @@ package net.mythicisland.queue.shared.queue
 import build.buf.gen.mythicisland.queue.v2.queueStats
 
 /**
- * Live numbers of one queue type, for example to show "12 players searching".
+ * Very weird metrics for queue types.
  *
  * @param queueType the queue type these numbers belong to.
  * @param searchingTickets the tickets currently searching in this queue type.

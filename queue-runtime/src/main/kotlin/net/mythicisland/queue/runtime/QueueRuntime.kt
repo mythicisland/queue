@@ -31,11 +31,11 @@ class QueueRuntime(
 
     private val manager = Connector.connectToNats(args.natsUrl, args.natsUser, args.natsSecret)
 
-    private val eventPublisher = EventPublisher(manager.connection())
+    private val publisher = EventPublisher(manager.connection())
     private val queueTypeRepository = QueueTypeRepository(args.typesPath)
     private val matchRepository = MatchRepository()
-    private val ticketStore = TicketStore()
-    private val ticketPool = TicketPool(ticketStore)
+    private val store = TicketStore()
+    private val pool = TicketPool(store)
 
     suspend fun start() {
         logger.info("Starting Queue Service...")
@@ -48,8 +48,8 @@ class QueueRuntime(
         val api = Connector.connectToController(args.networkId, args.networkSecret, args.controllerUrl, args.controllerNatsUrl)
         val allocator = ServerAllocator(api)
 
-        val matchmaker = Matchmaker(ticketStore, ticketPool, matchRepository, queueTypeRepository, eventPublisher)
-        val reconciler = MatchReconciler(ticketStore, matchRepository, queueTypeRepository, allocator, api, eventPublisher)
+        val matchmaker = Matchmaker(store, pool, matchRepository, queueTypeRepository, publisher)
+        val reconciler = MatchReconciler(store, matchRepository, queueTypeRepository, allocator, api, publisher)
 
         matchmaker.start()
         reconciler.start()
@@ -61,7 +61,7 @@ class QueueRuntime(
             Runtime.getRuntime().addShutdownHook(Thread {
                 logger.info("Shutting down Queue...")
                 runBlocking {
-                    matchRepository.getAll()
+                    matchRepository.getAllMatches()
                         .filter { it.state != MatchState.MATCH_STATE_COMPLETED }
                         .forEach { allocator.release(it) }
 
@@ -97,8 +97,8 @@ class QueueRuntime(
 
         return ServerBuilder.forPort(args.grpcPort)
             .intercept(AuthInterceptor(token))
-            .addService(TicketService(ticketStore, matchRepository, queueTypeRepository, eventPublisher))
-            .addService(QueueDataService(ticketStore, ticketPool, matchRepository, queueTypeRepository))
+            .addService(TicketService(store, matchRepository, queueTypeRepository, publisher))
+            .addService(QueueDataService(store, pool, matchRepository, queueTypeRepository))
             .build()
     }
 }

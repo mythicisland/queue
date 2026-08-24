@@ -24,8 +24,7 @@ object QueueStartCommand : SuspendingCliktCommand() {
         .int()
         .default(4564)
 
-    val natsUrl: String by option(help = "URL from the NATS server used for event publishing (default: nats://localhost:4222)", envvar = "NATS_URL")
-        .default("nats://localhost:4222")
+    val natsUrl: String by option(help = "URL from the NATS server used for event publishing (default: nats://localhost:4222)", envvar = "NATS_URL").default("nats://localhost:4222")
 
     val natsUser: String by option(help = "User from the NATS server (default: admin)", envvar = "NATS_USER")
         .default("admin")

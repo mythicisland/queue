@@ -1,0 +1,26 @@
+services:
+  nats:
+    image: nats:latest
+    command: ["--user", "admin", "--pass", "sup3rS3cr3t"]
+    ports:
+      - "4222:4222"
+    restart: unless-stopped
+
+  queue:
+    image: ghcr.io/mythicisland/queue:latest
+    environment:
+      GRPC_PORT: 4564
+      NATS_URL: nats://nats:4222
+      NATS_USER: admin
+      NATS_SECRET: sup3rS3cr3t
+      NETWORK_ID: your-network-id
+      NETWORK_SECRET: your-network-secret
+      CONTROLLER_URL: https://controller.simplecloud.app
+      CONTROLLER_NATS_URL: wss://nats.simplecloud.app:443
+    ports:
+      - "4564:4564"
+    volumes:
+      - ./types:/app/types
+      - ./.secrets:/app/.secrets
+      - ./logs:/app/logs
+    restart: unless-stopped

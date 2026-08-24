@@ -11,9 +11,9 @@ import java.util.UUID
  *
  * @param id the unique id of this match.
  * @param queueType the queue type this match was created for.
- * @param ticketIds the tickets forming this match.
+ * @param ticketIds the tickets from this match.
  * @param state the current state of this match.
- * @param createdAt when the match was formed.
+ * @param createdAt when the match was created.
  * @param assignment the allocated server, null while allocating.
  * @param countdownEndsAt when the players get transferred, null until a server is there.
  */

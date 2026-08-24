@@ -52,7 +52,7 @@ class QueueDataService(
 
     override suspend fun getMatch(request: GetMatchRequest): GetMatchResponse {
         val id = request.matchId.asUUID()
-        val match = matches.get(id)
+        val match = matches.getMatch(id)
             ?: throw Status.NOT_FOUND
                 .withDescription("Match '$id' not found")
                 .asRuntimeException()
@@ -62,9 +62,9 @@ class QueueDataService(
 
     override suspend fun listMatches(request: ListMatchesRequest): ListMatchesResponse {
         val found = if (request.queueType.isEmpty()) {
-            matches.getAll()
+            matches.getAllMatches()
         } else {
-            matches.getAllByType(request.queueType)
+            matches.getAllMatchesByType(request.queueType)
         }
 
         return listMatchesResponse {
@@ -107,7 +107,7 @@ class QueueDataService(
     }
 
     private fun statsOf(type: QueueType): QueueStats {
-        return pool.stats(type.name, matches.getAllByType(type.name).size)
+        return pool.getQueueStats(type.name, matches.getAllMatchesByType(type.name).size)
     }
 
 }

@@ -6,7 +6,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * API for querying tickets, matches and the queue configuration.
+ * API for querying tickets, matches and queue configurations.
  */
 public interface QueueDataApi {
 
@@ -80,8 +80,7 @@ public interface QueueDataApi {
     CompletableFuture<ListQueueTypesResponse> listQueueTypes();
 
     /**
-     * Retrieves the live numbers of a queue type, for example to show how many
-     * players are currently searching.
+     * Retrieves the metrics of a queue type.
      *
      * @param queueType the name of the queue type
      * @return a future completing with the queue statistics
@@ -89,7 +88,7 @@ public interface QueueDataApi {
     CompletableFuture<GetQueueStatsResponse> getQueueStats(String queueType);
 
     /**
-     * Retrieves the live numbers of every queue type.
+     * Retrieves the metrics of every queue type.
      *
      * @return a future completing with the statistics of all queue types
      */

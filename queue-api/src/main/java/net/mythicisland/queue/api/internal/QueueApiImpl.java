@@ -46,7 +46,7 @@ public final class QueueApiImpl implements QueueApi {
             );
         } catch (IOException | InterruptedException e) {
             channel.shutdownNow();
-            throw new RuntimeException("Failed to establish NATS connection", e);
+            throw new RuntimeException(e);
         }
 
         AuthCredentials credentials = new AuthCredentials(options.token());

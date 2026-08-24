@@ -19,7 +19,7 @@ class TicketPoolTest {
             store.add(battle)
             store.add(ticket(queueTypes = listOf("skywars")))
 
-            assertEquals(listOf(battle), pool.searching("battle"))
+            assertEquals(listOf(battle), pool.getAllTickets("battle"))
         }
     }
 
@@ -31,8 +31,8 @@ class TicketPoolTest {
             val ticket = ticket(queueTypes = listOf("battle", "skywars"))
             store.add(ticket)
 
-            assertEquals(listOf(ticket), pool.searching("battle"))
-            assertEquals(listOf(ticket), pool.searching("skywars"))
+            assertEquals(listOf(ticket), pool.getAllTickets("battle"))
+            assertEquals(listOf(ticket), pool.getAllTickets("skywars"))
         }
     }
 
@@ -44,7 +44,7 @@ class TicketPoolTest {
             store.add(ticket(state = TicketState.TICKET_STATE_MATCHED))
             store.add(ticket(state = TicketState.TICKET_STATE_ASSIGNED))
 
-            assertEquals(emptyList(), pool.searching("battle"))
+            assertEquals(emptyList(), pool.getAllTickets("battle"))
         }
     }
 
@@ -60,7 +60,7 @@ class TicketPoolTest {
             store.add(oldest)
             store.add(middle)
 
-            assertEquals(listOf(oldest, middle, newest), pool.searching("battle"))
+            assertEquals(listOf(oldest, middle, newest), pool.getAllTickets("battle"))
         }
     }
 
@@ -72,7 +72,7 @@ class TicketPoolTest {
             store.add(ticket(playerIds = players(3)))
             store.add(ticket(playerIds = players(1)))
 
-            val stats = pool.stats("battle", activeMatches = 2)
+            val stats = pool.getQueueStats("battle", activeMatches = 2)
 
             assertEquals("battle", stats.queueType)
             assertEquals(2, stats.searchingTickets)

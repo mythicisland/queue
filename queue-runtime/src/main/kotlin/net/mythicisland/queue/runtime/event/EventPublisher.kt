@@ -8,9 +8,6 @@ import net.mythicisland.queue.shared.match.Ticket
 import net.mythicisland.queue.shared.nats.Subjects
 import java.util.UUID
 
-/**
- * Publishes ticket and match events to NATS.
- */
 class EventPublisher(
     connection: Connection
 ) : Publisher(connection) {

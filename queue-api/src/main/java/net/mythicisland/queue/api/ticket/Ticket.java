@@ -7,9 +7,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * A single player or a party that wants to play.
- *
- * <p>A ticket is the atomic unit of matchmaking, a party is never split up.</p>
+ * A single player or a group of players.
  *
  * @param id the unique ID of the ticket
  * @param playerIds the players behind the ticket, one entry means solo

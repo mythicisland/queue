@@ -19,9 +19,6 @@ import java.time.Instant
 import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
 
-/**
- * Drives a match from the moment it was formed until its players are on the game server.
- */
 class MatchReconciler(
     private val tickets: TicketStore,
     private val matches: MatchRepository,
@@ -42,7 +39,7 @@ class MatchReconciler(
         scope.launch {
             while (isActive) {
                 delay(500.milliseconds)
-                tick()
+                reconcileAllMatches()
             }
         }
     }
@@ -56,10 +53,10 @@ class MatchReconciler(
     }
 
     /**
-     * Reconciles every active match once.
+     * Reconciles all matches in the repository.
      */
-    suspend fun tick() {
-        matches.getAll().forEach { match ->
+    private suspend fun reconcileAllMatches() {
+        matches.getAllMatches().forEach { match ->
             try {
                 reconcile(match)
             } catch (e: CancellationException) {
@@ -82,7 +79,7 @@ class MatchReconciler(
             MatchState.MATCH_STATE_COUNTDOWN -> handleCountdown(match)
             MatchState.MATCH_STATE_TRANSFERRING -> handleTransferring(match)
             MatchState.MATCH_STATE_COMPLETED, MatchState.MATCH_STATE_FAILED -> cleanup(match)
-            else -> logger.warn("Match {} has unhandled state {}, skipping", match.id, match.state)
+            else -> throw IllegalStateException()
         }
     }
 
@@ -152,17 +149,17 @@ class MatchReconciler(
         transition(match, MatchState.MATCH_STATE_COMPLETED)
     }
 
-    /**
-     * Connects a single player.
-     *
-     * @return the player id if the transfer worked, null otherwise.
-     */
     private suspend fun transfer(playerId: UUID, assignment: Assignment): UUID? {
         try {
             val player = api.player().get(playerId).await()
+
             if (player == null) {
-                logger.warn("Player {} is offline, skipping transfer to {}", playerId, assignment.serverName)
+                logger.error("Player {} has never joined the network", playerId)
                 return null
+            }
+
+            if (!player.isOnline) {
+                logger.error("Player {} is offline", playerId)
             }
 
             player.connect(assignment.serverName).await()
@@ -193,14 +190,10 @@ class MatchReconciler(
             }
         }
 
-        matches.remove(match.id)
-        logger.info("Match {} cleaned up ({})", match.id, match.state)
+        matches.removeMatch(match.id)
+        logger.info("Match {} cleaned up", match.id)
     }
 
-    /**
-     * Mirrors the server and the countdown onto the tickets of a match, so a
-     * consumer never has to load the match to show them.
-     */
     private suspend fun assignTickets(match: Match, assignment: Assignment, countdownEndsAt: Instant) {
         tickets.getAll(match.ticketIds).forEach { ticket ->
             val assigned = ticket.copy(
@@ -214,14 +207,11 @@ class MatchReconciler(
         }
     }
 
-    /**
-     * Moves a match into a new state and tells everyone about it.
-     */
     private suspend fun transition(match: Match, state: MatchState) {
-        val updated = matches.update(match.copy(state = state)) ?: return
+        val updatedMatch = matches.updateMatch(match.copy(state = state)) ?: return
 
         logger.info("Match {} state: {} -> {}", match.id, match.state, state)
-        publisher.publishMatchStateChanged(updated, tickets.getAll(updated.ticketIds), match.state)
+        publisher.publishMatchStateChanged(updatedMatch, tickets.getAll(updatedMatch.ticketIds), match.state)
     }
 
     private suspend fun fail(match: Match, reason: String) {

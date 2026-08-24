@@ -91,7 +91,7 @@ class TicketService(
         // fails it once nobody is in it anymore.
         matches.removeTicket(ticket.id)
 
-        logger.info("Deleted ticket {} with {} players", ticket.id, ticket.playerIds.size)
+        logger.info("Deleted ticket {}", ticket.id)
         publisher.publishTicketDeleted(ticket, TicketDeleteReason.TICKET_DELETE_REASON_CANCELLED)
 
         return deleteTicketResponse { }

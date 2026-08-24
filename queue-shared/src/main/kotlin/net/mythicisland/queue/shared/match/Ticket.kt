@@ -7,16 +7,16 @@ import java.time.Instant
 import java.util.UUID
 
 /**
- * A ticket is a single player or a party that wants to play.
+ * A ticket is a single player or a group of players.
  *
  * @param id the unique id of this ticket.
- * @param playerIds the players behind this ticket, one entry means solo.
+ * @param playerIds the players in this ticket.
  * @param queueTypes the queue types this ticket is searching in.
  * @param state the current state of this ticket.
  * @param createdAt when the ticket entered matchmaking.
  * @param matchId the match this ticket was put into, null while searching.
  * @param assignment the server to connect to, null until one was allocated.
- * @param countdownEndsAt when the players get transferred, mirrored from the match.
+ * @param countdownEndsAt when the players get transferred.
  */
 data class Ticket(
     val id: UUID,

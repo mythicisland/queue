@@ -5,7 +5,7 @@ import net.mythicisland.queue.api.event.Subscription;
 import java.util.function.Consumer;
 
 /**
- * API for subscribing to match lifecycle events.
+ * API for subscribing to match events.
  */
 public interface MatchEventApi {
 

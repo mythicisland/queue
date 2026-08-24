@@ -17,10 +17,10 @@ class MatchRepositoryTest {
             val matches = MatchRepository()
             val ticketIds = listOf(UUID.randomUUID(), UUID.randomUUID())
             val match = match(ticketIds = ticketIds)
-            matches.add(match)
+            matches.addMatch(match)
 
-            assertEquals(match, matches.get(match.id))
-            ticketIds.forEach { assertEquals(match, matches.getByTicket(it)) }
+            assertEquals(match, matches.getMatch(match.id))
+            ticketIds.forEach { assertEquals(match, matches.getMatchByTicket(it)) }
         }
     }
 
@@ -30,12 +30,12 @@ class MatchRepositoryTest {
             val matches = MatchRepository()
             val battle = match(queueType = "battle", state = MatchState.MATCH_STATE_COUNTDOWN)
             val skywars = match(queueType = "skywars")
-            matches.add(battle)
-            matches.add(skywars)
+            matches.addMatch(battle)
+            matches.addMatch(skywars)
 
-            assertEquals(listOf(battle), matches.getAllByType("battle"))
-            assertEquals(listOf(battle), matches.getAllByState(MatchState.MATCH_STATE_COUNTDOWN))
-            assertEquals(2, matches.getAll().size)
+            assertEquals(listOf(battle), matches.getAllMatchesByType("battle"))
+            assertEquals(listOf(battle), matches.getAllMatchesByState(MatchState.MATCH_STATE_COUNTDOWN))
+            assertEquals(2, matches.getAllMatches().size)
         }
     }
 
@@ -45,14 +45,14 @@ class MatchRepositoryTest {
             val matches = MatchRepository()
             val leaving = UUID.randomUUID()
             val staying = UUID.randomUUID()
-            matches.add(match(ticketIds = listOf(leaving, staying)))
+            matches.addMatch(match(ticketIds = listOf(leaving, staying)))
 
             val updated = matches.removeTicket(leaving)
 
             assertNotNull(updated)
             assertEquals(listOf(staying), updated.ticketIds)
-            assertNull(matches.getByTicket(leaving))
-            assertEquals(updated, matches.getByTicket(staying))
+            assertNull(matches.getMatchByTicket(leaving))
+            assertEquals(updated, matches.getMatchByTicket(staying))
         }
     }
 
@@ -62,14 +62,14 @@ class MatchRepositoryTest {
             val matches = MatchRepository()
             val only = UUID.randomUUID()
             val match = match(ticketIds = listOf(only))
-            matches.add(match)
+            matches.addMatch(match)
 
             val updated = matches.removeTicket(only)
 
             // The reconciler is what fails an empty match, the repository keeps it.
             assertNotNull(updated)
             assertEquals(emptyList(), updated.ticketIds)
-            assertNotNull(matches.get(match.id))
+            assertNotNull(matches.getMatch(match.id))
         }
     }
 
@@ -88,11 +88,11 @@ class MatchRepositoryTest {
             val matches = MatchRepository()
             val ticketId = UUID.randomUUID()
             val match = match(ticketIds = listOf(ticketId))
-            matches.add(match)
+            matches.addMatch(match)
 
-            assertEquals(match, matches.remove(match.id))
-            assertNull(matches.get(match.id))
-            assertNull(matches.getByTicket(ticketId))
+            assertEquals(match, matches.removeMatch(match.id))
+            assertNull(matches.getMatch(match.id))
+            assertNull(matches.getMatchByTicket(ticketId))
         }
     }
 
@@ -101,7 +101,7 @@ class MatchRepositoryTest {
         runBlocking {
             val matches = MatchRepository()
 
-            assertNull(matches.update(match()))
+            assertNull(matches.updateMatch(match()))
         }
     }
 

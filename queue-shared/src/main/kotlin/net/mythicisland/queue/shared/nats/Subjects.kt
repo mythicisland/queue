@@ -1,7 +1,7 @@
 package net.mythicisland.queue.shared.nats
 
-/**
- * The NATS subjects queue publishes its events on.
+/**queue
+ * The NATS subjects  publishes its events on.
  */
 object Subjects {
 

@@ -1,92 +1,108 @@
-# Queue v2
+# Queue
 
-A microservice that queue players into minigames and moves them to a game server.
+A matchmaking service written in Kotlin.
 
-## Concepts
+Players join a queue with a ticket. Queue puts tickets together 
+into a match, asks the controller for a game server, counts down and then
+connects everyone to that server.
 
-| Concept        | What it is                                                                 |
-|----------------|----------------------------------------------------------------------------|
-| **Ticket**     | A player or a whole party that wants to play.                              |
-| **Match**      | A set of tickets that will play together on one server.                    |
-| **Assignment** | The server a match was given.                                              |
-| **Queue type** | The configuration: which server group, how many players, how long to wait. |
+## Tech Stack
 
-Splitting the intent (ticket) from the result (match) is what makes the rest work. A ticket
-can wait in several queue types at once, and matches can form independently of who asked
-for what.
+- **Game Server Allocation:** SimpleCloud
+- **Communication:** gRPC, NATS
+- **Language:** Kotlin
 
-## How a match comes together
+## Usage
 
-```mermaid
-flowchart TD
-    A["CreateTicket"] --> B["Ticket: SEARCHING"]
-    B --> C{"Matchmaker"}
-    C -->|not enough players yet| B
-    C -->|full, or minimum reached<br/>and the oldest ticket waited long enough| D["Match: ALLOCATING"]
-    D -->|no server within 60s| F["Match: FAILED"]
-    F -->|tickets go back| B
-    D -->|server moved to INGAME| E["Match: COUNTDOWN<br/>Ticket: ASSIGNED"]
-    E -->|countdown over| G["Match: TRANSFERRING"]
-    G --> H["Match: COMPLETED<br/>players are on the game server"]
+The easiest way is the `docker-compose.yml` in this repository.
+
+```bash
+docker compose up -d
 ```
 
-1. **Searching**: the ticket sits in the pool of every queue type it asked for.
-2. **Matchmaking**: a match is formed as soon as the queue type is full
-3. **Allocating**: a free server of the group is moved to `INGAME`, which i.s what keeps the next match from taking it too.
-4. **Countdown**: the ticket learns its server and when it will be moved, so a client can render the countdown itself instead of polling.
-5. **Transferring**: every player is connected, then the match is done and its tickets are removed.
-
-## Multi-Queue
-
-A ticket can search in several queue types at the same time and joins whichever match fills
-up first:
-
-```kotlin
-api.ticket().create {
-    party(members)
-    queues("battle", "skywars")
-}
-```
-
-## Modules
-
-| Module          | What is in it                                                              |
-|-----------------|----------------------------------------------------------------------------|
-| `queue-runtime` | The service: ticket store, matchmaker, match reconciler, server allocator. |
-| `queue-api`     | Java and Kotlin client, talks gRPC and listens to the NATS events.         |
-| `queue-shared`  | Common shared files for the runtime and API.                               |
-| `proto`         | The protobuf definitions, published to the Buf Schema Registry.            |
+Before the first start you should configure the service.
 
 ## Configuration
 
-Queue types are YAML files in the types directory, one per queue:
+Every option is technically optional and has a default. You can set them in three ways:
+
+1. as a command line flag, for example `--grpc-port 4564`
+2. as an environment variable
+3. in a `queue.properties` file (recommend)
+
+| Environment variable  | Flag                    | Default                              | What it does                                           |
+|-----------------------|-------------------------|--------------------------------------|--------------------------------------------------------|
+| `GRPC_PORT`           | `--grpc-port`           | `4564`                               | Port the gRPC server starts on.                        |
+| `NATS_URL`            | `--nats-url`            | `nats://localhost:4222`              | NATS server used to publish events.                    |
+| `NATS_USER`           | `--nats-user`           | `admin`                              | User for the NATS connection.                          |
+| `NATS_SECRET`         | `--nats-secret`         | `sup3rS3cr3t`                        | Password for the NATS connection.                      |
+| `TYPE_PATH`           | `--types-path`          | `types`                              | Folder the queue types are read from.                  |
+| `AUTH_KEY_PATH`       | `--auth-key-path`       | `.secrets/auth.key`                  | File holding the token every gRPC call has to send.    |
+| `NETWORK_ID`          | `--network-id`          | `default`                            | Your SimpleCloud network id.                           |
+| `NETWORK_SECRET`      | `--network-secret`      | `sup3rS3cr3t`                        | Your SimpleCloud network secret.                       |
+| `CONTROLLER_URL`      | `--controller-url`      | `https://controller.simplecloud.app` | URL of your SimpleCloud controller.                    |
+| `CONTROLLER_NATS_URL` | `--controller-nats-url` | `wss://nats.simplecloud.app:443`     | URL of the NATS server of your SimpleCloud controller. |
+
+On the first start Queue creates a random token at `AUTH_KEY_PATH` if the file does not exist yet.
+
+## Queue types
+
+A queue type is a configuration to start matches.
+
+`types/battle.yml`:
 
 ```yaml
-# types/battle.yml
 name: battle
 group: battle
-min-players: 8
-max-players: 16
+min-players: 2
+max-players: 8
 waiting-duration-seconds: 30
 countdown-duration-seconds: 10
 ```
 
-Everything else comes from environment variables or a `queue.properties`
+| Option                       | Default | What it does                                                          |
+|------------------------------|---------|-----------------------------------------------------------------------|
+| `name`                       | —       | Name of the queue type. Clients use this name when they queue.        |
+| `group`                      | —       | The SimpleCloud group the game servers are started in.                |
+| `min-players`                | —       | How many players are needed before a match may start.                 |
+| `max-players`                | —       | How many players a match can hold.                                    |
+| `waiting-duration-seconds`   | `30`    | How long to wait for more players once `min-players` is reached.      |
+| `countdown-duration-seconds` | `10`    | How long the countdown runs after a server was reserved.              |
 
-| Variable                | Default                              |
-|-------------------------|--------------------------------------|
-| `GRPC_PORT`             | `4564`                               |
-| `NATS_URL`              | `nats://localhost:4222`              |
-| `TYPE_PATH`             | `types`                              |
-| `AUTH_KEY_PATH`         | `.secrets/auth.key`                  |
-| `CONTROLLER_URL`        | `https://controller.simplecloud.app` |
-| `CONTROLLER_NATS_URL`   | `wss://nats.simplecloud.app:443`     |
+A match starts as soon as `max-players` is reached, or after `waiting-duration-seconds` once there are at least `min-players`.
 
-## TODO
+## API
 
-- [x] **Multi Queue**: Let a player search in several queue types at once
-- [ ] **Ticket TTL**: Drop tickets whose players went offline without leaving the queue
-- [ ] **Metrics**: Time to match, fill rate, allocation latency, failed matches
-- [ ] **Estimated wait**: Show players how long they will probably wait
-- [ ] **Drain mode**: Finish the running matches before shutting down
-- [ ] **Queue Rating**: Rate queues by how alive they are
+The `queue-api` module is published to `https://repo.mythicisland.net/public`
+and lets you create tickets, query matches and listen to queue events from Java
+or Kotlin. Add the repository and the dependency:
+
+```kotlin
+repositories {
+    maven("https://repo.mythicisland.net/public")
+}
+
+dependencies {
+    implementation("net.mythicisland.queue:queue-api:2.0.5")
+}
+```
+
+## Building
+
+```bash
+./gradlew build
+```
+
+## Contributing
+
+We welcome contributions! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feat/your-feature`)
+3. Commit your changes (`git commit -m "feat: adds a amazing feature"`)
+4. Push to the branch (`git push origin feat/your-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENSE) file for details.

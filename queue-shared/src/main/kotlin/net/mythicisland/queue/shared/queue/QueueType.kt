@@ -5,7 +5,7 @@ import net.mythicisland.common.util.protobuf.secondsToProtobufDuration
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
 /**
- * The configuration of one queue.
+ * The configuration of one match.
  *
  * @param name the name of this queue type, for example battle.
  * @param group the simplecloud group used to start game servers.

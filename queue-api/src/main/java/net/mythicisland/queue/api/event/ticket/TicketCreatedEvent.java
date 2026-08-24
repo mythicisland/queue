@@ -7,7 +7,4 @@ import net.mythicisland.queue.api.ticket.Ticket;
  *
  * @param ticket the created ticket
  */
-public record TicketCreatedEvent(
-        Ticket ticket
-) {
-}
+public record TicketCreatedEvent(Ticket ticket) { }
