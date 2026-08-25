@@ -6,12 +6,6 @@ Players join a queue with a ticket. Queue puts tickets together
 into a match, asks the controller for a game server, counts down and then
 connects everyone to that server.
 
-## Tech Stack
-
-- **Game Server Allocation:** SimpleCloud
-- **Communication:** gRPC, NATS
-- **Language:** Kotlin
-
 ## Usage
 
 The easiest way is the `docker-compose.yml` in this repository.
@@ -22,7 +16,7 @@ docker compose up -d
 
 Before the first start you should configure the service.
 
-## Configuration
+### Configuration
 
 Every option is technically optional and has a default. You can set them in three ways:
 
@@ -45,7 +39,7 @@ Every option is technically optional and has a default. You can set them in thre
 
 On the first start Queue creates a random token at `AUTH_KEY_PATH` if the file does not exist yet.
 
-## Queue types
+### Queue types
 
 A queue type is a configuration to start matches.
 
