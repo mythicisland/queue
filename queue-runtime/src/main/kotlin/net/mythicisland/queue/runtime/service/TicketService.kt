@@ -20,11 +20,12 @@ class TicketService(
     private val matches: MatchRepository,
     private val types: QueueTypeRepository,
     private val publisher: EventPublisher,
-    private val meter: Meter,
+    meter: Meter,
 ) : TicketServiceGrpcKt.TicketServiceCoroutineImplBase() {
 
     private val logger = LogManager.getLogger(TicketService::class.java)
 
+    // Metrics
     private val ticketsCreated = meter.counterBuilder("ticket.created").build()
     private val ticketsDeleted = meter.counterBuilder("ticket.deleted").build()
     private val ticketsRejected = meter.counterBuilder("ticket.rejected").build()

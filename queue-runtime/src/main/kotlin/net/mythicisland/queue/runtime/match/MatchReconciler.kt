@@ -29,12 +29,13 @@ class MatchReconciler(
     private val allocator: ServerAllocator,
     private val api: CloudApi,
     private val publisher: EventPublisher,
-    private val meter: Meter,
+    meter: Meter,
 ) {
 
     private val logger = LogManager.getLogger(MatchReconciler::class.java)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    // Metrics
     private val stateTransitions = meter.counterBuilder("match.state.transitions").build()
     private val matchFailed = meter.counterBuilder("match.failed").build()
     private val transferDuration = meter.histogramBuilder("match.transfer.duration").setUnit("ms").build()

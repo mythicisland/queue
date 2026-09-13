@@ -7,14 +7,8 @@ import net.mythicisland.queue.shared.match.Ticket
 import java.time.Instant
 import java.util.UUID
 
-/**
- * A fixed point in time, so nothing in the tests depends on the clock.
- */
 val NOW: Instant = Instant.parse("2026-01-01T00:00:00Z")
 
-/**
- * Creates the given amount of player ids.
- */
 fun players(amount: Int): List<UUID> = List(amount) { UUID.randomUUID() }
 
 fun ticket(

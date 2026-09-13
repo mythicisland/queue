@@ -26,12 +26,13 @@ class Matchmaker(
     private val matches: MatchRepository,
     private val types: QueueTypeRepository,
     private val publisher: EventPublisher,
-    private val meter: Meter,
+    meter: Meter,
 ) {
 
     private val logger = LogManager.getLogger(Matchmaker::class.java)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    // Metrics
     private val tickDuration = meter.histogramBuilder("matchmaker.tick.duration").setUnit("ms").build()
     private val matchesCreated = meter.counterBuilder("matchmaker.matches.created").build()
 
