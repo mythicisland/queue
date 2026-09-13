@@ -4,6 +4,9 @@ import app.simplecloud.api.CloudApi
 import build.buf.gen.mythicisland.queue.v2.MatchState
 import build.buf.gen.mythicisland.queue.v2.TicketDeleteReason
 import build.buf.gen.mythicisland.queue.v2.TicketState
+import io.opentelemetry.api.common.AttributeKey
+import io.opentelemetry.api.common.Attributes
+import io.opentelemetry.api.metrics.Meter
 import kotlinx.coroutines.*
 import kotlinx.coroutines.future.await
 import net.mythicisland.queue.runtime.event.EventPublisher
@@ -26,10 +29,17 @@ class MatchReconciler(
     private val allocator: ServerAllocator,
     private val api: CloudApi,
     private val publisher: EventPublisher,
+    meter: Meter,
 ) {
 
     private val logger = LogManager.getLogger(MatchReconciler::class.java)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    // Metrics
+    private val stateTransitions = meter.counterBuilder("match.state.transitions").build()
+    private val matchFailed = meter.counterBuilder("match.failed").build()
+    private val transferDuration = meter.histogramBuilder("match.transfer.duration").setUnit("ms").build()
+    private val playersTransferred = meter.counterBuilder("match.transfer.players").build()
 
     /**
      * Starts the reconciliation loop.
@@ -140,9 +150,14 @@ class MatchReconciler(
         val playerIds = matchTickets.flatMap { it.playerIds }
         logger.info("Match {} transferring {} players to {}", match.id, playerIds.size, assignment.serverName)
 
+        val start = System.nanoTime()
         val transferred = coroutineScope {
             playerIds.map { async { transfer(it, assignment) } }.awaitAll()
         }.filterNotNull()
+        transferDuration.record((System.nanoTime() - start) / 1_000_000.0)
+
+        playersTransferred.add(transferred.size.toLong(), Attributes.of(AttributeKey.stringKey("success"), "true"))
+        playersTransferred.add((playerIds.size - transferred.size).toLong(), Attributes.of(AttributeKey.stringKey("success"), "false"))
 
         logger.info("Match {} transferred {}/{} players", match.id, transferred.size, playerIds.size)
         publisher.publishMatchTransferred(match, matchTickets, transferred)
@@ -171,7 +186,7 @@ class MatchReconciler(
     }
 
     /**
-     * Removes a finished match.
+     * Cleanup a finished match.
      */
     private suspend fun cleanup(match: Match) {
         val matchTickets = tickets.getAll(match.ticketIds)
@@ -210,11 +225,17 @@ class MatchReconciler(
     private suspend fun transition(match: Match, state: MatchState) {
         val updatedMatch = matches.updateMatch(match.copy(state = state)) ?: return
 
+        stateTransitions.add(1, Attributes.of(
+            AttributeKey.stringKey("from"), match.state.name,
+            AttributeKey.stringKey("to"), state.name,
+        ))
+
         logger.info("Match {} state: {} -> {}", match.id, match.state, state)
         publisher.publishMatchStateChanged(updatedMatch, tickets.getAll(updatedMatch.ticketIds), match.state)
     }
 
     private suspend fun fail(match: Match, reason: String) {
+        matchFailed.add(1, Attributes.of(AttributeKey.stringKey("reason"), reason))
         logger.warn("Match {} failed: {}", match.id, reason)
         transition(match, MatchState.MATCH_STATE_FAILED)
     }

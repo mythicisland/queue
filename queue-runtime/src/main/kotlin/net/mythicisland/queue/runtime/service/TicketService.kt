@@ -2,6 +2,9 @@ package net.mythicisland.queue.runtime.service
 
 import build.buf.gen.mythicisland.queue.v2.*
 import io.grpc.Status
+import io.opentelemetry.api.common.AttributeKey
+import io.opentelemetry.api.common.Attributes
+import io.opentelemetry.api.metrics.Meter
 import net.mythicisland.common.util.asUUID
 import net.mythicisland.queue.runtime.event.EventPublisher
 import net.mythicisland.queue.runtime.repository.MatchRepository
@@ -17,36 +20,46 @@ class TicketService(
     private val matches: MatchRepository,
     private val types: QueueTypeRepository,
     private val publisher: EventPublisher,
+    meter: Meter,
 ) : TicketServiceGrpcKt.TicketServiceCoroutineImplBase() {
 
     private val logger = LogManager.getLogger(TicketService::class.java)
+
+    // Metrics
+    private val ticketsCreated = meter.counterBuilder("ticket.created").build()
+    private val ticketsDeleted = meter.counterBuilder("ticket.deleted").build()
+    private val ticketsRejected = meter.counterBuilder("ticket.rejected").build()
 
     override suspend fun createTicket(request: CreateTicketRequest): CreateTicketResponse {
         val playerIds = request.playerIdsList.map { it.asUUID() }
         val queueTypes = request.queueTypesList.toList()
 
         if (playerIds.isEmpty()) {
+            ticketsRejected.add(1, Attributes.of(AttributeKey.stringKey("reason"), "no_players"))
             throw Status.INVALID_ARGUMENT
                 .withDescription("A ticket needs at least one player")
                 .asRuntimeException()
         }
 
         if (queueTypes.isEmpty()) {
+            ticketsRejected.add(1, Attributes.of(AttributeKey.stringKey("reason"), "no_queue_types"))
             throw Status.INVALID_ARGUMENT
                 .withDescription("A ticket needs at least one queue type")
                 .asRuntimeException()
         }
 
-        val unknown = queueTypes.filter { types.find(it) == null }
-        if (unknown.isNotEmpty()) {
-            logger.warn("Rejected ticket for players {}, unknown queue types {}", playerIds, unknown)
+        val types = queueTypes.filter { this@TicketService.types.find(it) == null }
+        if (types.isNotEmpty()) {
+            ticketsRejected.add(1, Attributes.of(AttributeKey.stringKey("reason"), "unknown_queue_type"))
+            logger.warn("Rejected ticket, unknown queue types {}", types)
             throw Status.NOT_FOUND
-                .withDescription("Unknown queue types: $unknown")
+                .withDescription("Unknown queue types: $types")
                 .asRuntimeException()
         }
 
-        val tooBig = queueTypes.mapNotNull { types.find(it) }.filter { playerIds.size > it.maxPlayers }
+        val tooBig = queueTypes.mapNotNull { this@TicketService.types.find(it) }.filter { playerIds.size > it.maxPlayers }
         if (tooBig.isNotEmpty()) {
+            ticketsRejected.add(1, Attributes.of(AttributeKey.stringKey("reason"), "party_too_big"))
             logger.warn("Rejected ticket for {} players, too big for {}", playerIds.size, tooBig.map { it.name })
             throw Status.FAILED_PRECONDITION
                 .withDescription("Party of ${playerIds.size} players is too big for: ${tooBig.map { it.name }}")
@@ -62,10 +75,15 @@ class TicketService(
         )
 
         if (!tickets.add(ticket)) {
+            ticketsRejected.add(1, Attributes.of(AttributeKey.stringKey("reason"), "already_queued"))
             logger.warn("Rejected ticket for players {}, some of them are already queued", playerIds)
             throw Status.FAILED_PRECONDITION
                 .withDescription("Some players are already queued")
                 .asRuntimeException()
+        }
+
+        queueTypes.forEach { type ->
+            ticketsCreated.add(1, Attributes.of(AttributeKey.stringKey("queue_type"), type))
         }
 
         logger.info("Created ticket {} for {} players in {}", ticket.id, playerIds.size, queueTypes)
@@ -92,8 +110,8 @@ class TicketService(
         matches.removeTicket(ticket.id)
 
         logger.info("Deleted ticket {}", ticket.id)
+        ticketsDeleted.add(1, Attributes.of(AttributeKey.stringKey("reason"), "cancelled"))
         publisher.publishTicketDeleted(ticket, TicketDeleteReason.TICKET_DELETE_REASON_CANCELLED)
-
         return deleteTicketResponse { }
     }
 

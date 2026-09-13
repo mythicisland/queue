@@ -4,16 +4,6 @@ import build.buf.gen.mythicisland.queue.v2.queueType
 import net.mythicisland.common.util.protobuf.secondsToProtobufDuration
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
-/**
- * The configuration of one match.
- *
- * @param name the name of this queue type, for example battle.
- * @param group the simplecloud group used to start game servers.
- * @param minPlayers the minimum amount of players needed before a match may start.
- * @param maxPlayers the maximum amount of players a match can hold.
- * @param waitingDurationSeconds how long to wait for more players after minPlayers was reached.
- * @param countdownDurationSeconds how long to count down once the server is ready.
- */
 @ConfigSerializable
 data class QueueType(
     val name: String = "",

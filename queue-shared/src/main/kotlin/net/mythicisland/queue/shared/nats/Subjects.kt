@@ -1,8 +1,5 @@
 package net.mythicisland.queue.shared.nats
 
-/**queue
- * The NATS subjects  publishes its events on.
- */
 object Subjects {
 
     private const val PREFIX = "queue"

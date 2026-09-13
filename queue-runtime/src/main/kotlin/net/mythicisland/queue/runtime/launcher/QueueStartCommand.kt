@@ -40,6 +40,12 @@ object QueueStartCommand : SuspendingCliktCommand() {
         .path()
         .default(Path.of(".secrets/auth.key"))
 
+    val otlpEndpoint: String by option(help = "OTLP gRPC endpoint for traces (default: http://otel-collector:4317)", envvar = "OTEL_EXPORTER_OTLP_ENDPOINT")
+        .default("http://otel-collector:4317")
+
+    val serviceName: String by option(help = "Service name reported to OpenTelemetry (default: queue)", envvar = "OTEL_SERVICE_NAME")
+        .default("queue")
+
     val networkId: String by option(help = "Your SimpleCloud Network ID (default: id)", envvar = "NETWORK_ID")
         .default("default")
 

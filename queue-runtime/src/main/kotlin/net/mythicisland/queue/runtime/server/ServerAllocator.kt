@@ -16,7 +16,6 @@ class ServerAllocator(
 ) {
 
     private val logger = LogManager.getLogger(ServerAllocator::class.java)
-
     private val requested = ConcurrentHashMap.newKeySet<UUID>()
 
     suspend fun allocate(match: Match, type: QueueType): Assignment? {

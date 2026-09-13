@@ -8,6 +8,8 @@ application {
 
 dependencies {
     implementation(project(":queue-shared"))
+    implementation(platform(libs.otel.bom))
+    implementation(libs.bundles.otel)
     implementation(libs.clikt)
     implementation(libs.jnats)
 }
