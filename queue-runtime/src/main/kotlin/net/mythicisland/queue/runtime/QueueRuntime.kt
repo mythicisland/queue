@@ -3,11 +3,15 @@ package net.mythicisland.queue.runtime
 import build.buf.gen.mythicisland.queue.v2.MatchState
 import io.grpc.Server
 import io.grpc.ServerBuilder
+import io.opentelemetry.api.metrics.Meter
 import io.opentelemetry.api.trace.Tracer
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator
 import io.opentelemetry.context.propagation.ContextPropagators
+import io.opentelemetry.exporter.otlp.metrics.OtlpGrpcMetricExporter
 import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter
 import io.opentelemetry.sdk.OpenTelemetrySdk
+import io.opentelemetry.sdk.metrics.SdkMeterProvider
+import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader
 import io.opentelemetry.sdk.resources.Resource
 import io.opentelemetry.sdk.trace.SdkTracerProvider
 import io.opentelemetry.sdk.trace.export.BatchSpanProcessor
@@ -51,11 +55,18 @@ class QueueRuntime(
         .addSpanProcessor(BatchSpanProcessor.builder(spanExporter).build())
         .setResource(Resource.getDefault().toBuilder().put(ServiceAttributes.SERVICE_NAME, args.serviceName).build())
         .build()
+    private val metricExporter = OtlpGrpcMetricExporter.builder().setEndpoint(args.otlpEndpoint).build()
+    private val meterProvider = SdkMeterProvider.builder()
+        .registerMetricReader(PeriodicMetricReader.builder(metricExporter).build())
+        .setResource(Resource.getDefault().toBuilder().put(ServiceAttributes.SERVICE_NAME, args.serviceName).build())
+        .build()
     private val sdk = OpenTelemetrySdk.builder()
         .setTracerProvider(traceProvider)
+        .setMeterProvider(meterProvider)
         .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
         .buildAndRegisterGlobal()
     private val tracer: Tracer = sdk.getTracer(args.serviceName)
+    private val meter: Meter = sdk.getMeter(args.serviceName)
 
     suspend fun start() {
         logger.info("Starting Queue...")

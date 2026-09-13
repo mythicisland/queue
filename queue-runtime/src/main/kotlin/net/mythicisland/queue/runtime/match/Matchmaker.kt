@@ -2,6 +2,9 @@ package net.mythicisland.queue.runtime.match
 
 import build.buf.gen.mythicisland.queue.v2.MatchState
 import build.buf.gen.mythicisland.queue.v2.TicketState
+import io.opentelemetry.api.common.AttributeKey
+import io.opentelemetry.api.common.Attributes
+import io.opentelemetry.api.metrics.Meter
 import kotlinx.coroutines.*
 import net.mythicisland.queue.runtime.event.EventPublisher
 import net.mythicisland.queue.runtime.repository.MatchRepository
@@ -23,10 +26,14 @@ class Matchmaker(
     private val matches: MatchRepository,
     private val types: QueueTypeRepository,
     private val publisher: EventPublisher,
+    private val meter: Meter,
 ) {
 
     private val logger = LogManager.getLogger(Matchmaker::class.java)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    private val tickDuration = meter.histogramBuilder("matchmaker.tick.duration").setUnit("ms").build()
+    private val matchesCreated = meter.counterBuilder("matchmaker.matches.created").build()
 
     /**
      * Starts the matchmaking loop.
@@ -37,7 +44,9 @@ class Matchmaker(
             while (isActive) {
                 delay(500.milliseconds)
                 try {
+                    val start = System.nanoTime()
                     tick()
+                    tickDuration.record((System.nanoTime() - start) / 1_000_000.0)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -78,6 +87,7 @@ class Matchmaker(
         val matched = store.matched(match.ticketIds, match.id) ?: return null
 
         matches.addMatch(match)
+        matchesCreated.add(1, Attributes.of(AttributeKey.stringKey("queue_type"), type.name))
         logger.info("Deployed match {} for '{}' with {} tickets and {} players", match.id, type.name, matched.size, matched.sumOf { it.playerIds.size })
         publisher.publishMatchCreated(match, matched)
         matched.forEach { publisher.publishTicketStateChanged(it, TicketState.TICKET_STATE_SEARCHING) }
