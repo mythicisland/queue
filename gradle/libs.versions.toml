@@ -8,6 +8,10 @@ kraken = "1.1.1"
 log4j = "2.26.1"
 slf4j = "2.0.19"
 
+otel = "1.65.0"
+otel-log4j = "2.31.1-alpha"
+otel-semconv = "1.44.0"
+
 clikt = "5.1.0"
 jnats = "2.26.3"
 configurate = "4.2.0"
@@ -26,7 +30,16 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "log4j" }
 log4j-api = { module = "org.apache.logging.log4j:log4j-api", version.ref = "log4j" }
 log4j-slf4j-impl = { module = "org.apache.logging.log4j:log4j-slf4j2-impl", version.ref = "log4j" }
+log4j-layout-template-json = { module = "org.apache.logging.log4j:log4j-layout-template-json", version.ref = "log4j" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+
+otel-bom = { module = "io.opentelemetry:opentelemetry-bom", version.ref = "otel" }
+otel-api = { module = "io.opentelemetry:opentelemetry-api" }
+otel-sdk = { module = "io.opentelemetry:opentelemetry-sdk" }
+otel-sdk-autoconfigure = { module = "io.opentelemetry:opentelemetry-sdk-extension-autoconfigure" }
+otel-exporter-otlp = { module = "io.opentelemetry:opentelemetry-exporter-otlp" }
+otel-semconv = { module = "io.opentelemetry.semconv:opentelemetry-semconv", version.ref = "otel-semconv" }
+otel-log4j-context-appender = { module = "io.opentelemetry.instrumentation:opentelemetry-log4j-appender-2.17", version.ref = "otel-log4j" }
 
 configurate-yaml = { module = "org.spongepowered:configurate-yaml", version.ref = "configurate" }
 configurate-extra-kotlin = { module = "org.spongepowered:configurate-extra-kotlin", version.ref = "configurate" }
@@ -45,9 +58,10 @@ grpc-protobuf = { module = "io.grpc:grpc-protobuf", version.ref = "grpc" }
 grpc-netty-shaded = { module = "io.grpc:grpc-netty-shaded", version.ref = "grpc" }
 
 [bundles]
-logging = ["log4j-core", "log4j-api", "log4j-slf4j-impl", "slf4j-api"]
+logging = ["log4j-core", "log4j-api", "log4j-slf4j-impl", "log4j-layout-template-json", "slf4j-api"]
 configurate = ["configurate-yaml", "configurate-extra-kotlin"]
 grpc = ["grpc-stub", "grpc-netty-shaded", "grpc-kotlin-stub", "grpc-protobuf", "protobuf-kotlin"]
+otel = ["otel-api", "otel-sdk", "otel-sdk-autoconfigure", "otel-exporter-otlp", "otel-log4j-context-appender", "otel-semconv"]
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

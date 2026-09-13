@@ -6,17 +6,6 @@ import net.mythicisland.common.util.protobuf.toTimestamp
 import java.time.Instant
 import java.util.UUID
 
-/**
- * A match is a set of tickets.
- *
- * @param id the unique id of this match.
- * @param queueType the queue type this match was created for.
- * @param ticketIds the tickets from this match.
- * @param state the current state of this match.
- * @param createdAt when the match was created.
- * @param assignment the allocated server, null while allocating.
- * @param countdownEndsAt when the players get transferred, null until a server is there.
- */
 data class Match(
     val id: UUID,
     val queueType: String,

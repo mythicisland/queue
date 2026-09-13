@@ -3,6 +3,15 @@ package net.mythicisland.queue.runtime
 import build.buf.gen.mythicisland.queue.v2.MatchState
 import io.grpc.Server
 import io.grpc.ServerBuilder
+import io.opentelemetry.api.trace.Tracer
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator
+import io.opentelemetry.context.propagation.ContextPropagators
+import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter
+import io.opentelemetry.sdk.OpenTelemetrySdk
+import io.opentelemetry.sdk.resources.Resource
+import io.opentelemetry.sdk.trace.SdkTracerProvider
+import io.opentelemetry.sdk.trace.export.BatchSpanProcessor
+import io.opentelemetry.semconv.ServiceAttributes
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -37,8 +46,19 @@ class QueueRuntime(
     private val store = TicketStore()
     private val pool = TicketPool(store)
 
+    private val spanExporter = OtlpGrpcSpanExporter.builder().setEndpoint(args.otlpEndpoint).build()
+    private val traceProvider = SdkTracerProvider.builder()
+        .addSpanProcessor(BatchSpanProcessor.builder(spanExporter).build())
+        .setResource(Resource.getDefault().toBuilder().put(ServiceAttributes.SERVICE_NAME, args.serviceName).build())
+        .build()
+    private val sdk = OpenTelemetrySdk.builder()
+        .setTracerProvider(traceProvider)
+        .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
+        .buildAndRegisterGlobal()
+    private val tracer: Tracer = sdk.getTracer(args.serviceName)
+
     suspend fun start() {
-        logger.info("Starting Queue Service...")
+        logger.info("Starting Queue...")
 
         logger.info("Loading queue types...")
         val types = queueTypeRepository.load()
@@ -70,6 +90,7 @@ class QueueRuntime(
                     manager.shutdown()
                 }
                 server.shutdown()
+                traceProvider.shutdown()
                 continuation.resume(Unit) { cause, _, _ ->
                     logger.info("Runtime shutdown due to: $cause")
                 }

@@ -6,18 +6,6 @@ import net.mythicisland.common.util.protobuf.toTimestamp
 import java.time.Instant
 import java.util.UUID
 
-/**
- * A ticket is a single player or a group of players.
- *
- * @param id the unique id of this ticket.
- * @param playerIds the players in this ticket.
- * @param queueTypes the queue types this ticket is searching in.
- * @param state the current state of this ticket.
- * @param createdAt when the ticket entered matchmaking.
- * @param matchId the match this ticket was put into, null while searching.
- * @param assignment the server to connect to, null until one was allocated.
- * @param countdownEndsAt when the players get transferred.
- */
 data class Ticket(
     val id: UUID,
     val playerIds: List<UUID>,
@@ -36,7 +24,6 @@ data class Ticket(
             queueTypes.addAll(this@Ticket.queueTypes)
             state = this@Ticket.state
             createdAt = this@Ticket.createdAt.toTimestamp()
-
             this@Ticket.matchId?.let { matchId = it.toString() }
             this@Ticket.assignment?.let { assignment = it.toDefinition() }
             this@Ticket.countdownEndsAt?.let { countdownEndTime = it.toTimestamp() }

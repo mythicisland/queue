@@ -171,7 +171,7 @@ class MatchReconciler(
     }
 
     /**
-     * Removes a finished match.
+     * Cleanup a finished match.
      */
     private suspend fun cleanup(match: Match) {
         val matchTickets = tickets.getAll(match.ticketIds)

@@ -37,15 +37,15 @@ class TicketService(
                 .asRuntimeException()
         }
 
-        val unknown = queueTypes.filter { types.find(it) == null }
-        if (unknown.isNotEmpty()) {
-            logger.warn("Rejected ticket for players {}, unknown queue types {}", playerIds, unknown)
+        val types = queueTypes.filter { this@TicketService.types.find(it) == null }
+        if (types.isNotEmpty()) {
+            logger.warn("Rejected ticket, unknown queue types {}", types)
             throw Status.NOT_FOUND
-                .withDescription("Unknown queue types: $unknown")
+                .withDescription("Unknown queue types: $types")
                 .asRuntimeException()
         }
 
-        val tooBig = queueTypes.mapNotNull { types.find(it) }.filter { playerIds.size > it.maxPlayers }
+        val tooBig = queueTypes.mapNotNull { this@TicketService.types.find(it) }.filter { playerIds.size > it.maxPlayers }
         if (tooBig.isNotEmpty()) {
             logger.warn("Rejected ticket for {} players, too big for {}", playerIds.size, tooBig.map { it.name })
             throw Status.FAILED_PRECONDITION
