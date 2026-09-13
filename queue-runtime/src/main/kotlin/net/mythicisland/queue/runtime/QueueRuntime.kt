@@ -3,6 +3,8 @@ package net.mythicisland.queue.runtime
 import build.buf.gen.mythicisland.queue.v2.MatchState
 import io.grpc.Server
 import io.grpc.ServerBuilder
+import io.opentelemetry.api.common.AttributeKey
+import io.opentelemetry.api.common.Attributes
 import io.opentelemetry.api.metrics.Meter
 import io.opentelemetry.api.trace.Tracer
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator
@@ -75,12 +77,32 @@ class QueueRuntime(
         val types = queueTypeRepository.load()
         logger.info("Loaded {} queue types: {}", types.size, types.map { it.name })
 
+        logger.info("Initializing OpenTelemetry...")
+        meter.gaugeBuilder("queue.tickets.searching")
+            .ofLongs()
+            .buildWithCallback { observer ->
+                queueTypeRepository.getAll().forEach { type ->
+                    val count = pool.getAllTickets(type.name).size
+                    observer.record(count.toLong(), Attributes.of(AttributeKey.stringKey("queue_type"), type.name))
+                }
+            }
+
+        meter.gaugeBuilder("queue.matches.active")
+            .ofLongs()
+            .buildWithCallback { observer ->
+                queueTypeRepository.getAll().forEach { type ->
+                    val count = matchRepository.getAllMatchesByType(type.name).size
+                    observer.record(count.toLong(), Attributes.of(AttributeKey.stringKey("queue_type"), type.name))
+                }
+            }
+        logger.info("Successfully initialized OpenTelemetry at endpoint ${args.otlpEndpoint}")
+
         logger.info("Connecting to controller...")
         val api = Connector.connectToController(args.networkId, args.networkSecret, args.controllerUrl, args.controllerNatsUrl)
         val allocator = ServerAllocator(api)
 
-        val matchmaker = Matchmaker(store, pool, matchRepository, queueTypeRepository, publisher)
-        val reconciler = MatchReconciler(store, matchRepository, queueTypeRepository, allocator, api, publisher)
+        val matchmaker = Matchmaker(store, pool, matchRepository, queueTypeRepository, publisher, meter)
+        val reconciler = MatchReconciler(store, matchRepository, queueTypeRepository, allocator, api, publisher, meter)
 
         matchmaker.start()
         reconciler.start()
@@ -102,6 +124,7 @@ class QueueRuntime(
                 }
                 server.shutdown()
                 traceProvider.shutdown()
+                meterProvider.shutdown()
                 continuation.resume(Unit) { cause, _, _ ->
                     logger.info("Runtime shutdown due to: $cause")
                 }
@@ -129,7 +152,7 @@ class QueueRuntime(
 
         return ServerBuilder.forPort(args.grpcPort)
             .intercept(AuthInterceptor(token))
-            .addService(TicketService(store, matchRepository, queueTypeRepository, publisher))
+            .addService(TicketService(store, matchRepository, queueTypeRepository, publisher, meter))
             .addService(QueueDataService(store, pool, matchRepository, queueTypeRepository))
             .build()
     }
