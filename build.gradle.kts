@@ -25,6 +25,11 @@ subprojects {
         plugin("kotlin")
     }
 
+    configurations.configureEach {
+        exclude(group = "com.google.protobuf", module = "protobuf-javalite")
+        exclude(group = "build.buf", module = "protobuf-javalite")
+    }
+
     dependencies {
         testImplementation(rootProject.libs.kotlin.test)
         implementation(rootProject.libs.kotlinx.coroutines.core)
