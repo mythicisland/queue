@@ -6,6 +6,7 @@ kotlin-coroutines = "1.11.0"
 # Plugins
 shadow = "9.6.1"
 jib = "3.5.4"
+kraken = "1.1.1"
 
 # Logging
 log4j = "2.26.1"
@@ -60,3 +61,4 @@ grpc = ["grpc-stub", "grpc-netty-shaded", "grpc-kotlin-stub", "grpc-protobuf", "
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 jib = { id = "com.google.cloud.tools.jib", version.ref = "jib" }
+kraken = { id = "dev.xxjanisxx.kraken", version.ref = "kraken" }
