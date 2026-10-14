@@ -7,13 +7,14 @@ plugins {
 }
 
 allprojects {
-    group = "net.mythicisland.template"
-    version = "1.0.0"
+    group = "net.mythicisland.queue"
+    version = "1.0.0-beta.1"
 
     repositories {
         mavenCentral()
         maven("https://repo.simplecloud.app/snapshots")
-        maven("https://repo.mythicisland.net/public")
+        maven("https://repo.mythicisland.club/releases")
+        maven("https://repo.mythicisland.club/snapshots")
         maven("https://repo.papermc.io/repository/maven-public/")
         maven("https://buf.build/gen/maven")
     }
@@ -22,7 +23,6 @@ allprojects {
 subprojects {
     apply {
         plugin("kotlin")
-        plugin("com.gradleup.shadow")
     }
 
     dependencies {
@@ -45,19 +45,6 @@ subprojects {
 
     tasks.test {
         useJUnitPlatform()
-    }
-
-    tasks.shadowJar {
-        mergeServiceFiles()
-        archiveFileName.set("${project.name}.jar")
-    }
-
-    tasks.processResources {
-        filesMatching("plugin.yml") {
-            expand(
-                "version" to project.version
-            )
-        }
     }
 
 }

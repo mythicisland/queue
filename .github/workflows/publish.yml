@@ -1,0 +1,93 @@
+name: publish
+
+on:
+  release:
+    types: [published]
+
+concurrency:
+  group: publish-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # Prerelease -> snapshots, Release -> releases
+  MAVEN_REPOSITORY: ${{ github.event.release.prerelease && 'Snapshots' || 'Releases' }}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Check release tag matches project version
+        id: version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          VERSION=$(./gradlew -q properties --property version | sed -n 's/^version: //p')
+          if [ "${TAG#v}" != "$VERSION" ]; then
+            echo "::error::Release tag '$TAG' does not match project version '$VERSION'"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build & test
+        run: ./gradlew build
+
+  maven:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Publish to ${{ env.MAVEN_REPOSITORY }}
+        env:
+          MYTHICISLAND_USERNAME: ${{ secrets.MYTHICISLAND_USERNAME }}
+          MYTHICISLAND_PASSWORD: ${{ secrets.MYTHICISLAND_PASSWORD }}
+        run: ./gradlew publishAllPublicationsTo${MAVEN_REPOSITORY}Repository
+
+  docker:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push image
+        env:
+          # Only full releases move the "latest" tag
+          TAGS: ${{ github.event.release.prerelease && needs.verify.outputs.version || format('{0},latest', needs.verify.outputs.version) }}
+        run: ./gradlew :queue-runtime:jib -Djib.to.tags="$TAGS" -Djib.console=plain
