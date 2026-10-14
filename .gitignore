@@ -1,16 +1,19 @@
+# OS
+.DS_STORE
+
+# Gradle
 .gradle/
 build/
 
 # Kotlin
 .kotlin/
 
-# Mac OS
-.DS_Store
-
-# IDE Shit
+# IDE
 .idea/
-.vscode/
+
+# Agents
+AGENTS.md
+CLAUDE.md
 
 # Other
-logs/
-run/
+hack/BRAINDUMP.md
