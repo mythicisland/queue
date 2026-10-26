@@ -7,15 +7,26 @@ import "mythicisland/queue/v1/types.proto";
 option java_package = "net.mythicisland.queue.v1";
 option java_multiple_files = true;
 
-// Used by the network (e.g. a lobby plugin) to put players into the queue and take them out again.
 service TicketService {
+  // Puts the players into matchmaking as one ticket.
+  //
+  // Errors:
+  // - INVALID_ARGUMENT: no players or queue types, the ticket is larger than the party limit
+  //   of one of the queue types, or the properties exceed their limits.
+  // - NOT_FOUND: one of the queue types does not exist.
+  // - ALREADY_EXISTS: one of the players already has a ticket.
   rpc CreateTicket(CreateTicketRequest) returns (CreateTicketResponse);
+  // Takes a ticket out of matchmaking.
+  //
+  // Errors:
+  // - NOT_FOUND: there is no such ticket, or the player has none.
   rpc DeleteTicket(DeleteTicketRequest) returns (DeleteTicketResponse);
 }
 
 message CreateTicketRequest {
   repeated string player_ids = 1;
   repeated string queue_types = 2;
+  map<string, string> properties = 3;
 }
 
 message CreateTicketResponse {
@@ -31,20 +42,51 @@ message DeleteTicketRequest {
 
 message DeleteTicketResponse {}
 
-// Used by the game servers to report back on their matches.
-service MatchService {
-  // Frees the place of a finished match on its server. Only needed in shared mode,
-  // in exclusive mode the match ends together with its server.
+service GameServerService {
+  // Accepts an offered match, the countdown starts.
+  //
+  // Errors:
+  // - NOT_FOUND: the match does not exist.
+  // - PERMISSION_DENIED: the match is not offered to this server.
+  // - FAILED_PRECONDITION: the match is not in OFFERED, for example because the offer timed out.
+  rpc AcceptMatch(AcceptMatchRequest) returns (AcceptMatchResponse);
+  // Rejects an offered match, it is offered to the next server but never again to this one.
+  //
+  // Errors: the same as AcceptMatch.
+  rpc RejectMatch(RejectMatchRequest) returns (RejectMatchResponse);
+  // Frees the place of a finished match on its server.
+  //
+  // Errors:
+  // - NOT_FOUND: the match does not exist.
+  // - PERMISSION_DENIED: the match is not hosted by this server.
+  // - FAILED_PRECONDITION: the match is not in COMPLETED.
   rpc ReleaseMatch(ReleaseMatchRequest) returns (ReleaseMatchResponse);
 }
 
+message AcceptMatchRequest {
+  string server_id = 1;
+  string match_id = 2;
+}
+
+message AcceptMatchResponse {
+  Match match = 1;
+}
+
+message RejectMatchRequest {
+  string server_id = 1;
+  string match_id = 2;
+  string reason = 3;
+}
+
+message RejectMatchResponse {}
+
 message ReleaseMatchRequest {
-  string match_id = 1;
+  string server_id = 1;
+  string match_id = 2;
 }
 
 message ReleaseMatchResponse {}
 
-// Read-only access to the current state of the queue.
 service QueueDataService {
   rpc GetTicket(GetTicketRequest) returns (GetTicketResponse);
   rpc GetTicketByPlayer(GetTicketByPlayerRequest) returns (GetTicketByPlayerResponse);
@@ -77,7 +119,6 @@ message GetTicketByPlayerResponse {
 }
 
 message ListTicketsRequest {
-  // Optional, empty lists the tickets of every queue type.
   string queue_type = 1;
 }
 
@@ -94,9 +135,7 @@ message GetMatchResponse {
 }
 
 message ListMatchesRequest {
-  // Optional, empty lists the matches of every queue type.
   string queue_type = 1;
-  // Optional, lets a game server fetch its own matches after a restart.
   string server_id = 2;
 }
 

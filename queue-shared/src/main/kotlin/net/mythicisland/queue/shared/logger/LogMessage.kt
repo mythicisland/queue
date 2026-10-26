@@ -2,10 +2,10 @@ package net.mythicisland.queue.shared.logger
 
 import org.apache.logging.log4j.message.MapMessage
 
-class StructuredMessage(
+class LogMessage(
     private val text: String,
     fields: List<Field>,
-) : MapMessage<StructuredMessage, Any>(fields.size) {
+) : MapMessage<LogMessage, Any>(fields.size) {
 
     init {
         for (field in fields) {
@@ -20,9 +20,7 @@ class StructuredMessage(
     }
 
     override fun formatTo(formats: Array<String>, buffer: StringBuilder) {
-        if (size() > 0) {
-            super.formatTo(formats, buffer)
-        }
+        super.formatTo(formats, buffer)
     }
 
 }

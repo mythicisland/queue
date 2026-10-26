@@ -18,12 +18,13 @@ configurate = "4.2.0"
 
 # gRPC & Protobuf
 protobuf = "4.36.2"
-grpc = "1.84.3"
+grpc = "1.85.1"
 grpc-kotlin = "1.5.0"
+queue-protos = "1.5.0.4.20261026062847.967b9c66b684"
 
 # Infrastructure
 jnats = "2.26.4"
-simplecloud-api = "0.1.0-platform.58-dev.5.1-fe01ce5"
+simplecloud-api = "0.1.0-platform.59-dev.6.1-9cfd057"
 
 [libraries]
 # Kotlin
@@ -48,6 +49,7 @@ grpc-kotlin-stub = { module = "io.grpc:grpc-kotlin-stub", version.ref = "grpc-ko
 grpc-protobuf = { module = "io.grpc:grpc-protobuf", version.ref = "grpc" }
 grpc-netty-shaded = { module = "io.grpc:grpc-netty-shaded", version.ref = "grpc" }
 protobuf-kotlin = { module = "com.google.protobuf:protobuf-kotlin", version.ref = "protobuf" }
+queue-protos = { module = "build.buf.gen:mythicisland_queue_grpc_kotlin", version.ref = "queue-protos" }
 
 # Infrastructure
 jnats = { module = "io.nats:jnats", version.ref = "jnats" }

@@ -3,7 +3,7 @@ package net.mythicisland.queue.shared.logger
 import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.spi.ExtendedLogger
 
-class Logger internal constructor(
+class Logger(
     private val delegate: ExtendedLogger,
     private val fields: List<Field>,
 ) {
@@ -25,13 +25,7 @@ class Logger internal constructor(
 
         val all = this.fields + fields
         val throwable = all.firstNotNullOfOrNull { it.value as? Throwable }
-        delegate.logMessage(FQCN, level, null, StructuredMessage(message, all), throwable)
-    }
-
-    private companion object {
-
-        val FQCN: String = Logger::class.java.name
-
+        delegate.logMessage(Logger::class.java.name, level, null, LogMessage(message, all), throwable)
     }
 
 }

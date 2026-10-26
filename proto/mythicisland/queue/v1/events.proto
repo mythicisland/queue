@@ -7,18 +7,15 @@ import "mythicisland/queue/v1/types.proto";
 option java_package = "net.mythicisland.queue.v1";
 option java_multiple_files = true;
 
-// Published when a ticket was created.
 message TicketCreatedEvent {
   Ticket ticket = 1;
 }
 
-// Published on every state transition of a ticket.
 message TicketStateChangedEvent {
   Ticket ticket = 1;
   TicketState previous_state = 2;
 }
 
-// Published when a ticket was deleted, for whatever reason.
 message TicketDeletedEvent {
   Ticket ticket = 1;
   TicketDeleteReason reason = 2;
@@ -26,34 +23,33 @@ message TicketDeletedEvent {
 
 enum TicketDeleteReason {
   TICKET_DELETE_REASON_UNSPECIFIED = 0;
-  // The players left the queue on purpose.
   TICKET_DELETE_REASON_CANCELLED = 1;
-  // The players were transferred to their game server.
   TICKET_DELETE_REASON_TRANSFERRED = 2;
-  // The ticket was dropped, for example because a player went offline.
-  TICKET_DELETE_REASON_EXPIRED = 3;
+  TICKET_DELETE_REASON_DISCONNECTED = 3;
 }
 
-// Published when a match was created.
 message MatchCreatedEvent {
   Match match = 1;
 }
 
-// Published on every state transition of a match.
-// A game server learns about its next match through the transition to COUNTDOWN,
-// the assignment then carries its server_id.
 message MatchStateChangedEvent {
   Match match = 1;
   MatchState previous_state = 2;
 }
 
-// Published after all players were transferred to the game server.
 message MatchTransferredEvent {
   Match match = 1;
   repeated string transferred_player_ids = 2;
+  repeated string missing_player_ids = 3;
 }
 
-// Published when a match was released, either by ReleaseMatch or because its server stopped.
 message MatchReleasedEvent {
   Match match = 1;
+  MatchReleaseReason reason = 2;
+}
+
+enum MatchReleaseReason {
+  MATCH_RELEASE_REASON_UNSPECIFIED = 0;
+  MATCH_RELEASE_REASON_RELEASED = 1;
+  MATCH_RELEASE_REASON_SERVER_STOPPED = 2;
 }

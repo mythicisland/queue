@@ -1,6 +1,7 @@
 dependencies {
+    api(libs.queue.protos)
     implementation(libs.simplecloud.api)
     implementation(libs.bundles.grpc)
     implementation(libs.bundles.logging)
-    implementation(libs.bundles.configurate)
+    compileOnly(libs.bundles.configurate)
 }
