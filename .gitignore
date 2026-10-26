@@ -10,10 +10,3 @@ build/
 
 # IDE
 .idea/
-
-# Agents
-AGENTS.md
-CLAUDE.md
-
-# Other
-hack/BRAINDUMP.md

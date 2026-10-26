@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    <Appenders>
+        <Console name="json" target="SYSTEM_OUT">
+            <JsonTemplateLayout eventTemplateUri="classpath:log-layout.json" locationInfoEnabled="true"/>
+        </Console>
+        <Console name="console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}&#9;%highlight{%level}&#9;%C{1}:%L&#9;%msg&#9;%msg{JSON}%n%throwable"/>
+        </Console>
+    </Appenders>
+    <Loggers>
+        <Root level="info">
+            <AppenderRef ref="${env:LOG_FORMAT:-json}"/>
+        </Root>
+    </Loggers>
+</Configuration>

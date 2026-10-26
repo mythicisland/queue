@@ -1,0 +1,133 @@
+syntax = "proto3";
+
+package mythicisland.queue.v1;
+
+import "mythicisland/queue/v1/types.proto";
+
+option java_package = "net.mythicisland.queue.v1";
+option java_multiple_files = true;
+
+// Used by the network (e.g. a lobby plugin) to put players into the queue and take them out again.
+service TicketService {
+  rpc CreateTicket(CreateTicketRequest) returns (CreateTicketResponse);
+  rpc DeleteTicket(DeleteTicketRequest) returns (DeleteTicketResponse);
+}
+
+message CreateTicketRequest {
+  repeated string player_ids = 1;
+  repeated string queue_types = 2;
+}
+
+message CreateTicketResponse {
+  Ticket ticket = 1;
+}
+
+message DeleteTicketRequest {
+  oneof target {
+    string ticket_id = 1;
+    string player_id = 2;
+  }
+}
+
+message DeleteTicketResponse {}
+
+// Used by the game servers to report back on their matches.
+service MatchService {
+  // Frees the place of a finished match on its server. Only needed in shared mode,
+  // in exclusive mode the match ends together with its server.
+  rpc ReleaseMatch(ReleaseMatchRequest) returns (ReleaseMatchResponse);
+}
+
+message ReleaseMatchRequest {
+  string match_id = 1;
+}
+
+message ReleaseMatchResponse {}
+
+// Read-only access to the current state of the queue.
+service QueueDataService {
+  rpc GetTicket(GetTicketRequest) returns (GetTicketResponse);
+  rpc GetTicketByPlayer(GetTicketByPlayerRequest) returns (GetTicketByPlayerResponse);
+  rpc ListTickets(ListTicketsRequest) returns (ListTicketsResponse);
+
+  rpc GetMatch(GetMatchRequest) returns (GetMatchResponse);
+  rpc ListMatches(ListMatchesRequest) returns (ListMatchesResponse);
+
+  rpc GetQueueType(GetQueueTypeRequest) returns (GetQueueTypeResponse);
+  rpc ListQueueTypes(ListQueueTypesRequest) returns (ListQueueTypesResponse);
+
+  rpc GetQueueStats(GetQueueStatsRequest) returns (GetQueueStatsResponse);
+  rpc ListQueueStats(ListQueueStatsRequest) returns (ListQueueStatsResponse);
+}
+
+message GetTicketRequest {
+  string ticket_id = 1;
+}
+
+message GetTicketResponse {
+  Ticket ticket = 1;
+}
+
+message GetTicketByPlayerRequest {
+  string player_id = 1;
+}
+
+message GetTicketByPlayerResponse {
+  Ticket ticket = 1;
+}
+
+message ListTicketsRequest {
+  // Optional, empty lists the tickets of every queue type.
+  string queue_type = 1;
+}
+
+message ListTicketsResponse {
+  repeated Ticket tickets = 1;
+}
+
+message GetMatchRequest {
+  string match_id = 1;
+}
+
+message GetMatchResponse {
+  Match match = 1;
+}
+
+message ListMatchesRequest {
+  // Optional, empty lists the matches of every queue type.
+  string queue_type = 1;
+  // Optional, lets a game server fetch its own matches after a restart.
+  string server_id = 2;
+}
+
+message ListMatchesResponse {
+  repeated Match matches = 1;
+}
+
+message GetQueueTypeRequest {
+  string name = 1;
+}
+
+message GetQueueTypeResponse {
+  QueueType queue_type = 1;
+}
+
+message ListQueueTypesRequest {}
+
+message ListQueueTypesResponse {
+  repeated QueueType queue_types = 1;
+}
+
+message GetQueueStatsRequest {
+  string queue_type = 1;
+}
+
+message GetQueueStatsResponse {
+  QueueStats stats = 1;
+}
+
+message ListQueueStatsRequest {}
+
+message ListQueueStatsResponse {
+  repeated QueueStats stats = 1;
+}

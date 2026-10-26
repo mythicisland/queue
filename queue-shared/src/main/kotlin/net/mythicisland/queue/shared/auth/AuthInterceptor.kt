@@ -6,12 +6,13 @@ import io.grpc.ServerCall
 import io.grpc.ServerCallHandler
 import io.grpc.ServerInterceptor
 import io.grpc.Status
-import org.apache.logging.log4j.LogManager
+import net.mythicisland.queue.shared.logger.Field
+import net.mythicisland.queue.shared.logger.LoggerFactory
 import java.security.MessageDigest
 
 class AuthInterceptor(secret: String) : ServerInterceptor {
 
-    private val logger = LogManager.getLogger(AuthInterceptor::class.java)
+    private val logger = LoggerFactory.getLogger(AuthInterceptor::class)
     private val expected = "Bearer $secret".toByteArray(Charsets.UTF_8)
 
     override fun <ReqT, RespT> interceptCall(
@@ -23,9 +24,9 @@ class AuthInterceptor(secret: String) : ServerInterceptor {
 
         if (provided == null || !isValid(provided)) {
             logger.warn(
-                "Rejected unauthenticated call method={} remote={}",
-                call.methodDescriptor.fullMethodName,
-                call.attributes.get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR),
+                "Rejected unauthenticated call",
+                Field("method", call.methodDescriptor.fullMethodName),
+                Field("remote", call.attributes.get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR)),
             )
             call.close(Status.UNAUTHENTICATED.withDescription("Missing or invalid credentials"), Metadata())
             return object : ServerCall.Listener<ReqT>() {}

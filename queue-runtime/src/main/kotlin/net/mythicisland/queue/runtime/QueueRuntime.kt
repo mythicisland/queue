@@ -10,23 +10,24 @@ import io.nats.client.Options
 import kotlinx.coroutines.*
 import net.mythicisland.queue.runtime.launcher.QueueStartCommand
 import net.mythicisland.queue.shared.auth.AuthInterceptor
-import org.apache.logging.log4j.LogManager
+import net.mythicisland.queue.shared.logger.Field
+import net.mythicisland.queue.shared.logger.LoggerFactory
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
 class QueueRuntime(private val args: QueueStartCommand) {
 
-    private val logger = LogManager.getLogger(QueueRuntime::class.java)
+    private val logger = LoggerFactory.getLogger(QueueRuntime::class)
 
     suspend fun start() {
-        logger.info("Starting queue runtime...")
+        logger.info("Starting queue runtime")
 
         val nc = connectToNats()
         val api = connectToController()
         val server = createGrpcServer()
 
         server.start()
-        logger.info("gRPC server listening on port {}", args.grpcPort)
+        logger.info("gRPC server listening", Field("port", args.grpcPort))
 
         suspendCancellableCoroutine { continuation ->
             Runtime.getRuntime().addShutdownHook(Thread {
@@ -42,12 +43,12 @@ class QueueRuntime(private val args: QueueStartCommand) {
             .userInfo(args.natsUser, args.natsSecret)
             .maxReconnects(-1)
 
-        logger.info("Connecting to NATS at {}...", args.natsUrl)
+        logger.info("Connecting to NATS", Field("url", args.natsUrl))
         return Nats.connect(options.build())
     }
 
     private fun connectToController(): CloudApi {
-        logger.info("Connecting to SimpleCloud controller at {}...", args.controllerUrl)
+        logger.info("Connecting to SimpleCloud controller", Field("url", args.controllerUrl))
         return CloudApi.create(
             CloudApiOptions.builder()
                 .controllerUrl(args.controllerUrl)
@@ -65,11 +66,11 @@ class QueueRuntime(private val args: QueueStartCommand) {
     }
 
     private fun shutdown(server: Server, api: CloudApi, nats: Connection) {
-        logger.info("Shutting down queue runtime...")
+        logger.info("Shutting down queue runtime")
 
         server.shutdown()
         if (!server.awaitTermination(10L, TimeUnit.SECONDS)) {
-            logger.warn("gRPC server did not stop within {}s, forcing shutdown", 10L)
+            logger.warn("gRPC server did not stop in time, forcing shutdown", Field("timeoutSeconds", 10L))
             server.shutdownNow()
         }
 

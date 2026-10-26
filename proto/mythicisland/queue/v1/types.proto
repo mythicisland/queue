@@ -1,0 +1,160 @@
+syntax = "proto3";
+
+package mythicisland.queue.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+option java_package = "net.mythicisland.queue.v1";
+option java_multiple_files = true;
+
+// A Ticket represents a single player or a party of players.
+// A ticket is never split, all of its players end up in the same match and team.
+message Ticket {
+  // The uuid of this ticket.
+  string id = 1;
+  // The players this ticket belongs to.
+  repeated string player_ids = 2;
+  // The queue types this ticket is searching in.
+  repeated string queue_types = 3;
+  // The current state of this ticket.
+  TicketState state = 4;
+  // The match this ticket was put into. Empty while still searching.
+  string match_id = 5;
+  // The server to connect to. Only set once the match got a server.
+  Assignment assignment = 6;
+  // When the countdown ends and the players get transferred.
+  google.protobuf.Timestamp countdown_end_time = 7;
+  // When the ticket entered matchmaking.
+  google.protobuf.Timestamp created_at = 8;
+}
+
+enum TicketState {
+  TICKET_STATE_UNSPECIFIED = 0;
+  // Still searching for a match.
+  TICKET_STATE_SEARCHING = 1;
+  // Put into a match, waiting for a game server.
+  TICKET_STATE_MATCHED = 2;
+  // A server was allocated, counting down before the transfer.
+  TICKET_STATE_ASSIGNED = 3;
+}
+
+// A Match is a set of tickets that play together on one server.
+message Match {
+  // The uuid of this match.
+  string id = 1;
+  // The queue type this match was created for.
+  string queue_type = 2;
+  // The tickets forming this match. Players sharing a ticket queued as a party.
+  repeated Ticket tickets = 3;
+  // The teams of this match, the index is the team number.
+  // Empty if the queue type has no teams.
+  repeated Team teams = 4;
+  // The current state of this match.
+  MatchState state = 5;
+  // The server allocated for this match. Empty while allocating.
+  Assignment assignment = 6;
+  // When the countdown ends and the players get transferred.
+  google.protobuf.Timestamp countdown_end_time = 7;
+  // When the match was created.
+  google.protobuf.Timestamp created_at = 8;
+}
+
+// A Team is one side of a match.
+message Team {
+  // The players of this team, parties are always in the same team.
+  repeated string player_ids = 1;
+}
+
+enum MatchState {
+  MATCH_STATE_UNSPECIFIED = 0;
+  // A server is being searched or started for this match.
+  MATCH_STATE_ALLOCATING = 1;
+  // The server is ready, counting down before the transfer.
+  MATCH_STATE_COUNTDOWN = 2;
+  // The players are being transferred to the server.
+  MATCH_STATE_TRANSFERRING = 3;
+  // Every player was transferred, the match is running on the game server.
+  MATCH_STATE_COMPLETED = 4;
+  // No server could be allocated, the tickets went back to searching.
+  MATCH_STATE_FAILED = 5;
+}
+
+// Represents a game server.
+message Assignment {
+  // The uuid of the simplecloud server.
+  string server_id = 1;
+  // The name of the server.
+  string server_name = 2;
+}
+
+// The configuration of a queue type, loaded from its yaml file.
+message QueueType {
+  // The name of this queue type.
+  string name = 1;
+  // Where the matches of this queue type are played.
+  ServerConfig server = 2;
+  // How matches of this queue type are put together and started.
+  MatchConfig match = 3;
+  // Free key-value pairs, only passed through by the queue (e.g. display name, icon).
+  map<string, string> properties = 4;
+}
+
+message ServerConfig {
+  // The simplecloud group used for game servers.
+  // Whether the queue may start servers is read from the scaling mode of the group.
+  string group = 1;
+  // How many matches are played on one server.
+  ServerMode mode = 2;
+  // Hard limit of matches on one server, only used in shared mode.
+  uint32 max_matches_per_server = 3;
+  // After this the match fails and its tickets go back to searching.
+  google.protobuf.Duration allocation_timeout = 4;
+}
+
+enum ServerMode {
+  SERVER_MODE_UNSPECIFIED = 0;
+  // One match per server, the server is set to INGAME.
+  SERVER_MODE_EXCLUSIVE = 1;
+  // Multiple matches per server, a match frees its place with ReleaseMatch.
+  SERVER_MODE_SHARED = 2;
+}
+
+message MatchConfig {
+  // Below this no match is created.
+  uint32 min_players = 1;
+  // The maximum amount of players a match can hold. With teams this is count * size.
+  uint32 max_players = 2;
+  // Once min_players is reached, keep filling for at most this long.
+  google.protobuf.Duration fill_time = 3;
+  // After the server is ready, before the transfer. Zero transfers instantly.
+  google.protobuf.Duration countdown = 4;
+  // Not set if every match is free-for-all.
+  optional TeamConfig teams = 5;
+  // Limits for tickets with more than one player.
+  PartyConfig parties = 6;
+}
+
+message TeamConfig {
+  // The maximum amount of teams in a match. A match always has at least 2 teams.
+  uint32 count = 1;
+  // The maximum amount of players in a team.
+  uint32 size = 2;
+}
+
+message PartyConfig {
+  // Larger tickets are rejected on CreateTicket.
+  uint32 max_size = 1;
+}
+
+// Live numbers for one queue type, for example to show "12 players searching".
+message QueueStats {
+  // The queue type these numbers belong to.
+  string queue_type = 1;
+  // The tickets currently searching in this queue type.
+  uint32 searching_tickets = 2;
+  // The players behind those tickets, parties counted fully.
+  uint32 searching_players = 3;
+  // The matches of this queue type that are allocating or counting down.
+  uint32 active_matches = 4;
+}
