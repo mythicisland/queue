@@ -4,6 +4,7 @@ object Subjects {
 
     const val TICKET_CREATED = "queue.v1.ticket.created"
     const val TICKET_STATE_CHANGED = "queue.v1.ticket.state_changed"
+    const val TICKET_UPDATED = "queue.v1.ticket.updated"
     const val TICKET_DELETED = "queue.v1.ticket.deleted"
 
     const val MATCH_CREATED = "queue.v1.match.created"

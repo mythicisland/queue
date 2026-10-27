@@ -29,6 +29,14 @@ class EventPublisher(private val nats: Connection) {
         },
     )
 
+    fun ticketUpdated(ticket: Ticket, previousProperties: Map<String, String>) = publish(
+        Subjects.TICKET_UPDATED,
+        ticketUpdatedEvent {
+            this.ticket = ticket.toProto()
+            this.previousProperties.putAll(previousProperties)
+        },
+    )
+
     fun ticketDeleted(ticket: Ticket, reason: TicketDeleteReason) = publish(
         Subjects.TICKET_DELETED,
         ticketDeletedEvent {

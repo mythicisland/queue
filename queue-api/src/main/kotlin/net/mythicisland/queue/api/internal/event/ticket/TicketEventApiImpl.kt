@@ -6,6 +6,7 @@ import net.mythicisland.queue.api.event.ticket.TicketCreatedEvent
 import net.mythicisland.queue.api.event.ticket.TicketDeletedEvent
 import net.mythicisland.queue.api.event.ticket.TicketEventApi
 import net.mythicisland.queue.api.event.ticket.TicketStateChangedEvent
+import net.mythicisland.queue.api.event.ticket.TicketUpdatedEvent
 import net.mythicisland.queue.api.internal.ProtoUtil
 import net.mythicisland.queue.api.internal.event.SubscriptionImpl
 import net.mythicisland.queue.shared.event.Subjects
@@ -13,6 +14,7 @@ import java.util.function.Consumer
 import build.buf.gen.mythicisland.queue.v1.TicketCreatedEvent as ProtoTicketCreatedEvent
 import build.buf.gen.mythicisland.queue.v1.TicketDeletedEvent as ProtoTicketDeletedEvent
 import build.buf.gen.mythicisland.queue.v1.TicketStateChangedEvent as ProtoTicketStateChangedEvent
+import build.buf.gen.mythicisland.queue.v1.TicketUpdatedEvent as ProtoTicketUpdatedEvent
 
 internal class TicketEventApiImpl(private val connection: Connection) : TicketEventApi {
 
@@ -37,6 +39,21 @@ internal class TicketEventApiImpl(private val connection: Connection) : TicketEv
             )
         }
         dispatcher.subscribe(Subjects.TICKET_STATE_CHANGED)
+
+        return SubscriptionImpl(connection, dispatcher)
+    }
+
+    override fun onUpdated(handler: Consumer<TicketUpdatedEvent>): Subscription {
+        val dispatcher = connection.createDispatcher { message ->
+            val proto = ProtoTicketUpdatedEvent.parseFrom(message.data)
+            handler.accept(
+                TicketUpdatedEvent(
+                    ProtoUtil.toTicket(proto.ticket),
+                    proto.previousPropertiesMap.toMap(),
+                )
+            )
+        }
+        dispatcher.subscribe(Subjects.TICKET_UPDATED)
 
         return SubscriptionImpl(connection, dispatcher)
     }

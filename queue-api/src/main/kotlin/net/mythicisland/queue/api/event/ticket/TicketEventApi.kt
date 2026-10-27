@@ -19,6 +19,11 @@ interface TicketEventApi {
     fun onStateChanged(handler: Consumer<TicketStateChangedEvent>): Subscription
 
     /**
+     * Calls [handler] when the properties of a ticket changed.
+     */
+    fun onUpdated(handler: Consumer<TicketUpdatedEvent>): Subscription
+
+    /**
      * Calls [handler] when a ticket was deleted.
      */
     fun onDeleted(handler: Consumer<TicketDeletedEvent>): Subscription

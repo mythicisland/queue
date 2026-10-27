@@ -6,7 +6,10 @@ import build.buf.gen.mythicisland.queue.v1.DeleteTicketRequest
 import build.buf.gen.mythicisland.queue.v1.DeleteTicketResponse
 import build.buf.gen.mythicisland.queue.v1.TicketDeleteReason
 import build.buf.gen.mythicisland.queue.v1.TicketServiceGrpcKt
+import build.buf.gen.mythicisland.queue.v1.UpdateTicketPropertiesRequest
+import build.buf.gen.mythicisland.queue.v1.UpdateTicketPropertiesResponse
 import build.buf.gen.mythicisland.queue.v1.createTicketResponse
+import build.buf.gen.mythicisland.queue.v1.updateTicketPropertiesResponse
 import io.grpc.Status
 import net.mythicisland.queue.runtime.event.EventPublisher
 import net.mythicisland.queue.runtime.match.MatchReconciler
@@ -73,9 +76,36 @@ class TicketService(
         }
 
         if (ticket == null || !delete(ticket, TicketDeleteReason.TICKET_DELETE_REASON_CANCELLED)) {
-            throw Status.NOT_FOUND.withDescription("There is no such ticket").asException()
+            throw noSuchTicket()
         }
         return DeleteTicketResponse.getDefaultInstance()
+    }
+
+    override suspend fun updateTicketProperties(request: UpdateTicketPropertiesRequest): UpdateTicketPropertiesResponse {
+        val ticket = when (request.targetCase) {
+            UpdateTicketPropertiesRequest.TargetCase.TICKET_ID -> store.get(request.ticketId)
+            UpdateTicketPropertiesRequest.TargetCase.PLAYER_ID -> store.getByPlayer(parsePlayer(request.playerId))
+            else -> throw invalidArgument("A ticket id or a player id is required")
+        } ?: throw noSuchTicket()
+
+        val updated = updateProperties(ticket.id, request.propertiesMap, request.removedKeysList.toSet()) ?: throw noSuchTicket()
+        return updateTicketPropertiesResponse { this.ticket = updated.toProto() }
+    }
+
+    private suspend fun updateProperties(ticketId: String, properties: Map<String, String>, removedKeys: Set<String>): Ticket? {
+        val current = store.get(ticketId) ?: return null
+        val merged = current.properties - removedKeys + properties
+        validateProperties(merged)
+
+        val updated = current.copy(properties = merged)
+        if (!store.replace(current, updated)) {
+            return updateProperties(ticketId, properties, removedKeys)
+        }
+
+        events.ticketUpdated(updated, current.properties)
+        reconciler.ticketUpdated(updated.id)
+        logger.info("Updated ticket properties", Field("ticketId", updated.id), Field("keys", merged.keys))
+        return updated
     }
 
     suspend fun recover() {
@@ -115,6 +145,8 @@ class TicketService(
     }
 
     private fun invalidArgument(description: String) = Status.INVALID_ARGUMENT.withDescription(description).asException()
+
+    private fun noSuchTicket() = Status.NOT_FOUND.withDescription("There is no such ticket").asException()
 
     private companion object {
         const val MAX_PROPERTIES = 32

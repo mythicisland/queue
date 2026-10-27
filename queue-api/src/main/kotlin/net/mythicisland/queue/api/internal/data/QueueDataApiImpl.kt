@@ -12,6 +12,8 @@ import build.buf.gen.mythicisland.queue.v1.ListTicketsRequest
 import build.buf.gen.mythicisland.queue.v1.QueueDataServiceGrpcKt.QueueDataServiceCoroutineStub
 import io.grpc.Status
 import io.grpc.StatusException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.future.future
 import net.mythicisland.queue.api.data.QueueDataApi
 import net.mythicisland.queue.api.internal.ProtoUtil
 import net.mythicisland.queue.api.match.Match
@@ -19,8 +21,12 @@ import net.mythicisland.queue.api.stats.QueueStats
 import net.mythicisland.queue.api.ticket.Ticket
 import net.mythicisland.queue.api.type.QueueType
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 
-internal class QueueDataApiImpl(private val stub: QueueDataServiceCoroutineStub) : QueueDataApi {
+internal class QueueDataApiImpl(
+    private val stub: QueueDataServiceCoroutineStub,
+    private val scope: CoroutineScope,
+) : QueueDataApi {
 
     override suspend fun getTicket(ticketId: UUID): Ticket? {
         val request = GetTicketRequest.newBuilder()
@@ -115,5 +121,27 @@ internal class QueueDataApiImpl(private val stub: QueueDataServiceCoroutineStub)
     override suspend fun listQueueStats(): List<QueueStats> {
         return stub.listQueueStats(ListQueueStatsRequest.getDefaultInstance()).statsList.map(ProtoUtil::toQueueStats)
     }
+
+    override fun getTicketAsync(ticketId: UUID): CompletableFuture<Ticket?> = scope.future { getTicket(ticketId) }
+
+    override fun getTicketByPlayerAsync(playerId: UUID): CompletableFuture<Ticket?> =
+        scope.future { getTicketByPlayer(playerId) }
+
+    override fun listTicketsAsync(queueType: String?): CompletableFuture<List<Ticket>> =
+        scope.future { listTickets(queueType) }
+
+    override fun getMatchAsync(matchId: UUID): CompletableFuture<Match?> = scope.future { getMatch(matchId) }
+
+    override fun listMatchesAsync(queueType: String?, serverId: String?): CompletableFuture<List<Match>> =
+        scope.future { listMatches(queueType, serverId) }
+
+    override fun getQueueTypeAsync(name: String): CompletableFuture<QueueType?> = scope.future { getQueueType(name) }
+
+    override fun listQueueTypesAsync(): CompletableFuture<List<QueueType>> = scope.future { listQueueTypes() }
+
+    override fun getQueueStatsAsync(queueType: String): CompletableFuture<QueueStats?> =
+        scope.future { getQueueStats(queueType) }
+
+    override fun listQueueStatsAsync(): CompletableFuture<List<QueueStats>> = scope.future { listQueueStats() }
 
 }

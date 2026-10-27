@@ -5,6 +5,7 @@ import net.mythicisland.queue.api.stats.QueueStats
 import net.mythicisland.queue.api.ticket.Ticket
 import net.mythicisland.queue.api.type.QueueType
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 
 /**
  * Reading tickets, matches, queue types and stats.
@@ -55,5 +56,60 @@ interface QueueDataApi {
      * Returns the stats of all queue types.
      */
     suspend fun listQueueStats(): List<QueueStats>
+
+    /**
+     * Same as [getTicket], but returns a [CompletableFuture].
+     */
+    fun getTicketAsync(ticketId: UUID): CompletableFuture<Ticket?>
+
+    /**
+     * Same as [getTicketByPlayer], but returns a [CompletableFuture].
+     */
+    fun getTicketByPlayerAsync(playerId: UUID): CompletableFuture<Ticket?>
+
+    /**
+     * Same as [listTickets], but returns a [CompletableFuture].
+     */
+    fun listTicketsAsync(queueType: String?): CompletableFuture<List<Ticket>>
+
+    /**
+     * Same as [listTickets], but returns a [CompletableFuture].
+     */
+    fun listTicketsAsync(): CompletableFuture<List<Ticket>> = listTicketsAsync(null)
+
+    /**
+     * Same as [getMatch], but returns a [CompletableFuture].
+     */
+    fun getMatchAsync(matchId: UUID): CompletableFuture<Match?>
+
+    /**
+     * Same as [listMatches], but returns a [CompletableFuture].
+     */
+    fun listMatchesAsync(queueType: String?, serverId: String?): CompletableFuture<List<Match>>
+
+    /**
+     * Same as [listMatches], but returns a [CompletableFuture].
+     */
+    fun listMatchesAsync(): CompletableFuture<List<Match>> = listMatchesAsync(null, null)
+
+    /**
+     * Same as [getQueueType], but returns a [CompletableFuture].
+     */
+    fun getQueueTypeAsync(name: String): CompletableFuture<QueueType?>
+
+    /**
+     * Same as [listQueueTypes], but returns a [CompletableFuture].
+     */
+    fun listQueueTypesAsync(): CompletableFuture<List<QueueType>>
+
+    /**
+     * Same as [getQueueStats], but returns a [CompletableFuture].
+     */
+    fun getQueueStatsAsync(queueType: String): CompletableFuture<QueueStats?>
+
+    /**
+     * Same as [listQueueStats], but returns a [CompletableFuture].
+     */
+    fun listQueueStatsAsync(): CompletableFuture<List<QueueStats>>
 
 }

@@ -8,6 +8,10 @@ import io.grpc.ManagedChannelBuilder
 import io.nats.client.Connection
 import io.nats.client.Nats
 import io.nats.client.Options
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import net.mythicisland.queue.api.QueueApi
 import net.mythicisland.queue.api.QueueApiOptions
 import net.mythicisland.queue.api.data.QueueDataApi
@@ -31,6 +35,8 @@ internal class QueueApiImpl(options: QueueApiOptions) : QueueApi {
 
     private val connection: Connection = connectNats(options)
 
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     private val ticketApi: TicketApi
     private val matchApi: MatchApi
     private val dataApi: QueueDataApi
@@ -39,9 +45,9 @@ internal class QueueApiImpl(options: QueueApiOptions) : QueueApi {
     init {
         val credentials = AuthCredentials(options.authSecret)
 
-        ticketApi = TicketApiImpl(TicketServiceCoroutineStub(channel).withCallCredentials(credentials))
-        matchApi = MatchApiImpl(GameServerServiceCoroutineStub(channel).withCallCredentials(credentials))
-        dataApi = QueueDataApiImpl(QueueDataServiceCoroutineStub(channel).withCallCredentials(credentials))
+        ticketApi = TicketApiImpl(TicketServiceCoroutineStub(channel).withCallCredentials(credentials), scope)
+        matchApi = MatchApiImpl(GameServerServiceCoroutineStub(channel).withCallCredentials(credentials), scope)
+        dataApi = QueueDataApiImpl(QueueDataServiceCoroutineStub(channel).withCallCredentials(credentials), scope)
         eventApi = EventApiImpl(connection)
     }
 
@@ -54,6 +60,7 @@ internal class QueueApiImpl(options: QueueApiOptions) : QueueApi {
     override fun event(): EventApi = eventApi
 
     override fun close() {
+        scope.cancel()
         try {
             connection.close()
         } finally {

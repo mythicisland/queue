@@ -106,6 +106,19 @@ class MatchReconciler(
         }
     }
 
+    suspend fun ticketUpdated(ticketId: String) {
+        val ticket = ticketStore.get(ticketId) ?: return
+        val matchId = ticket.matchId ?: return
+        val stored = matchStore.get(matchId) ?: return
+
+        val updated = stored.copy(
+            tickets = stored.tickets.map { if (it.id == ticket.id) it.copy(properties = ticket.properties) else it },
+        )
+        if (!matchStore.replace(stored, updated)) {
+            return ticketUpdated(ticketId)
+        }
+    }
+
     suspend fun serverStopped(server: GameServer) {
         for (match in matchStore.all().filter { it.assignment?.serverId == server.id }) {
             try {
