@@ -25,13 +25,14 @@ class ServerAllocator(
     private val serversProvisioner = ServersProvisioner(api, registry)
 
     suspend fun recover() {
+        val busy = matchStore.all().mapNotNull { it.assignment?.serverId }.toSet()
         for (group in types.groups()) {
             if (isShared(group)) {
                 continue
             }
 
             for (server in registry.byGroup(group)) {
-                if (server.state == ServerState.INGAME && server.matches.isEmpty()) {
+                if (server.state == ServerState.INGAME && server.matches.isEmpty() && server.id !in busy) {
                     logger.info("Freeing orphaned game server", Field("serverId", server.id), Field("server", server.name))
                     setState(server.id, ServerState.INGAME, ServerState.AVAILABLE)
                 }

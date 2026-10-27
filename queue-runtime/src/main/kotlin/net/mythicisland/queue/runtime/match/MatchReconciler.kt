@@ -109,17 +109,74 @@ class MatchReconciler(
     suspend fun serverStopped(server: GameServer) {
         for (match in matchStore.all().filter { it.assignment?.serverId == server.id }) {
             try {
-                when (match.state) {
-                    MatchState.OFFERED -> reject(match, server.id, "server stopped")
-                    MatchState.COUNTDOWN -> finish(match, MatchState.FAILED)
-                    MatchState.COMPLETED -> release(match, MatchReleaseReason.MATCH_RELEASE_REASON_SERVER_STOPPED)
-                    else -> Unit
-                }
+                serverStopped(match, server.id)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 logger.error("Failed to handle stopped server", Field("matchId", match.id), Field("serverId", server.id), Field.error(e))
             }
+        }
+    }
+
+    suspend fun recover() {
+        val now = Instant.now()
+        for (match in matchStore.all()) {
+            try {
+                recover(match, now)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logger.error("Failed to recover match", Field("matchId", match.id), Field("state", match.state), Field.error(e))
+            }
+        }
+
+        for (ticket in ticketStore.all()) {
+            val matchId = ticket.matchId ?: continue
+            if (matchStore.get(matchId) == null) {
+                updateTicket(ticket, searching(ticket))
+            }
+        }
+    }
+
+    private suspend fun recover(match: Match, now: Instant) {
+        val type = types.get(match.queueType)
+        if (type == null && match.state in BEFORE_TRANSFER) {
+            logger.warn("Queue type of match does not exist anymore", Field("matchId", match.id), Field("queueType", match.queueType))
+            finish(match, MatchState.CANCELLED)
+            return
+        }
+
+        val assignment = match.assignment ?: return
+        val server = registry.get(assignment.serverId)
+        if (server == null && match.state != MatchState.TRANSFERRING) {
+            serverStopped(match, assignment.serverId)
+            return
+        }
+
+        val shared = type?.server?.shared
+        if (server != null && shared != null && match.state != MatchState.COMPLETED) {
+            registry.addMatch(server.id, match.id)
+        }
+
+        when (match.state) {
+            MatchState.OFFERED -> if (shared == null) {
+                reject(match, assignment.serverId, "queue type is not shared anymore")
+            } else {
+                offerDeadlines[match.id] = now.plus(shared.acceptTimeout)
+            }
+            MatchState.COUNTDOWN -> assignTickets(match, assignment)
+            MatchState.TRANSFERRING -> launchCompletion(match, present(match), assignment)
+            MatchState.COMPLETED -> if (server != null && match.id !in server.hosted) allocator.host(match)
+            else -> Unit
+        }
+    }
+
+    private suspend fun serverStopped(match: Match, serverId: String) {
+        when (match.state) {
+            MatchState.OFFERED -> reject(match, serverId, "server stopped")
+            MatchState.COUNTDOWN -> finish(match, MatchState.FAILED)
+            MatchState.COMPLETED -> release(match, MatchReleaseReason.MATCH_RELEASE_REASON_SERVER_STOPPED)
+            else -> Unit
         }
     }
 
@@ -208,12 +265,17 @@ class MatchReconciler(
             return null
         }
 
+        assignTickets(counting, assignment)
+        return counting
+    }
+
+    private suspend fun assignTickets(counting: Match, assignment: Assignment) {
+        val end = counting.countdownEndTime ?: return
         for (ticket in present(counting)) {
             if (ticket.state == TicketState.MATCHED) {
                 updateTicket(ticket, assigned(ticket, assignment, end))
             }
         }
-        return counting
     }
 
     private suspend fun transfer(match: Match, type: QueueType) {
@@ -229,6 +291,10 @@ class MatchReconciler(
             return
         }
 
+        launchCompletion(transferring, present, assignment)
+    }
+
+    private fun launchCompletion(transferring: Match, present: List<Ticket>, assignment: Assignment) {
         scope.launch {
             try {
                 complete(transferring, present, assignment)
@@ -285,10 +351,7 @@ class MatchReconciler(
         for (ticket in finished.tickets) {
             val current = ticketStore.get(ticket.id) ?: continue
             if (current.matchId == finished.id) {
-                updateTicket(
-                    current,
-                    current.copy(state = TicketState.SEARCHING, matchId = null, assignment = null, countdownEndTime = null),
-                )
+                updateTicket(current, searching(current))
             }
         }
 
@@ -313,7 +376,7 @@ class MatchReconciler(
         }
     }
 
-    private fun transition(previous: Match, current: Match): Boolean {
+    private suspend fun transition(previous: Match, current: Match): Boolean {
         if (!matchStore.replace(previous, current)) {
             return false
         }
@@ -340,6 +403,9 @@ class MatchReconciler(
 
     private fun assigned(ticket: Ticket, assignment: Assignment, countdownEnd: Instant): Ticket =
         ticket.copy(state = TicketState.ASSIGNED, assignment = assignment, countdownEndTime = countdownEnd)
+
+    private fun searching(ticket: Ticket): Ticket =
+        ticket.copy(state = TicketState.SEARCHING, matchId = null, assignment = null, countdownEndTime = null)
 
     private fun isPresent(ticket: Ticket, match: Match): Boolean = ticketStore.get(ticket.id)?.matchId == match.id
 

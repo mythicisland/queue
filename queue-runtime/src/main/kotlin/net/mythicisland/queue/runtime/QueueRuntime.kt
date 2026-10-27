@@ -20,6 +20,7 @@ import net.mythicisland.queue.runtime.server.ServerAllocator
 import net.mythicisland.queue.runtime.listener.ServerListener
 import net.mythicisland.queue.runtime.server.ServerRegistry
 import net.mythicisland.queue.runtime.listener.PlayerListener
+import net.mythicisland.queue.runtime.state.NatsStateStore
 import net.mythicisland.queue.runtime.ticket.TicketService
 import net.mythicisland.queue.runtime.ticket.TicketStore
 import net.mythicisland.queue.runtime.type.QueueTypeRegistry
@@ -43,8 +44,8 @@ class QueueRuntime(private val args: QueueStartCommand) {
         val api = connectToController()
 
         val events = EventPublisher(nc)
-        val ticketStore = TicketStore()
-        val matchStore = MatchStore()
+        val ticketStore = TicketStore(NatsStateStore.init(nc, args.ticketsBucket))
+        val matchStore = MatchStore(NatsStateStore.init(nc, args.matchesBucket))
         val registry = ServerRegistry(api)
 
         val allocator = ServerAllocator(api, types, registry, matchStore)
@@ -70,7 +71,13 @@ class QueueRuntime(private val args: QueueStartCommand) {
         )
 
         try {
+            ticketStore.load()
+            matchStore.load()
+            logger.info("Loaded state", Field("tickets", ticketStore.all().size), Field("matches", matchStore.all().size))
+
             serverListener.start(types.groups())
+            reconciler.recover()
+            ticketService.recover()
             allocator.recover()
             playerListener.start()
             matchmaker.start()
@@ -82,7 +89,7 @@ class QueueRuntime(private val args: QueueStartCommand) {
             shutdown(server, api, nc, serverListener, playerListener, matchmaker, reconciler)
             throw e
         }
-        logger.info("gRPC server listening", Field("port", args.grpcPort))
+        logger.info("gRPC started", Field("port", args.grpcPort))
 
         val stopped = CountDownLatch(1)
         suspendCancellableCoroutine { continuation ->

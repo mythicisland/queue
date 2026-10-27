@@ -36,6 +36,12 @@ object QueueStartCommand : SuspendingCliktCommand() {
     val natsSecret: String by option(help = "Secret from the NATS server (default: sup3rS3cr3t)", envvar = "NATS_SECRET")
         .default("sup3rS3cr3t")
 
+    val ticketsBucket: String by option(help = "NATS KV bucket for tickets (default: queue-tickets)", envvar = "TICKETS_BUCKET")
+        .default("queue-tickets")
+
+    val matchesBucket: String by option(help = "NATS KV bucket for matches (default: queue-matches)", envvar = "MATCHES_BUCKET")
+        .default("queue-matches")
+
     val typesPath: Path by option(help = "Path used for queue types (default: types)", envvar = "TYPE_PATH")
         .path()
         .default(Path.of("types"))

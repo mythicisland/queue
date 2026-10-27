@@ -78,6 +78,15 @@ class TicketService(
         return DeleteTicketResponse.getDefaultInstance()
     }
 
+    suspend fun recover() {
+        for (ticket in store.all()) {
+            if (ticket.queueTypes.none { types.get(it) != null }) {
+                logger.warn("Queue types of ticket do not exist anymore", Field("ticketId", ticket.id), Field("queueTypes", ticket.queueTypes))
+                delete(ticket, TicketDeleteReason.TICKET_DELETE_REASON_CANCELLED)
+            }
+        }
+    }
+
     suspend fun delete(ticket: Ticket, reason: TicketDeleteReason): Boolean {
         val removed = store.remove(ticket.id) ?: return false
 

@@ -2,16 +2,28 @@ package net.mythicisland.queue.runtime.ticket
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import net.mythicisland.queue.runtime.state.StateStore
 import net.mythicisland.queue.shared.ticket.Ticket
 import net.mythicisland.queue.shared.ticket.TicketState
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import build.buf.gen.mythicisland.queue.v1.Ticket as TicketProto
 
-class TicketStore {
+class TicketStore(private val state: StateStore) {
 
     private val mutex = Mutex()
     private val tickets = ConcurrentHashMap<String, Ticket>()
     private val ticketsByPlayer = ConcurrentHashMap<UUID, String>()
+
+    suspend fun load() = mutex.withLock {
+        for (bytes in state.load()) {
+            val ticket = Ticket.fromProto(TicketProto.parseFrom(bytes))
+            tickets[ticket.id] = ticket
+            for (player in ticket.playerIds) {
+                ticketsByPlayer[player] = ticket.id
+            }
+        }
+    }
 
     fun get(id: String): Ticket? = tickets[id]
 
@@ -34,6 +46,7 @@ class TicketStore {
         for (player in ticket.playerIds) {
             ticketsByPlayer[player] = ticket.id
         }
+        save(ticket)
         true
     }
 
@@ -42,11 +55,16 @@ class TicketStore {
         for (player in ticket.playerIds) {
             ticketsByPlayer.remove(player, id)
         }
+        state.delete(id)
         ticket
     }
 
     suspend fun replace(previous: Ticket, current: Ticket): Boolean = mutex.withLock {
-        tickets.replace(previous.id, previous, current)
+        if (!tickets.replace(previous.id, previous, current)) {
+            return@withLock false
+        }
+        save(current)
+        true
     }
 
     suspend fun claim(ids: List<String>, matchId: String): List<Ticket>? = mutex.withLock {
@@ -58,8 +76,11 @@ class TicketStore {
         val claimed = searching.map { it.copy(state = TicketState.MATCHED, matchId = matchId) }
         for (ticket in claimed) {
             tickets[ticket.id] = ticket
+            save(ticket)
         }
         claimed
     }
+
+    private fun save(ticket: Ticket) = state.put(ticket.id, ticket.toProto().toByteArray())
 
 }
