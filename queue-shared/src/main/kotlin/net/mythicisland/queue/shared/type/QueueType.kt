@@ -78,10 +78,16 @@ data class SharedMode(
 
     fun toProto(): SharedModeProto = sharedMode {
         acceptTimeout = this@SharedMode.acceptTimeout.toProto()
+        if (this@SharedMode.capacity != null) {
+            capacity = this@SharedMode.capacity
+        }
     }
 
     companion object {
-        fun fromProto(proto: SharedModeProto): SharedMode = SharedMode(proto.acceptTimeout.toJavaDuration())
+        fun fromProto(proto: SharedModeProto): SharedMode = SharedMode(
+            acceptTimeout = proto.acceptTimeout.toJavaDuration(),
+            capacity = if (proto.hasCapacity()) proto.capacity else null,
+        )
     }
 
 }

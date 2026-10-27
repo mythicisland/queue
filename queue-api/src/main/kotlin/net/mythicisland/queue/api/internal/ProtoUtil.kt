@@ -27,6 +27,7 @@ import build.buf.gen.mythicisland.queue.v1.MatchState as ProtoMatchState
 import build.buf.gen.mythicisland.queue.v1.QueueStats as ProtoQueueStats
 import build.buf.gen.mythicisland.queue.v1.QueueType as ProtoQueueType
 import build.buf.gen.mythicisland.queue.v1.ServerConfig as ProtoServerConfig
+import build.buf.gen.mythicisland.queue.v1.SharedMode as ProtoSharedMode
 import build.buf.gen.mythicisland.queue.v1.Team as ProtoTeam
 import build.buf.gen.mythicisland.queue.v1.Ticket as ProtoTicket
 import build.buf.gen.mythicisland.queue.v1.TicketDeleteReason as ProtoTicketDeleteReason
@@ -103,7 +104,12 @@ internal object ProtoUtil {
     fun toServerConfig(proto: ProtoServerConfig): ServerConfig = ServerConfig(
         group = proto.group,
         allocationTimeout = toDuration(proto.allocationTimeout),
-        shared = if (proto.hasShared()) SharedMode(toDuration(proto.shared.acceptTimeout)) else null,
+        shared = if (proto.hasShared()) toSharedMode(proto.shared) else null,
+    )
+
+    fun toSharedMode(proto: ProtoSharedMode): SharedMode = SharedMode(
+        acceptTimeout = toDuration(proto.acceptTimeout),
+        capacity = if (proto.hasCapacity()) proto.capacity else null,
     )
 
     fun toMatchConfig(proto: ProtoMatchConfig): MatchConfig = MatchConfig(

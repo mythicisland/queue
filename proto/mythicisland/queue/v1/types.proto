@@ -78,6 +78,7 @@ message ExclusiveMode {}
 
 message SharedMode {
   google.protobuf.Duration accept_timeout = 1;
+  optional uint32 capacity = 2;
 }
 
 message MatchConfig {
