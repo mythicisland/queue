@@ -19,6 +19,10 @@ class QueueTypeRegistry(path: Path) {
 
     fun groups(): Set<String> = types.values.map { it.server.group }.toSet()
 
+    fun isShared(group: String): Boolean = byGroup(group).any { it.server.shared != null }
+
+    fun capacity(group: String): Int? = byGroup(group).mapNotNull { it.server.shared?.capacity }.maxOrNull()
+
     private fun load(path: Path): Map<String, QueueType> {
         val types = YamlDirectoryRepository(path, QueueType::class).load()
             .mapValues { (name, type) -> type.copy(name = name) }

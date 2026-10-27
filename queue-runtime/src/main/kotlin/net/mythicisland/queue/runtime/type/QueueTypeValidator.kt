@@ -7,6 +7,7 @@ object QueueTypeValidator {
     fun validate(type: QueueType): List<String> {
         val server = type.server
         val shared = server.shared
+        val capacity = shared?.capacity
         val match = type.match
         val teams = match.teams
         val partySize = match.parties.maxSize
@@ -20,6 +21,9 @@ object QueueTypeValidator {
         }
         if (shared != null && !shared.acceptTimeout.isPositive) {
             problems += "server.shared.accept-timeout must be positive"
+        }
+        if (capacity != null && capacity < 1) {
+            problems += "server.shared.capacity must be at least 1"
         }
 
         if (match.minPlayers < 1) {

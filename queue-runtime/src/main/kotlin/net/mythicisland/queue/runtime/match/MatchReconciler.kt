@@ -365,7 +365,7 @@ class MatchReconciler(
             .groupBy { it.server.group }
 
         for ((group, waitingTypes) in waiting) {
-            val shared = types.byGroup(group).any { it.server.shared != null }
+            val shared = types.isShared(group)
             try {
                 allocator.provision(group, if (shared) 1 else waitingTypes.size)
             } catch (e: CancellationException) {

@@ -46,7 +46,7 @@ class QueueRuntime(private val args: QueueStartCommand) {
         val events = EventPublisher(nc)
         val ticketStore = TicketStore(NatsStateStore.init(nc, args.ticketsBucket))
         val matchStore = MatchStore(NatsStateStore.init(nc, args.matchesBucket))
-        val registry = ServerRegistry(api)
+        val registry = ServerRegistry(api, types)
 
         val allocator = ServerAllocator(api, types, registry, matchStore)
         val reconciler = MatchReconciler(

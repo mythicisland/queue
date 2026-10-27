@@ -27,7 +27,7 @@ class ServerAllocator(
     suspend fun recover() {
         val busy = matchStore.all().mapNotNull { it.assignment?.serverId }.toSet()
         for (group in types.groups()) {
-            if (isShared(group)) {
+            if (types.isShared(group)) {
                 continue
             }
 
@@ -81,7 +81,7 @@ class ServerAllocator(
 
     private suspend fun makeAvailable(serverId: String) {
         val server = registry.get(serverId) ?: return
-        if (!isShared(server.group) && server.matches.isEmpty()) {
+        if (!types.isShared(server.group) && server.matches.isEmpty()) {
             setState(serverId, ServerState.INGAME, ServerState.AVAILABLE)
         }
     }
@@ -97,8 +97,6 @@ class ServerAllocator(
         registry.update(api.server().updateServer(serverId, request).await())
         return registry.get(serverId)?.state == state
     }
-
-    private fun isShared(group: String): Boolean = types.byGroup(group).any { it.server.shared != null }
 
     companion object {
         private val SHARED_STATES = setOf(ServerState.AVAILABLE, ServerState.INGAME)

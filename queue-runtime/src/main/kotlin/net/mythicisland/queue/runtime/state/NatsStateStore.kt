@@ -1,11 +1,14 @@
 package net.mythicisland.queue.runtime.state
 
 import io.nats.client.Connection
+import io.nats.client.JetStreamOptions
 import io.nats.client.KeyValue
+import io.nats.client.KeyValueOptions
 import io.nats.client.api.KeyValueConfiguration
 import io.nats.client.api.StorageType
 import net.mythicisland.queue.shared.logger.Field
 import net.mythicisland.queue.shared.logger.LoggerFactory
+import java.time.Duration
 
 class NatsStateStore(private val bucket: String, private val kv: KeyValue) : StateStore {
 
@@ -46,7 +49,10 @@ class NatsStateStore(private val bucket: String, private val kv: KeyValue) : Sta
                     .build()
                 management.create(config)
             }
-            return NatsStateStore(bucket, nats.keyValue(bucket))
+            val options = KeyValueOptions.builder()
+                .jetStreamOptions(JetStreamOptions.builder().requestTimeout(Duration.ofMillis(500)).build())
+                .build()
+            return NatsStateStore(bucket, nats.keyValue(bucket, options))
         }
 
     }

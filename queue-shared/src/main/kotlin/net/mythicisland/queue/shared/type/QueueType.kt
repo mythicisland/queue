@@ -73,6 +73,7 @@ data class ServerConfig(
 @ConfigSerializable
 data class SharedMode(
     val acceptTimeout: Duration = Duration.ofSeconds(10),
+    val capacity: Int? = null,
 ) {
 
     fun toProto(): SharedModeProto = sharedMode {

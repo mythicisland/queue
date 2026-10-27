@@ -7,12 +7,13 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import net.mythicisland.queue.runtime.type.QueueTypeRegistry
 import net.mythicisland.queue.shared.logger.Field
 import net.mythicisland.queue.shared.logger.LoggerFactory
 import net.mythicisland.queue.shared.server.ServerProperties
 import java.util.concurrent.ConcurrentHashMap
 
-class ServerRegistry(private val api: CloudApi) {
+class ServerRegistry(private val api: CloudApi, private val types: QueueTypeRegistry) {
 
     private val logger = LoggerFactory.getLogger(ServerRegistry::class)
     private val mutex = Mutex()
@@ -71,10 +72,23 @@ class ServerRegistry(private val api: CloudApi) {
         val groupId = server.serverGroupId
         val group = (if (groupId != null) groupNames[groupId] else null) ?: servers[server.serverId]?.group ?: return
 
-        servers.compute(server.serverId) { id, current ->
+        val previous = servers[server.serverId]
+        val updated = servers.compute(server.serverId) { id, current ->
             if (id in stopped) current else toGameServer(server, group, state, current)
+        } ?: return
+
+        if (lacksCapacity(updated) && (previous == null || !lacksCapacity(previous))) {
+            logger.warn(
+                "Shared game server has no capacity and gets no matches",
+                Field("serverId", updated.id),
+                Field("server", updated.name),
+                Field("property", ServerProperties.CAPACITY),
+            )
         }
     }
+
+    private fun lacksCapacity(server: GameServer): Boolean =
+        server.state == ServerState.AVAILABLE && server.capacity == null && types.isShared(server.group)
 
     fun remove(id: String): GameServer? {
         stopped.add(id)
@@ -125,7 +139,7 @@ class ServerRegistry(private val api: CloudApi) {
             name = known?.name ?: "$group-${server.numericalId}",
             group = group,
             state = state,
-            capacity = capacity(server) ?: known?.capacity,
+            capacity = capacity(server) ?: known?.capacity ?: types.capacity(group),
             matches = known?.matches ?: hosted,
             hosted = hosted,
         )
