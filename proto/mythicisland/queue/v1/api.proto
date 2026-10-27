@@ -21,6 +21,13 @@ service TicketService {
   // Errors:
   // - NOT_FOUND: there is no such ticket, or the player has none.
   rpc DeleteTicket(DeleteTicketRequest) returns (DeleteTicketResponse);
+  // Sets the given properties and removes the given keys, all other properties stay as they are.
+  // A key that is set and removed at once is set.
+  //
+  // Errors:
+  // - INVALID_ARGUMENT: the properties exceed their limits afterwards.
+  // - NOT_FOUND: there is no such ticket, or the player has none.
+  rpc UpdateTicketProperties(UpdateTicketPropertiesRequest) returns (UpdateTicketPropertiesResponse);
 }
 
 message CreateTicketRequest {
@@ -41,6 +48,19 @@ message DeleteTicketRequest {
 }
 
 message DeleteTicketResponse {}
+
+message UpdateTicketPropertiesRequest {
+  oneof target {
+    string ticket_id = 1;
+    string player_id = 2;
+  }
+  map<string, string> properties = 3;
+  repeated string removed_keys = 4;
+}
+
+message UpdateTicketPropertiesResponse {
+  Ticket ticket = 1;
+}
 
 service GameServerService {
   // Accepts an offered match, the countdown starts.

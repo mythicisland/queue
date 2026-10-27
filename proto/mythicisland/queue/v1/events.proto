@@ -16,6 +16,11 @@ message TicketStateChangedEvent {
   TicketState previous_state = 2;
 }
 
+message TicketUpdatedEvent {
+  Ticket ticket = 1;
+  map<string, string> previous_properties = 2;
+}
+
 message TicketDeletedEvent {
   Ticket ticket = 1;
   TicketDeleteReason reason = 2;
