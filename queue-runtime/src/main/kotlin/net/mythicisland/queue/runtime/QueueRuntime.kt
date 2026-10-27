@@ -24,6 +24,7 @@ import net.mythicisland.queue.runtime.state.NatsStateStore
 import net.mythicisland.queue.runtime.ticket.TicketService
 import net.mythicisland.queue.runtime.ticket.TicketStore
 import net.mythicisland.queue.runtime.type.QueueTypeRegistry
+import net.mythicisland.queue.runtime.type.QueueTypeWatcher
 import net.mythicisland.queue.shared.auth.AuthInterceptor
 import net.mythicisland.queue.shared.logger.Field
 import net.mythicisland.queue.shared.logger.LoggerFactory
@@ -63,6 +64,7 @@ class QueueRuntime(private val args: QueueStartCommand) {
         val serverListener = ServerListener(api, registry, reconciler)
         val playerListener = PlayerListener(api, ticketStore, ticketService)
         val matchmaker = Matchmaker(types, ticketStore, matchStore, events)
+        val typeWatcher = QueueTypeWatcher(types, registry, ticketService)
 
         val server = createGrpcServer(
             ticketService,
@@ -82,11 +84,12 @@ class QueueRuntime(private val args: QueueStartCommand) {
             playerListener.start()
             matchmaker.start()
             reconciler.start()
+            typeWatcher.start()
 
             server.start()
         } catch (e: Exception) {
             logger.error("Failed to start queue runtime", Field.error(e))
-            shutdown(server, api, nc, serverListener, playerListener, matchmaker, reconciler)
+            shutdown(server, api, nc, typeWatcher, serverListener, playerListener, matchmaker, reconciler)
             throw e
         }
         logger.info("gRPC started", Field("port", args.grpcPort))
@@ -96,7 +99,7 @@ class QueueRuntime(private val args: QueueStartCommand) {
             Runtime.getRuntime().addShutdownHook(shutdownHook(continuation, stopped))
         }
 
-        shutdown(server, api, nc, serverListener, playerListener, matchmaker, reconciler)
+        shutdown(server, api, nc, typeWatcher, serverListener, playerListener, matchmaker, reconciler)
         stopped.countDown()
     }
 
@@ -144,6 +147,7 @@ class QueueRuntime(private val args: QueueStartCommand) {
         server: Server,
         api: CloudApi,
         nats: Connection,
+        typeWatcher: QueueTypeWatcher,
         serverListener: ServerListener,
         playerListener: PlayerListener,
         matchmaker: Matchmaker,
@@ -157,6 +161,7 @@ class QueueRuntime(private val args: QueueStartCommand) {
             server.shutdownNow()
         }
 
+        typeWatcher.shutdown()
         serverListener.shutdown()
         playerListener.shutdown()
         matchmaker.shutdown()

@@ -141,8 +141,7 @@ class MatchReconciler(
     private suspend fun recover(match: Match, now: Instant) {
         val type = types.get(match.queueType)
         if (type == null && match.state in BEFORE_TRANSFER) {
-            logger.warn("Queue type of match does not exist anymore", Field("matchId", match.id), Field("queueType", match.queueType))
-            finish(match, MatchState.CANCELLED)
+            cancelUnknownType(match)
             return
         }
 
@@ -171,6 +170,11 @@ class MatchReconciler(
         }
     }
 
+    private suspend fun cancelUnknownType(match: Match) {
+        logger.warn("Queue type of match does not exist anymore", Field("matchId", match.id), Field("queueType", match.queueType))
+        finish(match, MatchState.CANCELLED)
+    }
+
     private suspend fun serverStopped(match: Match, serverId: String) {
         when (match.state) {
             MatchState.OFFERED -> reject(match, serverId, "server stopped")
@@ -195,7 +199,14 @@ class MatchReconciler(
     }
 
     private suspend fun reconcile(match: Match, now: Instant) {
-        val type = types.get(match.queueType) ?: return
+        val type = types.get(match.queueType)
+        if (type == null) {
+            if (match.state in BEFORE_TRANSFER) {
+                cancelUnknownType(match)
+            }
+            return
+        }
+
         when (match.state) {
             MatchState.ALLOCATING -> allocate(match, type, now)
             MatchState.OFFERED -> if (!now.isBefore(offerDeadlines[match.id] ?: now)) expireOffer(match)
