@@ -29,7 +29,8 @@ interface EventApi {
     fun match(): MatchEventApi
 
     /**
-     * Events of the matches running on [serverId]. A match only shows up here once it has a server.
+     * Events of the matches running on [serverId]. A match only shows up here once it has a server,
+     * and its last state change shows up here when an offer to [serverId] is withdrawn.
      */
     fun match(serverId: String): MatchEventApi
 

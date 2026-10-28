@@ -7,7 +7,6 @@ import net.mythicisland.queue.shared.event.Subjects
 import net.mythicisland.queue.shared.logger.Field
 import net.mythicisland.queue.shared.logger.LoggerFactory
 import net.mythicisland.queue.shared.match.Match
-import net.mythicisland.queue.shared.match.MatchState
 import net.mythicisland.queue.shared.ticket.Ticket
 import net.mythicisland.queue.shared.ticket.TicketState
 import java.util.UUID
@@ -51,13 +50,14 @@ class EventPublisher(private val nats: Connection) {
         matchCreatedEvent { this.match = match.toProto() },
     )
 
-    fun matchStateChanged(match: Match, previous: MatchState) = publishMatch(
+    fun matchStateChanged(match: Match, previous: Match) = publishMatch(
         match,
         Subjects.MATCH_STATE_CHANGED,
         matchStateChangedEvent {
             this.match = match.toProto()
-            this.previousState = previous.toProto()
+            this.previousState = previous.state.toProto()
         },
+        previous.assignment?.serverId,
     )
 
     fun matchTransferred(match: Match, transferred: List<UUID>, missing: List<UUID>) = publishMatch(
@@ -79,10 +79,16 @@ class EventPublisher(private val nats: Connection) {
         },
     )
 
-    private fun publishMatch(match: Match, subject: String, event: Message) {
+    private fun publishMatch(match: Match, subject: String, event: Message, previousServerId: String? = null) {
         publish(subject, event)
-        val assignment = match.assignment ?: return
-        publish(Subjects.server(assignment.serverId, subject), event)
+
+        val serverId = match.assignment?.serverId
+        if (serverId != null) {
+            publish(Subjects.server(serverId, subject), event)
+        }
+        if (previousServerId != null && previousServerId != serverId) {
+            publish(Subjects.server(previousServerId, subject), event)
+        }
     }
 
     private fun publish(subject: String, event: Message) {

@@ -416,7 +416,7 @@ class MatchReconciler(
             return false
         }
 
-        events.matchStateChanged(current, previous.state)
+        events.matchStateChanged(current, previous)
         logger.info("Match state changed", Field("matchId", current.id), Field("from", previous.state), Field("to", current.state))
         return true
     }
