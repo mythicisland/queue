@@ -9,10 +9,14 @@ import io.nats.client.api.StorageType
 import net.mythicisland.queue.shared.logger.Field
 import net.mythicisland.queue.shared.logger.LoggerFactory
 import java.time.Duration
+import java.util.concurrent.ConcurrentHashMap
 
 class NatsStateStore(private val bucket: String, private val kv: KeyValue) : StateStore {
 
     private val logger = LoggerFactory.getLogger(NatsStateStore::class)
+    private val failedPuts = ConcurrentHashMap<String, ByteArray>()
+    // https://youtrack.jetbrains.com/issue/KT-18053
+    private val failedDeletes = ConcurrentHashMap.newKeySet<String>()
 
     override fun load(): List<ByteArray> {
         kv.purgeDeletes()
@@ -20,18 +24,51 @@ class NatsStateStore(private val bucket: String, private val kv: KeyValue) : Sta
     }
 
     override fun put(key: String, value: ByteArray) {
-        try {
-            kv.put(key, value)
-        } catch (e: Exception) {
-            sendFailure("put", key, e)
-        }
+        val error = tryPut(key, value) ?: return
+        sendFailure("put", key, error)
     }
 
     override fun delete(key: String) {
+        val error = tryDelete(key) ?: return
+        sendFailure("delete", key, error)
+    }
+
+    override fun retryFailed() {
+        for ((key, value) in failedPuts) {
+            if (tryPut(key, value) != null) {
+                return
+            }
+            logger.info("Retried state write", Field("bucket", bucket), Field("operation", "put"), Field("key", key))
+        }
+        for (key in failedDeletes) {
+            if (tryDelete(key) != null) {
+                return
+            }
+            logger.info("Retried state write", Field("bucket", bucket), Field("operation", "delete"), Field("key", key))
+        }
+    }
+
+    private fun tryPut(key: String, value: ByteArray): Exception? {
+        failedDeletes.remove(key)
+        try {
+            kv.put(key, value)
+            failedPuts.remove(key)
+            return null
+        } catch (e: Exception) {
+            failedPuts[key] = value
+            return e
+        }
+    }
+
+    private fun tryDelete(key: String): Exception? {
+        failedPuts.remove(key)
         try {
             kv.delete(key)
+            failedDeletes.remove(key)
+            return null
         } catch (e: Exception) {
-            sendFailure("delete", key, e)
+            failedDeletes.add(key)
+            return e
         }
     }
 

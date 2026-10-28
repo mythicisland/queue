@@ -8,4 +8,6 @@ interface StateStore {
 
     fun delete(key: String)
 
+    fun retryFailed()
+
 }

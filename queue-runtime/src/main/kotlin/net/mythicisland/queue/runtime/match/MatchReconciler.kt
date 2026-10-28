@@ -214,6 +214,7 @@ class MatchReconciler(
             }
         }
         provision()
+        retryFailedWrites()
     }
 
     private suspend fun reconcile(match: Match, now: Instant) {
@@ -408,6 +409,17 @@ class MatchReconciler(
             } catch (e: Exception) {
                 logger.error("Failed to provision servers", Field("group", group), Field.error(e))
             }
+        }
+    }
+
+    private suspend fun retryFailedWrites() {
+        try {
+            ticketStore.retryFailedWrites()
+            matchStore.retryFailedWrites()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger.error("Failed to retry state writes", Field.error(e))
         }
     }
 

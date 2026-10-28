@@ -81,6 +81,10 @@ class TicketStore(private val state: StateStore) {
         claimed
     }
 
+    suspend fun retryFailedWrites() = mutex.withLock {
+        state.retryFailed()
+    }
+
     private fun save(ticket: Ticket) = state.put(ticket.id, ticket.toProto().toByteArray())
 
 }

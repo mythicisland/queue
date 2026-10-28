@@ -42,6 +42,10 @@ class MatchStore(private val state: StateStore) {
         true
     }
 
+    suspend fun retryFailedWrites() = mutex.withLock {
+        state.retryFailed()
+    }
+
     private fun save(match: Match) = state.put(match.id, match.toProto().toByteArray())
 
 }
