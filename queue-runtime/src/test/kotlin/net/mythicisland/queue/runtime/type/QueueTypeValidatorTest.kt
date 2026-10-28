@@ -4,6 +4,7 @@ import net.mythicisland.queue.shared.type.MatchConfig
 import net.mythicisland.queue.shared.type.PartyConfig
 import net.mythicisland.queue.shared.type.QueueType
 import net.mythicisland.queue.shared.type.ServerConfig
+import net.mythicisland.queue.shared.type.SharedMode
 import net.mythicisland.queue.shared.type.TeamConfig
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -78,6 +79,20 @@ class QueueTypeValidatorTest {
         val type = valid.copy(match = MatchConfig(minPlayers = 2, maxPlayers = 4, parties = PartyConfig(maxSize = 5)))
 
         assertEquals(1, QueueTypeValidator.validate(type).size)
+    }
+
+    @Test
+    fun `rejects a group used by shared and exclusive queue types`() {
+        val shared = valid.copy(name = "bedwars-shared", server = ServerConfig(group = "bedwars", shared = SharedMode()))
+
+        assertEquals(1, QueueTypeValidator.validateGroups(listOf(valid, shared)).size)
+    }
+
+    @Test
+    fun `accepts shared and exclusive queue types in different groups`() {
+        val shared = valid.copy(name = "skywars", server = ServerConfig(group = "skywars", shared = SharedMode()))
+
+        assertEquals(emptyList(), QueueTypeValidator.validateGroups(listOf(valid, shared)))
     }
 
     @Test

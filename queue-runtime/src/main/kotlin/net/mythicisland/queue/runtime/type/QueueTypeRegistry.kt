@@ -17,7 +17,7 @@ class QueueTypeRegistry(path: Path) {
 
     init {
         val loaded = repository.load().map { (name, type) -> type.copy(name = name) }
-        val problems = loaded.flatMap { problems(it) }
+        val problems = loaded.flatMap { problems(it) } + groupProblems(loaded)
         if (problems.isNotEmpty()) {
             throw IllegalStateException("Found ${problems.size} problems in the queue types at $path")
         }
@@ -46,6 +46,9 @@ class QueueTypeRegistry(path: Path) {
         if (problems(type).isNotEmpty()) {
             return false
         }
+        if (groupProblems(types.values.filter { it.name != type.name } + type).isNotEmpty()) {
+            return false
+        }
         types[type.name] = type
         return true
     }
@@ -56,6 +59,14 @@ class QueueTypeRegistry(path: Path) {
         val problems = QueueTypeValidator.validate(type)
         for (problem in problems) {
             logger.error("Invalid queue type", Field("queueType", type.name), Field("problem", problem))
+        }
+        return problems
+    }
+
+    private fun groupProblems(types: Collection<QueueType>): List<String> {
+        val problems = QueueTypeValidator.validateGroups(types)
+        for (problem in problems) {
+            logger.error("Invalid queue types", Field("problem", problem))
         }
         return problems
     }

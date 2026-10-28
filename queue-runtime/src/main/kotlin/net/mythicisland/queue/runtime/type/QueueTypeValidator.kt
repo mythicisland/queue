@@ -65,4 +65,10 @@ object QueueTypeValidator {
         return problems
     }
 
+    fun validateGroups(types: Collection<QueueType>): List<String> =
+        types.groupBy { it.server.group }
+            .filterValues { group -> group.any { it.server.shared != null } && group.any { it.server.shared == null } }
+            .keys
+            .map { "server.group $it must not be used by shared and exclusive queue types at the same time" }
+
 }
