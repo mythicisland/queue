@@ -27,8 +27,10 @@ class ServerRegistry(private val api: CloudApi, private val types: QueueTypeRegi
         for (name in groups) {
             val group = api.group().getGroupByName(name).await()
             groupNames[group.serverGroupId] = name
+            for (server in running(name)) {
+                update(server)
+            }
         }
-        sync()
 
         logger.info("Loaded game servers", Field("groups", groups.size), Field("servers", servers.size))
     }
@@ -37,11 +39,7 @@ class ServerRegistry(private val api: CloudApi, private val types: QueueTypeRegi
         val removed = mutableListOf<GameServer>()
         for (group in groupNames.values.toSet()) {
             val known = byGroup(group)
-            val running = api.server().getServersByGroup(group).await()
-                .filter { server ->
-                    val state = stateOf(server)
-                    state != null && state !in STOPPED_STATES
-                }
+            val running = running(group)
 
             for (server in running) {
                 update(server)
@@ -58,6 +56,12 @@ class ServerRegistry(private val api: CloudApi, private val types: QueueTypeRegi
         }
         return removed
     }
+
+    private suspend fun running(group: String): List<Server> =
+        api.server().getServersByGroup(group).await().filter { server ->
+            val state = stateOf(server)
+            state != null && state !in STOPPED_STATES
+        }
 
     fun get(id: String): GameServer? = servers[id]
 
