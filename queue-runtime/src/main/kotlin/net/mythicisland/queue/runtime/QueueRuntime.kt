@@ -23,19 +23,19 @@ class QueueRuntime(private val args: QueueStartCommand) {
 
         val nc = connectToNats()
         val api = connectToController()
-        val services = QueueServices(args, nc, api)
+        val node = QueueNode(args, nc, api)
 
         try {
-            services.start()
+            node.start()
         } catch (e: Exception) {
             logger.error("Failed to start queue runtime", Field.error(e))
-            stop(services, api, nc)
+            stop(node, api, nc)
             throw e
         }
 
         val stopped = CountDownLatch(1)
         awaitShutdown(stopped)
-        stop(services, api, nc)
+        stop(node, api, nc)
         stopped.countDown()
     }
 
@@ -50,10 +50,10 @@ class QueueRuntime(private val args: QueueStartCommand) {
         stopped.await(30L, TimeUnit.SECONDS)
     }
 
-    private suspend fun stop(services: QueueServices, api: CloudApi, nc: Connection) {
+    private suspend fun stop(node: QueueNode, api: CloudApi, nc: Connection) {
         logger.info("Shutting down queue runtime")
 
-        services.shutdown()
+        node.shutdown()
         api.close()
         nc.close()
 
