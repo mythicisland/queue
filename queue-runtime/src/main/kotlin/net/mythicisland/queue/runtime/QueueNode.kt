@@ -101,15 +101,15 @@ class QueueNode(private val args: QueueStartCommand, private val nats: Connectio
 
     private fun stopGrpc() {
         server.shutdown()
-        if (!server.awaitTermination(10L, TimeUnit.SECONDS)) {
-            logger.warn("gRPC server did not stop in time, forcing shutdown", Field("timeoutSeconds", 10L))
+        if (!server.awaitTermination(SHUTDOWN_TIMEOUT.inWholeSeconds, TimeUnit.SECONDS)) {
+            logger.warn("gRPC server did not stop in time, forcing shutdown", Field("timeoutSeconds", SHUTDOWN_TIMEOUT.inWholeSeconds))
             server.shutdownNow()
         }
     }
 
     private companion object {
         const val READINESS = "ready"
-        val SHUTDOWN_TIMEOUT = 15.seconds
+        val SHUTDOWN_TIMEOUT = 5.seconds
     }
 
 }
