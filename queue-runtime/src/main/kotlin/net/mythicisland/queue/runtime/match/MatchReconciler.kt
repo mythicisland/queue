@@ -61,7 +61,11 @@ class MatchReconciler(
         }
 
         val type = types.get(match.queueType) ?: return null
-        val accepted = startCountdown(match, type, assignment) ?: return null
+        val accepted = startCountdown(match, type, assignment)
+        if (accepted == null) {
+            val current = matchStore.get(match.id) ?: return null
+            return if (current != match) accept(current, serverId) else null
+        }
 
         offerDeadlines.remove(match.id)
         return accepted
@@ -72,7 +76,8 @@ class MatchReconciler(
             return false
         }
         if (!transition(match, match.copy(state = MatchState.ALLOCATING, assignment = null))) {
-            return false
+            val current = matchStore.get(match.id) ?: return false
+            return current != match && reject(current, serverId, reason)
         }
 
         rejections.merge(match.id, setOf(serverId)) { old, new -> old + new }
@@ -110,11 +115,11 @@ class MatchReconciler(
         val ticket = ticketStore.get(ticketId) ?: return
         val matchId = ticket.matchId ?: return
         val stored = matchStore.get(matchId) ?: return
+        if (stored.state !in BEFORE_TRANSFER) {
+            return
+        }
 
-        val updated = stored.copy(
-            tickets = stored.tickets.map { if (it.id == ticket.id) it.copy(properties = ticket.properties) else it },
-        )
-        if (!matchStore.replace(stored, updated)) {
+        if (!matchStore.replace(stored, withCurrentProperties(stored))) {
             return ticketUpdated(ticketId)
         }
     }
@@ -240,6 +245,12 @@ class MatchReconciler(
             if (matchStore.replace(match, remaining) && players(remaining.tickets) < type.match.minPlayers) {
                 finish(remaining, MatchState.CANCELLED)
             }
+            return
+        }
+
+        val synced = withCurrentProperties(match)
+        if (synced != match) {
+            matchStore.replace(match, synced)
             return
         }
 
@@ -424,6 +435,13 @@ class MatchReconciler(
             teams = match.teams.map { team -> Team(team.playerIds - players) },
         )
     }
+
+    private fun withCurrentProperties(match: Match): Match = match.copy(
+        tickets = match.tickets.map { ticket ->
+            val current = ticketStore.get(ticket.id)
+            if (current != null && current.matchId == match.id) ticket.copy(properties = current.properties) else ticket
+        },
+    )
 
     private fun assigned(ticket: Ticket, assignment: Assignment, countdownEnd: Instant): Ticket =
         ticket.copy(state = TicketState.ASSIGNED, assignment = assignment, countdownEndTime = countdownEnd)
