@@ -139,10 +139,17 @@ class ServerRegistry(private val api: CloudApi, private val types: QueueTypeRegi
             name = known?.name ?: "$group-${server.numericalId}",
             group = group,
             state = state,
-            capacity = capacity(server) ?: known?.capacity ?: types.capacity(group),
+            capacity = resolveCapacity(server, group, known),
             matches = known?.matches ?: hosted,
             hosted = hosted,
         )
+    }
+
+    private fun resolveCapacity(server: Server, group: String, known: GameServer?): Int? {
+        if (server.properties == null) {
+            return known?.capacity ?: types.capacity(group)
+        }
+        return capacity(server) ?: types.capacity(group)
     }
 
     private fun capacity(server: Server): Int? = when (val value = server.properties?.get(ServerProperties.CAPACITY)) {
