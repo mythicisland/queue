@@ -12,6 +12,7 @@ import net.mythicisland.queue.runtime.type.QueueTypeRegistry
 import net.mythicisland.queue.shared.logger.Field
 import net.mythicisland.queue.shared.logger.LoggerFactory
 import net.mythicisland.queue.shared.match.Match
+import net.mythicisland.queue.shared.match.MatchState
 
 class ServerAllocator(
     private val api: CloudApi,
@@ -25,6 +26,8 @@ class ServerAllocator(
     private val serversProvisioner = ServersProvisioner(api, registry)
 
     suspend fun recover() {
+        removeStaleHostedMatches()
+
         val busy = matchStore.all().mapNotNull { it.assignment?.serverId }.toSet()
         for (group in types.groups()) {
             if (types.isShared(group)) {
@@ -77,6 +80,18 @@ class ServerAllocator(
         val cloudGroup = api.group().getGroupByName(group).await()
         val provisioner = if (cloudGroup.scaling?.scalingMode == ScalingMode.PLAYERS) serversProvisioner else slotsProvisioner
         provisioner.provision(cloudGroup, servers)
+    }
+
+    private suspend fun removeStaleHostedMatches() {
+        val completed = matchStore.all().filter { it.state == MatchState.COMPLETED }.map { it.id }.toSet()
+        for (group in types.groups()) {
+            for (server in registry.byGroup(group)) {
+                for (matchId in server.hosted - completed) {
+                    logger.info("Removing stale hosted match", Field("serverId", server.id), Field("matchId", matchId))
+                    registry.removeMatch(server.id, matchId)
+                }
+            }
+        }
     }
 
     private suspend fun makeAvailable(serverId: String) {
