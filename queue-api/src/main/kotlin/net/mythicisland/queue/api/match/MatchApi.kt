@@ -1,5 +1,6 @@
 package net.mythicisland.queue.api.match
 
+import net.mythicisland.queue.api.QueueException
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 
@@ -11,7 +12,7 @@ interface MatchApi {
     /**
      * Accepts a match offered to [serverId] and returns it, the countdown starts right away.
      *
-     * Fails with `FAILED_PRECONDITION` if the offer already timed out.
+     * Throws a [QueueException] with [QueueException.Code.FAILED_PRECONDITION] if the offer already timed out.
      */
     suspend fun acceptMatch(serverId: String, matchId: UUID): Match
 

@@ -4,6 +4,7 @@ import build.buf.gen.mythicisland.queue.v1.CreateTicketRequest
 import build.buf.gen.mythicisland.queue.v1.DeleteTicketRequest
 import build.buf.gen.mythicisland.queue.v1.TicketServiceGrpcKt.TicketServiceCoroutineStub
 import build.buf.gen.mythicisland.queue.v1.UpdateTicketPropertiesRequest
+import io.grpc.StatusException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.future.future
 import net.mythicisland.queue.api.internal.ProtoUtil
@@ -28,7 +29,11 @@ internal class TicketApiImpl(
             .putAllProperties(properties)
             .build()
 
-        return ProtoUtil.toTicket(stub.createTicket(request).ticket)
+        try {
+            return ProtoUtil.toTicket(stub.createTicket(request).ticket)
+        } catch (e: StatusException) {
+            throw ProtoUtil.toQueueException(e)
+        }
     }
 
     override suspend fun deleteTicket(ticketId: UUID) {
@@ -36,7 +41,11 @@ internal class TicketApiImpl(
             .setTicketId(ticketId.toString())
             .build()
 
-        stub.deleteTicket(request)
+        try {
+            stub.deleteTicket(request)
+        } catch (e: StatusException) {
+            throw ProtoUtil.toQueueException(e)
+        }
     }
 
     override suspend fun deleteTicketByPlayer(playerId: UUID) {
@@ -44,7 +53,11 @@ internal class TicketApiImpl(
             .setPlayerId(playerId.toString())
             .build()
 
-        stub.deleteTicket(request)
+        try {
+            stub.deleteTicket(request)
+        } catch (e: StatusException) {
+            throw ProtoUtil.toQueueException(e)
+        }
     }
 
     override suspend fun updateTicketProperties(
@@ -58,7 +71,11 @@ internal class TicketApiImpl(
             .addAllRemovedKeys(removedKeys)
             .build()
 
-        return ProtoUtil.toTicket(stub.updateTicketProperties(request).ticket)
+        try {
+            return ProtoUtil.toTicket(stub.updateTicketProperties(request).ticket)
+        } catch (e: StatusException) {
+            throw ProtoUtil.toQueueException(e)
+        }
     }
 
     override suspend fun updateTicketPropertiesByPlayer(
@@ -72,7 +89,11 @@ internal class TicketApiImpl(
             .addAllRemovedKeys(removedKeys)
             .build()
 
-        return ProtoUtil.toTicket(stub.updateTicketProperties(request).ticket)
+        try {
+            return ProtoUtil.toTicket(stub.updateTicketProperties(request).ticket)
+        } catch (e: StatusException) {
+            throw ProtoUtil.toQueueException(e)
+        }
     }
 
     override fun createTicketAsync(

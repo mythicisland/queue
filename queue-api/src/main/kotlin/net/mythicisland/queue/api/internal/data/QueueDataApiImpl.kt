@@ -36,7 +36,7 @@ internal class QueueDataApiImpl(
         try {
             return ProtoUtil.toTicket(stub.getTicket(request).ticket)
         } catch (e: StatusException) {
-            if (e.status.code != Status.Code.NOT_FOUND) throw e
+            if (e.status.code != Status.Code.NOT_FOUND) throw ProtoUtil.toQueueException(e)
             return null
         }
     }
@@ -49,7 +49,7 @@ internal class QueueDataApiImpl(
         try {
             return ProtoUtil.toTicket(stub.getTicketByPlayer(request).ticket)
         } catch (e: StatusException) {
-            if (e.status.code != Status.Code.NOT_FOUND) throw e
+            if (e.status.code != Status.Code.NOT_FOUND) throw ProtoUtil.toQueueException(e)
             return null
         }
     }
@@ -60,7 +60,11 @@ internal class QueueDataApiImpl(
             request.setQueueType(queueType)
         }
 
-        return stub.listTickets(request.build()).ticketsList.map(ProtoUtil::toTicket)
+        try {
+            return stub.listTickets(request.build()).ticketsList.map(ProtoUtil::toTicket)
+        } catch (e: StatusException) {
+            throw ProtoUtil.toQueueException(e)
+        }
     }
 
     override suspend fun getMatch(matchId: UUID): Match? {
@@ -71,7 +75,7 @@ internal class QueueDataApiImpl(
         try {
             return ProtoUtil.toMatch(stub.getMatch(request).match)
         } catch (e: StatusException) {
-            if (e.status.code != Status.Code.NOT_FOUND) throw e
+            if (e.status.code != Status.Code.NOT_FOUND) throw ProtoUtil.toQueueException(e)
             return null
         }
     }
@@ -85,7 +89,11 @@ internal class QueueDataApiImpl(
             request.setServerId(serverId)
         }
 
-        return stub.listMatches(request.build()).matchesList.map(ProtoUtil::toMatch)
+        try {
+            return stub.listMatches(request.build()).matchesList.map(ProtoUtil::toMatch)
+        } catch (e: StatusException) {
+            throw ProtoUtil.toQueueException(e)
+        }
     }
 
     override suspend fun getQueueType(name: String): QueueType? {
@@ -96,13 +104,17 @@ internal class QueueDataApiImpl(
         try {
             return ProtoUtil.toQueueType(stub.getQueueType(request).queueType)
         } catch (e: StatusException) {
-            if (e.status.code != Status.Code.NOT_FOUND) throw e
+            if (e.status.code != Status.Code.NOT_FOUND) throw ProtoUtil.toQueueException(e)
             return null
         }
     }
 
     override suspend fun listQueueTypes(): List<QueueType> {
-        return stub.listQueueTypes(ListQueueTypesRequest.getDefaultInstance()).queueTypesList.map(ProtoUtil::toQueueType)
+        try {
+            return stub.listQueueTypes(ListQueueTypesRequest.getDefaultInstance()).queueTypesList.map(ProtoUtil::toQueueType)
+        } catch (e: StatusException) {
+            throw ProtoUtil.toQueueException(e)
+        }
     }
 
     override suspend fun getQueueStats(queueType: String): QueueStats? {
@@ -113,13 +125,17 @@ internal class QueueDataApiImpl(
         try {
             return ProtoUtil.toQueueStats(stub.getQueueStats(request).stats)
         } catch (e: StatusException) {
-            if (e.status.code != Status.Code.NOT_FOUND) throw e
+            if (e.status.code != Status.Code.NOT_FOUND) throw ProtoUtil.toQueueException(e)
             return null
         }
     }
 
     override suspend fun listQueueStats(): List<QueueStats> {
-        return stub.listQueueStats(ListQueueStatsRequest.getDefaultInstance()).statsList.map(ProtoUtil::toQueueStats)
+        try {
+            return stub.listQueueStats(ListQueueStatsRequest.getDefaultInstance()).statsList.map(ProtoUtil::toQueueStats)
+        } catch (e: StatusException) {
+            throw ProtoUtil.toQueueException(e)
+        }
     }
 
     override fun getTicketAsync(ticketId: UUID): CompletableFuture<Ticket?> = scope.future { getTicket(ticketId) }

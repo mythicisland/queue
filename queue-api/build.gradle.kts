@@ -4,9 +4,9 @@ plugins {
 }
 
 dependencies {
-    api(libs.queue.protos)
-    api(libs.jnats)
-    api(libs.bundles.grpc)
+    implementation(libs.queue.protos)
+    implementation(libs.jnats)
+    implementation(libs.bundles.grpc)
     implementation(project(":queue-shared"))
 }
 

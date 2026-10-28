@@ -8,6 +8,8 @@ import net.mythicisland.queue.api.ticket.TicketApi
 
 /**
  * Entrypoint for talking to the queue.
+ *
+ * Every call to the queue throws a [QueueException] when it fails.
  */
 interface QueueApi : AutoCloseable {
 

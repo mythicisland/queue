@@ -1,6 +1,9 @@
 package net.mythicisland.queue.api.internal
 
 import com.google.protobuf.Timestamp
+import io.grpc.Status
+import io.grpc.StatusException
+import net.mythicisland.queue.api.QueueException
 import net.mythicisland.queue.api.match.Assignment
 import net.mythicisland.queue.api.match.Match
 import net.mythicisland.queue.api.match.MatchReleaseReason
@@ -133,5 +136,19 @@ internal object ProtoUtil {
     fun toDuration(duration: ProtoDuration): Duration = Duration.ofSeconds(duration.seconds, duration.nanos.toLong())
 
     fun toInstant(timestamp: Timestamp): Instant = Instant.ofEpochSecond(timestamp.seconds, timestamp.nanos.toLong())
+
+    fun toQueueException(e: StatusException): QueueException {
+        val code = when (e.status.code) {
+            Status.Code.NOT_FOUND -> QueueException.Code.NOT_FOUND
+            Status.Code.ALREADY_EXISTS -> QueueException.Code.ALREADY_EXISTS
+            Status.Code.INVALID_ARGUMENT -> QueueException.Code.INVALID_ARGUMENT
+            Status.Code.FAILED_PRECONDITION -> QueueException.Code.FAILED_PRECONDITION
+            Status.Code.PERMISSION_DENIED -> QueueException.Code.PERMISSION_DENIED
+            Status.Code.UNAUTHENTICATED -> QueueException.Code.UNAUTHENTICATED
+            Status.Code.UNAVAILABLE, Status.Code.DEADLINE_EXCEEDED -> QueueException.Code.UNAVAILABLE
+            else -> QueueException.Code.UNKNOWN
+        }
+        return QueueException(code, e.status.description ?: e.status.code.name, e)
+    }
 
 }

@@ -4,6 +4,7 @@ import build.buf.gen.mythicisland.queue.v1.AcceptMatchRequest
 import build.buf.gen.mythicisland.queue.v1.GameServerServiceGrpcKt.GameServerServiceCoroutineStub
 import build.buf.gen.mythicisland.queue.v1.RejectMatchRequest
 import build.buf.gen.mythicisland.queue.v1.ReleaseMatchRequest
+import io.grpc.StatusException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.future.future
 import net.mythicisland.queue.api.internal.ProtoUtil
@@ -23,7 +24,11 @@ internal class MatchApiImpl(
             .setMatchId(matchId.toString())
             .build()
 
-        return ProtoUtil.toMatch(stub.acceptMatch(request).match)
+        try {
+            return ProtoUtil.toMatch(stub.acceptMatch(request).match)
+        } catch (e: StatusException) {
+            throw ProtoUtil.toQueueException(e)
+        }
     }
 
     override suspend fun rejectMatch(serverId: String, matchId: UUID, reason: String) {
@@ -33,7 +38,11 @@ internal class MatchApiImpl(
             .setReason(reason)
             .build()
 
-        stub.rejectMatch(request)
+        try {
+            stub.rejectMatch(request)
+        } catch (e: StatusException) {
+            throw ProtoUtil.toQueueException(e)
+        }
     }
 
     override suspend fun releaseMatch(serverId: String, matchId: UUID) {
@@ -42,7 +51,11 @@ internal class MatchApiImpl(
             .setMatchId(matchId.toString())
             .build()
 
-        stub.releaseMatch(request)
+        try {
+            stub.releaseMatch(request)
+        } catch (e: StatusException) {
+            throw ProtoUtil.toQueueException(e)
+        }
     }
 
     override fun acceptMatchAsync(serverId: String, matchId: UUID): CompletableFuture<Match> =

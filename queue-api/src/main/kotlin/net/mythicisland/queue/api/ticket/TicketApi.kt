@@ -1,5 +1,6 @@
 package net.mythicisland.queue.api.ticket
 
+import net.mythicisland.queue.api.QueueException
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 
@@ -11,7 +12,7 @@ interface TicketApi {
     /**
      * Creates a ticket for [playerIds] in all of [queueTypes] and returns it.
      *
-     * Fails with `ALREADY_EXISTS` if one of the players already has a ticket.
+     * Throws a [QueueException] with [QueueException.Code.ALREADY_EXISTS] if one of the players already has a ticket.
      */
     suspend fun createTicket(
         playerIds: List<UUID>,
@@ -60,7 +61,7 @@ interface TicketApi {
      * Sets [properties] and removes [removedKeys] on the ticket with the given [ticketId] and returns it.
      * All other properties stay as they are, a key in both is set.
      *
-     * Fails with `NOT_FOUND` if there is no such ticket, and with `INVALID_ARGUMENT` if the properties exceed their limits.
+     * Throws a [QueueException] with [QueueException.Code.NOT_FOUND] if there is no such ticket, and with [QueueException.Code.INVALID_ARGUMENT] if the properties exceed their limits.
      */
     suspend fun updateTicketProperties(
         ticketId: UUID,
