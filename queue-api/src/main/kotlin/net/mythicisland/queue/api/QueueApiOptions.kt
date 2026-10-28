@@ -14,6 +14,7 @@ data class QueueApiOptions(
     val natsUser: String = System.getenv("QUEUE_NATS_USER") ?: "admin",
     val natsSecret: String = System.getenv("QUEUE_NATS_SECRET") ?: "sup3rS3cr3t",
     val authSecret: String = System.getenv("QUEUE_AUTH_SECRET") ?: "sup3rS3cr3t",
+    val serverId: String? = System.getenv("SIMPLECLOUD_UNIQUE_ID"),
 ) {
 
     init {

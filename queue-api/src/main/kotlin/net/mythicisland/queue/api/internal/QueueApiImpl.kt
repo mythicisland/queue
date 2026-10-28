@@ -45,10 +45,15 @@ internal class QueueApiImpl(options: QueueApiOptions) : QueueApi {
     init {
         val credentials = AuthCredentials(options.authSecret)
 
-        ticketApi = TicketApiImpl(TicketServiceCoroutineStub(channel).withCallCredentials(credentials), scope)
-        matchApi = MatchApiImpl(GameServerServiceCoroutineStub(channel).withCallCredentials(credentials), scope)
-        dataApi = QueueDataApiImpl(QueueDataServiceCoroutineStub(channel).withCallCredentials(credentials), scope)
         eventApi = EventApiImpl(connection)
+        ticketApi = TicketApiImpl(TicketServiceCoroutineStub(channel).withCallCredentials(credentials), scope)
+        matchApi = MatchApiImpl(
+            GameServerServiceCoroutineStub(channel).withCallCredentials(credentials),
+            scope,
+            eventApi,
+            options.serverId,
+        )
+        dataApi = QueueDataApiImpl(QueueDataServiceCoroutineStub(channel).withCallCredentials(credentials), scope)
     }
 
     override fun ticket(): TicketApi = ticketApi
