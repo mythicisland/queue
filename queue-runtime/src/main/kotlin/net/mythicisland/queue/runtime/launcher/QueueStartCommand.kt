@@ -3,13 +3,16 @@ package net.mythicisland.queue.runtime.launcher
 import com.github.ajalt.clikt.command.SuspendingCliktCommand
 import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.defaultLazy
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.path
+import com.github.ajalt.clikt.parameters.types.restrictTo
 import com.github.ajalt.clikt.sources.PropertiesValueSource
 import com.github.ajalt.clikt.sources.ValueSource
 import net.mythicisland.queue.runtime.QueueRuntime
 import java.io.File
+import java.net.InetAddress
 import java.nio.file.Path
 
 object QueueStartCommand : SuspendingCliktCommand() {
@@ -41,6 +44,20 @@ object QueueStartCommand : SuspendingCliktCommand() {
 
     val matchesBucket: String by option(help = "NATS KV bucket for matches (default: queue-matches)", envvar = "MATCHES_BUCKET")
         .default("queue-matches")
+
+    val leaderBucket: String by option(help = "NATS KV bucket for the leader lease (default: queue-leader)", envvar = "LEADER_BUCKET")
+        .default("queue-leader")
+
+    val leaderTtl: Int by option(help = "Seconds until the leader lease expires when it is not renewed (default: 10)", envvar = "LEADER_TTL")
+        .int()
+        .restrictTo(min = 3)
+        .default(10)
+
+    val instanceId: String by option(help = "Unique id of this instance (default: hostname)", envvar = "INSTANCE_ID")
+        .defaultLazy { InetAddress.getLocalHost().hostName }
+
+    val advertiseAddress: String by option(help = "Address other instances use to reach this gRPC server (default: <ip>:<grpc-port>)", envvar = "ADVERTISE_ADDRESS")
+        .defaultLazy { "${InetAddress.getLocalHost().hostAddress}:$grpcPort" }
 
     val typesPath: Path by option(help = "Path used for queue types (default: types)", envvar = "TYPE_PATH")
         .path()

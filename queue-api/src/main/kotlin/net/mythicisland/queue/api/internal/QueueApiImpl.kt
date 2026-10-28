@@ -31,6 +31,8 @@ internal class QueueApiImpl(options: QueueApiOptions) : QueueApi {
         .usePlaintext()
         .keepAliveTime(30, TimeUnit.SECONDS)
         .keepAliveTimeout(10, TimeUnit.SECONDS)
+        .defaultServiceConfig(SERVICE_CONFIG)
+        .enableRetry()
         .build()
 
     private val connection: Connection = connectNats(options)
@@ -98,6 +100,27 @@ internal class QueueApiImpl(options: QueueApiOptions) : QueueApi {
             channel.shutdownNow()
             Thread.currentThread().interrupt()
         }
+    }
+
+    private companion object {
+        val SERVICE_CONFIG = mapOf(
+            "methodConfig" to listOf(
+                mapOf(
+                    "name" to listOf(
+                        mapOf("service" to "mythicisland.queue.v1.TicketService"),
+                        mapOf("service" to "mythicisland.queue.v1.GameServerService"),
+                        mapOf("service" to "mythicisland.queue.v1.QueueDataService"),
+                    ),
+                    "retryPolicy" to mapOf(
+                        "maxAttempts" to 5.0,
+                        "initialBackoff" to "0.5s",
+                        "maxBackoff" to "5s",
+                        "backoffMultiplier" to 2.0,
+                        "retryableStatusCodes" to listOf("UNAVAILABLE"),
+                    ),
+                ),
+            ),
+        )
     }
 
 }

@@ -1,8 +1,7 @@
 package net.mythicisland.queue.runtime
 
 import app.simplecloud.api.CloudApi
-import io.grpc.Server
-import io.grpc.ServerBuilder
+import io.grpc.BindableService
 import io.nats.client.Connection
 import net.mythicisland.queue.runtime.data.QueueDataService
 import net.mythicisland.queue.runtime.event.EventPublisher
@@ -21,10 +20,8 @@ import net.mythicisland.queue.runtime.ticket.TicketStore
 import net.mythicisland.queue.runtime.transfer.PlayerTransferService
 import net.mythicisland.queue.runtime.type.QueueTypeRegistry
 import net.mythicisland.queue.runtime.type.QueueTypeWatcher
-import net.mythicisland.queue.shared.auth.AuthInterceptor
 import net.mythicisland.queue.shared.logger.Field
 import net.mythicisland.queue.shared.logger.LoggerFactory
-import java.util.concurrent.TimeUnit
 
 class QueueServices(private val args: QueueStartCommand, nats: Connection, api: CloudApi) {
 
@@ -53,12 +50,11 @@ class QueueServices(private val args: QueueStartCommand, nats: Connection, api: 
     private val matchmaker = Matchmaker(types, ticketStore, matchStore, events)
     private val typeWatcher = QueueTypeWatcher(types, registry, ticketService)
 
-    private val server: Server = ServerBuilder.forPort(args.grpcPort)
-        .intercept(AuthInterceptor(args.authSecret))
-        .addService(ticketService)
-        .addService(GameServerService(matchStore, allocator, reconciler))
-        .addService(QueueDataService(types, ticketStore, matchStore))
-        .build()
+    val grpcServices: List<BindableService> = listOf(
+        ticketService,
+        GameServerService(matchStore, allocator, reconciler),
+        QueueDataService(types, ticketStore, matchStore),
+    )
 
     suspend fun start() {
         ticketStore.load()
@@ -73,26 +69,14 @@ class QueueServices(private val args: QueueStartCommand, nats: Connection, api: 
         matchmaker.start()
         reconciler.start()
         typeWatcher.start()
-
-        server.start()
-        logger.info("gRPC started", Field("port", args.grpcPort))
     }
 
     suspend fun shutdown() {
-        stopGrpc()
         typeWatcher.shutdown()
         serverListener.shutdown()
         playerListener.shutdown()
         matchmaker.shutdown()
         reconciler.shutdown()
-    }
-
-    private fun stopGrpc() {
-        server.shutdown()
-        if (!server.awaitTermination(10L, TimeUnit.SECONDS)) {
-            logger.warn("gRPC server did not stop in time, forcing shutdown", Field("timeoutSeconds", 10L))
-            server.shutdownNow()
-        }
     }
 
 }

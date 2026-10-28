@@ -9,6 +9,7 @@ dependencies {
     implementation(libs.jnats)
     implementation(libs.simplecloud.api)
     implementation(libs.bundles.grpc)
+    implementation(libs.grpc.services)
     implementation(libs.bundles.logging)
     implementation(libs.bundles.configurate)
 }
