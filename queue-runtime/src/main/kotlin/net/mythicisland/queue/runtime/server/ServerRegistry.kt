@@ -169,7 +169,7 @@ class ServerRegistry(private val api: CloudApi, private val types: QueueTypeRegi
 
     companion object {
         val STOPPED_STATES = setOf(ServerState.STOPPING, ServerState.CLEANUP, ServerState.STOPPED)
-        private val STARTING_STATES = setOf(ServerState.QUEUED, ServerState.PREPARING, ServerState.STARTING)
+        val STARTING_STATES = setOf(ServerState.QUEUED, ServerState.PREPARING, ServerState.STARTING)
 
         fun stateOf(server: Server): ServerState? = try {
             server.state

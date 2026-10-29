@@ -8,7 +8,7 @@ import io.grpc.ServerMethodDefinition
 import io.grpc.ServerServiceDefinition
 import java.util.concurrent.atomic.AtomicReference
 
-class RequestRouter(private val auth: ServerInterceptor, forwarded: List<ServerServiceDefinition>) : HandlerRegistry() {
+class QueueRegistry(private val auth: ServerInterceptor, forwarded: List<ServerServiceDefinition>) : HandlerRegistry() {
 
     private val forwarding = index(forwarded)
     private val methods = AtomicReference(forwarding)

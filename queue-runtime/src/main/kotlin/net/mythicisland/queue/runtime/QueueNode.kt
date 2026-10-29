@@ -11,7 +11,7 @@ import net.mythicisland.queue.runtime.launcher.QueueStartCommand
 import net.mythicisland.queue.runtime.leader.LeaderElection
 import net.mythicisland.queue.runtime.leader.LeaderForwarder
 import net.mythicisland.queue.runtime.leader.Lease
-import net.mythicisland.queue.runtime.leader.RequestRouter
+import net.mythicisland.queue.runtime.leader.QueueRegistry
 import net.mythicisland.queue.shared.auth.AuthInterceptor
 import net.mythicisland.queue.shared.logger.Field
 import net.mythicisland.queue.shared.logger.LoggerFactory
@@ -26,17 +26,17 @@ class QueueNode(private val args: QueueStartCommand, private val nats: Connectio
     private val self = Lease(args.instanceId, args.advertiseAddress)
     private val election = LeaderElection.init(nats, args.leaderBucket, self, args.leaderTtl.seconds)
     private val forwarder = LeaderForwarder(election.leader, self, args.authSecret)
-    private val router = RequestRouter(AuthInterceptor(args.authSecret), forwarder.services())
+    private val registry = QueueRegistry(AuthInterceptor(args.authSecret), forwarder.services())
     private val health = HealthStatusManager()
     private val services = AtomicReference<QueueServices?>(null)
 
     private val server: Server = ServerBuilder.forPort(args.grpcPort)
         .addService(health.healthService)
-        .fallbackHandlerRegistry(router)
+        .fallbackHandlerRegistry(registry)
         .build()
 
     fun start() {
-        health.setStatus(READINESS, ServingStatus.NOT_SERVING)
+        health.setStatus("ready", ServingStatus.NOT_SERVING)
         server.start()
         logger.info("gRPC started", Field("port", args.grpcPort), Field("instanceId", self.holder))
 
@@ -50,7 +50,7 @@ class QueueNode(private val args: QueueStartCommand, private val nats: Connectio
         }
         scope.launch {
             election.leader.collect { leader ->
-                health.setStatus(READINESS, if (leader == null) ServingStatus.NOT_SERVING else ServingStatus.SERVING)
+                health.setStatus("ready", if (leader == null) ServingStatus.NOT_SERVING else ServingStatus.SERVING)
             }
         }
         election.start()
@@ -58,7 +58,7 @@ class QueueNode(private val args: QueueStartCommand, private val nats: Connectio
 
     suspend fun shutdown() {
         health.enterTerminalState()
-        stopGrpc()
+        shutdownServer()
         election.stop()
         scope.coroutineContext.job.cancelAndJoin()
         follow()
@@ -70,7 +70,7 @@ class QueueNode(private val args: QueueStartCommand, private val nats: Connectio
         try {
             val started = startServices()
             services.set(started)
-            router.lead(started.grpcServices)
+            registry.lead(started.grpcServices)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -91,25 +91,22 @@ class QueueNode(private val args: QueueStartCommand, private val nats: Connectio
     }
 
     private suspend fun follow() {
-        router.follow()
+        registry.follow()
+        val timeout = 5.seconds
         val stopping = services.getAndSet(null) ?: return
-        if (withTimeoutOrNull(SHUTDOWN_TIMEOUT) { stopping.shutdown() } == null) {
-            logger.error("Halting because queue services did not stop in time", Field("timeoutSeconds", SHUTDOWN_TIMEOUT.inWholeSeconds))
+        if (withTimeoutOrNull(timeout) { stopping.shutdown() } == null) {
+            logger.error("Halting because queue services did not stop in time", Field("timeoutSeconds", timeout.inWholeSeconds))
             Runtime.getRuntime().halt(1)
         }
     }
 
-    private fun stopGrpc() {
+    private fun shutdownServer() {
+        val timeout = 5.seconds
         server.shutdown()
-        if (!server.awaitTermination(SHUTDOWN_TIMEOUT.inWholeSeconds, TimeUnit.SECONDS)) {
-            logger.warn("gRPC server did not stop in time, forcing shutdown", Field("timeoutSeconds", SHUTDOWN_TIMEOUT.inWholeSeconds))
+        if (!server.awaitTermination(timeout.inWholeSeconds, TimeUnit.SECONDS)) {
+            logger.warn("gRPC server did not stop in time, forcing shutdown", Field("timeoutSeconds", timeout.inWholeSeconds))
             server.shutdownNow()
         }
-    }
-
-    private companion object {
-        const val READINESS = "ready"
-        val SHUTDOWN_TIMEOUT = 5.seconds
     }
 
 }
