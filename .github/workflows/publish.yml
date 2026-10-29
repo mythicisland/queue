@@ -88,6 +88,13 @@ jobs:
 
       - name: Build & push image
         env:
+          VERSION: ${{ needs.verify.outputs.version }}
+          PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          TAGS="$VERSION,v$VERSION"
           # Only full releases move the "latest" tag
-          TAGS: ${{ github.event.release.prerelease && needs.verify.outputs.version || format('{0},latest', needs.verify.outputs.version) }}
-        run: ./gradlew :queue-runtime:jib -Djib.to.tags="$TAGS" -Djib.console=plain
+          if [ "$PRERELEASE" != "true" ]; then
+            TAGS="$TAGS,latest"
+          fi
+          echo "Pushing tags: $TAGS"
+          ./gradlew :queue-runtime:jib -Djib.to.tags="$TAGS" -Djib.console=plain

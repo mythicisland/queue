@@ -16,6 +16,7 @@ dependencies {
 
 application {
     mainClass.set("net.mythicisland.queue.runtime.launcher.LauncherKt")
+    applicationDefaultJvmArgs = listOf("--enable-native-access=ALL-UNNAMED")
 }
 
 jib {
@@ -28,7 +29,11 @@ jib {
     }
     container {
         mainClass = application.mainClass.get()
-        jvmFlags = listOf("-XX:MaxRAMPercentage=75", "-XX:+ExitOnOutOfMemoryError")
+        jvmFlags = listOf(
+            "-XX:MaxRAMPercentage=75",
+            "-XX:+ExitOnOutOfMemoryError",
+            "--enable-native-access=ALL-UNNAMED",
+        )
         ports = listOf("4564")
         user = "1000:1000"
     }
