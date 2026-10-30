@@ -70,7 +70,7 @@ class QueueDataService(
         return QueueStats(
             queueType = type.name,
             searchingTickets = searching.size,
-            searchingPlayers = searching.sumOf { it.playerIds.size },
+            searchingPlayers = searching.sumOf { it.getPlayerCount() },
             activeMatches = matchStore.all().count { it.queueType == type.name && it.state != MatchState.COMPLETED },
         )
     }

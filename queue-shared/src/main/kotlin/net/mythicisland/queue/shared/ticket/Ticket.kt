@@ -19,6 +19,15 @@ data class Ticket(
     val properties: Map<String, String> = emptyMap(),
 ) {
 
+    fun getPlayerCount(): Int = playerIds.size
+
+    fun matched(matchId: String): Ticket = copy(state = TicketState.MATCHED, matchId = matchId)
+
+    fun assigned(assignment: Assignment, countdownEnd: Instant): Ticket =
+        copy(state = TicketState.ASSIGNED, assignment = assignment, countdownEndTime = countdownEnd)
+
+    fun searching(): Ticket = copy(state = TicketState.SEARCHING, matchId = null, assignment = null, countdownEndTime = null)
+
     fun toProto(): TicketProto = ticket {
         id = this@Ticket.id
         playerIds += this@Ticket.playerIds.map(UUID::toString)

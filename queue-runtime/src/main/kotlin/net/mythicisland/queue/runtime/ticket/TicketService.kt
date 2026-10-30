@@ -62,7 +62,7 @@ class TicketService(
         logger.info(
             "Created ticket",
             Field("ticketId", created.id),
-            Field("players", created.playerIds.size),
+            Field("players", created.getPlayerCount()),
             Field("queueTypes", created.queueTypes),
         )
         return createTicketResponse { this.ticket = created.toProto() }

@@ -73,7 +73,7 @@ class TicketStore(private val state: StateStore) {
             return@withLock null
         }
 
-        val claimed = searching.map { it.copy(state = TicketState.MATCHED, matchId = matchId) }
+        val claimed = searching.map { it.matched(matchId) }
         for (ticket in claimed) {
             tickets[ticket.id] = ticket
             save(ticket)

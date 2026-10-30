@@ -15,7 +15,6 @@ import net.mythicisland.queue.shared.logger.LoggerFactory
 import net.mythicisland.queue.shared.match.Assignment
 import net.mythicisland.queue.shared.match.Match
 import net.mythicisland.queue.shared.match.MatchState
-import net.mythicisland.queue.shared.match.Team
 import net.mythicisland.queue.shared.ticket.Ticket
 import net.mythicisland.queue.shared.ticket.TicketState
 import net.mythicisland.queue.shared.type.QueueType
@@ -24,6 +23,30 @@ import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.milliseconds
 
+/**
+ * The reconciler compares the state of every match in the [MatchStore] with the servers
+ * in the [ServerRegistry] and runs the next step for it, every 500ms it does the following:
+ *
+ * - fetch all matches from the store
+ *
+ * - matches with state [MatchState.ALLOCATING]:
+ *   -> if the allocation timeout is reached, set state to [MatchState.FAILED]
+ *   -> drop tickets that left, cancel if there are not enough players anymore
+ *   -> exclusive group: get a free server and start the countdown
+ *   -> shared group: offer the match to a server and set state to [MatchState.OFFERED]
+ *
+ * - matches with state [MatchState.OFFERED]:
+ *   -> if the server accepts, start the countdown
+ *   -> if the server rejects or doesn't answer in time, go back to [MatchState.ALLOCATING]
+ *      and don't offer it to that server again
+ *
+ * - matches with state [MatchState.COUNTDOWN]:
+ *   -> when the countdown is over, set state to [MatchState.TRANSFERRING]
+ *   -> if there are not enough players left, set state to [MatchState.CANCELLED]
+ *
+ * - matches with state [MatchState.TRANSFERRING]:
+ *   -> transfer the players, delete their tickets and set state to [MatchState.COMPLETED]
+ */
 class MatchReconciler(
     private val types: QueueTypeRegistry,
     private val ticketStore: TicketStore,
@@ -48,8 +71,8 @@ class MatchReconciler(
         }
     }
 
-    suspend fun shutdown() {
-        scope.coroutineContext.job.cancelAndJoin()
+    fun shutdown() {
+        scope.cancel()
     }
 
     fun isRejected(matchId: String, serverId: String): Boolean = rejections[matchId]?.contains(serverId) == true
@@ -100,13 +123,13 @@ class MatchReconciler(
     suspend fun ticketLeft(ticket: Ticket) {
         val matchId = ticket.matchId ?: return
         val stored = matchStore.get(matchId) ?: return
-        val match = if (stored.state == MatchState.ALLOCATING) withoutTickets(stored, listOf(ticket)) else stored
+        val match = if (stored.state == MatchState.ALLOCATING) stored.without(listOf(ticket)) else stored
         if (match != stored && !matchStore.replace(stored, match)) {
             return ticketLeft(ticket)
         }
 
         val type = types.get(match.queueType) ?: return
-        if (match.state in BEFORE_TRANSFER && players(present(match)) < type.match.minPlayers) {
+        if (match.state.isBeforeTransfer() && players(present(match)) < type.match.minPlayers) {
             finish(match, MatchState.CANCELLED)
         }
     }
@@ -115,7 +138,7 @@ class MatchReconciler(
         val ticket = ticketStore.get(ticketId) ?: return
         val matchId = ticket.matchId ?: return
         val stored = matchStore.get(matchId) ?: return
-        if (stored.state !in BEFORE_TRANSFER) {
+        if (!stored.state.isBeforeTransfer()) {
             return
         }
 
@@ -151,14 +174,14 @@ class MatchReconciler(
         for (ticket in ticketStore.all()) {
             val matchId = ticket.matchId ?: continue
             if (matchStore.get(matchId) == null) {
-                updateTicket(ticket, searching(ticket))
+                updateTicket(ticket, ticket.searching())
             }
         }
     }
 
     private suspend fun recover(match: Match, now: Instant) {
         val type = types.get(match.queueType)
-        if (type == null && match.state in BEFORE_TRANSFER) {
+        if (type == null && match.state.isBeforeTransfer()) {
             cancelUnknownType(match)
             return
         }
@@ -220,7 +243,7 @@ class MatchReconciler(
     private suspend fun reconcile(match: Match, now: Instant) {
         val type = types.get(match.queueType)
         if (type == null) {
-            if (match.state in BEFORE_TRANSFER) {
+            if (match.state.isBeforeTransfer()) {
                 cancelUnknownType(match)
             }
             return
@@ -242,7 +265,7 @@ class MatchReconciler(
 
         val left = match.tickets.filter { !isPresent(it, match) }
         if (left.isNotEmpty()) {
-            val remaining = withoutTickets(match, left)
+            val remaining = match.without(left)
             if (matchStore.replace(match, remaining) && players(remaining.tickets) < type.match.minPlayers) {
                 finish(remaining, MatchState.CANCELLED)
             }
@@ -294,7 +317,7 @@ class MatchReconciler(
             assignment = assignment,
             countdownEndTime = end,
             tickets = match.tickets.map { ticket ->
-                if (isPresent(ticket, match)) assigned(ticket, assignment, end) else ticket
+                if (isPresent(ticket, match)) ticket.assigned(assignment, end) else ticket
             },
         )
         if (!transition(match, counting)) {
@@ -309,7 +332,7 @@ class MatchReconciler(
         val end = counting.countdownEndTime ?: return
         for (ticket in present(counting)) {
             if (ticket.state == TicketState.MATCHED) {
-                updateTicket(ticket, assigned(ticket, assignment, end))
+                updateTicket(ticket, ticket.assigned(assignment, end))
             }
         }
     }
@@ -372,7 +395,7 @@ class MatchReconciler(
     }
 
     private suspend fun finish(match: Match, state: MatchState) {
-        if (match.state !in BEFORE_TRANSFER) {
+        if (!match.state.isBeforeTransfer()) {
             return
         }
 
@@ -387,7 +410,7 @@ class MatchReconciler(
         for (ticket in finished.tickets) {
             val current = ticketStore.get(ticket.id) ?: continue
             if (current.matchId == finished.id) {
-                updateTicket(current, searching(current))
+                updateTicket(current, current.searching())
             }
         }
 
@@ -439,15 +462,6 @@ class MatchReconciler(
         }
     }
 
-    private fun withoutTickets(match: Match, tickets: List<Ticket>): Match {
-        val ids = tickets.map { it.id }.toSet()
-        val players = tickets.flatMap { it.playerIds }.toSet()
-        return match.copy(
-            tickets = match.tickets.filter { it.id !in ids },
-            teams = match.teams.map { team -> Team(team.playerIds - players) },
-        )
-    }
-
     private fun withCurrentProperties(match: Match): Match = match.copy(
         tickets = match.tickets.map { ticket ->
             val current = ticketStore.get(ticket.id)
@@ -455,26 +469,16 @@ class MatchReconciler(
         },
     )
 
-    private fun assigned(ticket: Ticket, assignment: Assignment, countdownEnd: Instant): Ticket =
-        ticket.copy(state = TicketState.ASSIGNED, assignment = assignment, countdownEndTime = countdownEnd)
-
-    private fun searching(ticket: Ticket): Ticket =
-        ticket.copy(state = TicketState.SEARCHING, matchId = null, assignment = null, countdownEndTime = null)
-
     private fun isPresent(ticket: Ticket, match: Match): Boolean = ticketStore.get(ticket.id)?.matchId == match.id
 
     private fun present(match: Match): List<Ticket> =
         match.tickets.mapNotNull { ticketStore.get(it.id) }.filter { it.matchId == match.id }
 
-    private fun players(tickets: List<Ticket>): Int = tickets.sumOf { it.playerIds.size }
+    private fun players(tickets: List<Ticket>): Int = tickets.sumOf { it.getPlayerCount() }
 
     private fun clear(matchId: String) {
         offerDeadlines.remove(matchId)
         rejections.remove(matchId)
-    }
-
-    private companion object {
-        val BEFORE_TRANSFER = setOf(MatchState.ALLOCATING, MatchState.OFFERED, MatchState.COUNTDOWN)
     }
 
 }

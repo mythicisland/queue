@@ -73,7 +73,7 @@ class Matchmaker(
                 "Created match",
                 Field("matchId", match.id),
                 Field("queueType", type.name),
-                Field("players", claimed.sumOf { it.playerIds.size }),
+                Field("players", claimed.sumOf { it.getPlayerCount() }),
             )
         }
     }

@@ -17,6 +17,15 @@ data class Match(
     val countdownEndTime: Instant? = null,
 ) {
 
+    fun without(tickets: List<Ticket>): Match {
+        val ids = tickets.map { it.id }.toSet()
+        val players = tickets.flatMap { it.playerIds }.toSet()
+        return copy(
+            tickets = this.tickets.filter { it.id !in ids },
+            teams = teams.map { team -> Team(team.playerIds - players) },
+        )
+    }
+
     fun toProto(): MatchProto = match {
         id = this@Match.id
         queueType = this@Match.queueType

@@ -25,12 +25,12 @@ object TicketSelector {
             return selected
         }
 
-        val playerCounts = selected.runningFold(0) { sum, ticket -> sum + ticket.playerIds.size }.drop(1)
+        val playerCounts = selected.runningFold(0) { sum, ticket -> sum + ticket.getPlayerCount() }.drop(1)
         val reachedMinAt = selected[playerCounts.indexOfFirst { it >= config.minPlayers }].createdAt
 
         return if (now.isBefore(reachedMinAt.plus(config.fillTime))) null else selected
     }
 
-    private fun players(tickets: List<Ticket>): Int = tickets.sumOf { it.playerIds.size }
+    private fun players(tickets: List<Ticket>): Int = tickets.sumOf { it.getPlayerCount() }
 
 }

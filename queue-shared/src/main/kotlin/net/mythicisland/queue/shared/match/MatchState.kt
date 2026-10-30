@@ -11,6 +11,8 @@ enum class MatchState {
     FAILED,
     CANCELLED;
 
+    fun isBeforeTransfer(): Boolean = this == ALLOCATING || this == OFFERED || this == COUNTDOWN
+
     fun toProto(): MatchStateProto = when (this) {
         ALLOCATING -> MatchStateProto.MATCH_STATE_ALLOCATING
         OFFERED -> MatchStateProto.MATCH_STATE_OFFERED
