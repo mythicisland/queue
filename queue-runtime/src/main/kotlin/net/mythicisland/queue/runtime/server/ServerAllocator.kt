@@ -13,6 +13,7 @@ import net.mythicisland.queue.shared.logger.Field
 import net.mythicisland.queue.shared.logger.LoggerFactory
 import net.mythicisland.queue.shared.match.Match
 import net.mythicisland.queue.shared.match.MatchState
+import kotlin.jvm.optionals.getOrNull
 
 class ServerAllocator(
     private val api: CloudApi,
@@ -77,8 +78,8 @@ class ServerAllocator(
     }
 
     suspend fun provision(group: String, servers: Int) {
-        val cloudGroup = api.group().getGroupByName(group).await()
-        val provisioner = if (cloudGroup.scaling?.scalingMode == ScalingMode.PLAYERS) serversProvisioner else slotsProvisioner
+        val cloudGroup = api.group().findGroupByName(group).await().getOrNull() ?: return
+        val provisioner = if (cloudGroup.scaling?.scalingMode == ScalingMode.SLOTS) slotsProvisioner else serversProvisioner
         provisioner.provision(cloudGroup, servers)
     }
 
