@@ -11,6 +11,8 @@ import net.mythicisland.queue.runtime.type.QueueTypeRegistry
 import net.mythicisland.queue.shared.logger.Field
 import net.mythicisland.queue.shared.logger.LoggerFactory
 import net.mythicisland.queue.shared.server.ServerProperties
+import java.time.Duration
+import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.jvm.optionals.getOrNull
 
@@ -20,8 +22,8 @@ class ServerRegistry(private val api: CloudApi, private val types: QueueTypeRegi
     private val mutex = Mutex()
     private val groupNames = ConcurrentHashMap<String, String>()
     private val servers = ConcurrentHashMap<String, GameServer>()
+    private val stopped = ConcurrentHashMap<String, Instant>()
     // https://youtrack.jetbrains.com/issue/KT-18053
-    private val stopped = ConcurrentHashMap.newKeySet<String>()
     private val missing = ConcurrentHashMap.newKeySet<String>()
 
     suspend fun load(groups: Set<String>) {
@@ -47,6 +49,9 @@ class ServerRegistry(private val api: CloudApi, private val types: QueueTypeRegi
 
     suspend fun sync(): List<GameServer> {
         load(types.groups() - groupNames.values.toSet())
+
+        val forgetBefore = Instant.now().minus(STOPPED_RETENTION)
+        stopped.values.removeIf { it.isBefore(forgetBefore) }
 
         val removed = mutableListOf<GameServer>()
         for (group in groupNames.values.toSet()) {
@@ -90,7 +95,7 @@ class ServerRegistry(private val api: CloudApi, private val types: QueueTypeRegi
 
         val previous = servers[server.serverId]
         val updated = servers.compute(server.serverId) { id, current ->
-            if (id in stopped) current else toGameServer(server, group, state, current)
+            if (stopped.containsKey(id)) current else toGameServer(server, group, state, current)
         } ?: return
 
         if (lacksCapacity(updated) && (previous == null || !lacksCapacity(previous))) {
@@ -107,7 +112,7 @@ class ServerRegistry(private val api: CloudApi, private val types: QueueTypeRegi
         server.state == ServerState.AVAILABLE && server.capacity == null && types.isShared(server.group)
 
     fun remove(id: String): GameServer? {
-        stopped.add(id)
+        stopped[id] = Instant.now()
         missing.remove(id)
         return servers.remove(id)
     }
@@ -182,6 +187,7 @@ class ServerRegistry(private val api: CloudApi, private val types: QueueTypeRegi
     companion object {
         val STOPPED_STATES = setOf(ServerState.STOPPING, ServerState.CLEANUP, ServerState.STOPPED)
         val STARTING_STATES = setOf(ServerState.QUEUED, ServerState.PREPARING, ServerState.STARTING)
+        private val STOPPED_RETENTION = Duration.ofMinutes(5)
 
         fun stateOf(server: Server): ServerState? = try {
             server.state

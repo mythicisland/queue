@@ -53,16 +53,15 @@ class Matchmaker(
     private suspend fun matchmake(type: QueueType) {
         while (true) {
             val now = Instant.now()
-            val selected = TicketSelector.select(type, ticketStore.searching(type.name), now) ?: return
-            val teams = TeamAssigner.assign(type, selected) ?: return
+            val selection = TicketSelector.select(type, ticketStore.searching(type.name), now) ?: return
             val matchId = UUID.randomUUID().toString()
-            val claimed = ticketStore.claim(selected.map { it.id }, matchId) ?: continue
+            val claimed = ticketStore.claim(selection.tickets.map { it.id }, matchId) ?: continue
 
             val match = Match(
                 id = matchId,
                 queueType = type.name,
                 tickets = claimed,
-                teams = teams,
+                teams = selection.teams,
                 state = MatchState.ALLOCATING,
                 createdAt = now,
             )

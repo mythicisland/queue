@@ -1,0 +1,11 @@
+# Free for all, one server runs up to 4 matches at the same time
+server:
+  group: minigames
+  shared:
+    accept-timeout: 10s
+    capacity: 4
+match:
+  min-players: 2
+  max-players: 8
+  fill-time: 20s
+  countdown: 5s

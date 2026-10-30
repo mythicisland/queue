@@ -63,7 +63,7 @@ object QueueStartCommand : SuspendingCliktCommand() {
         .path()
         .default(Path.of("types"))
 
-    val networkId: String by option(help = "Your SimpleCloud Network ID (default: id)", envvar = "NETWORK_ID")
+    val networkId: String by option(help = "Your SimpleCloud Network ID (default: default)", envvar = "NETWORK_ID")
         .default("default")
 
     val networkSecret: String by option(help = "Your SimpleCloud Network Secret (default: sup3rS3cr3t)", envvar = "NETWORK_SECRET")

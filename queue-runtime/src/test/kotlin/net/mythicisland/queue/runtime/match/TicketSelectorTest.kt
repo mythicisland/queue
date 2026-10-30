@@ -27,7 +27,7 @@ class TicketSelectorTest {
     fun `selects a full match immediately`() {
         val tickets = List(4) { ticket(it.toLong()) }
 
-        assertEquals(tickets, TicketSelector.select(ffa(min = 2, max = 4, fillTime = 30), tickets, start.plusSeconds(3)))
+        assertEquals(tickets, TicketSelector.select(ffa(min = 2, max = 4, fillTime = 30), tickets, start.plusSeconds(3))?.tickets)
     }
 
     @Test
@@ -36,7 +36,7 @@ class TicketSelectorTest {
         val type = ffa(min = 2, max = 4, fillTime = 30)
 
         assertNull(TicketSelector.select(type, tickets, start.plusSeconds(20)))
-        assertEquals(tickets, TicketSelector.select(type, tickets, start.plusSeconds(40)))
+        assertEquals(tickets, TicketSelector.select(type, tickets, start.plusSeconds(40))?.tickets)
     }
 
     @Test
@@ -45,7 +45,7 @@ class TicketSelectorTest {
         val old = ticket(0)
         val older = ticket(-5)
 
-        assertEquals(listOf(older, old), TicketSelector.select(ffa(min = 2, max = 2), listOf(young, old, older), start.plusSeconds(10)))
+        assertEquals(listOf(older, old), TicketSelector.select(ffa(min = 2, max = 2), listOf(young, old, older), start.plusSeconds(10))?.tickets)
     }
 
     @Test
@@ -54,7 +54,7 @@ class TicketSelectorTest {
         val party = ticket(1, players = 3)
         val other = ticket(2)
 
-        assertEquals(listOf(single, other), TicketSelector.select(ffa(min = 2, max = 3), listOf(single, party, other), start.plusSeconds(10)))
+        assertEquals(listOf(single, other), TicketSelector.select(ffa(min = 2, max = 3), listOf(single, party, other), start.plusSeconds(10))?.tickets)
     }
 
     @Test
@@ -64,7 +64,7 @@ class TicketSelectorTest {
             match = MatchConfig(minPlayers = 2, teams = TeamConfig(count = 2, size = 3)),
         )
         val tickets = listOf(ticket(0, players = 2), ticket(1, players = 2), ticket(2, players = 2), ticket(3))
-        val selected = assertNotNull(TicketSelector.select(type, tickets, start.plusSeconds(10)))
+        val selected = assertNotNull(TicketSelector.select(type, tickets, start.plusSeconds(10))).tickets
 
         assertEquals(listOf(tickets[0], tickets[1], tickets[3]), selected)
     }

@@ -1,0 +1,13 @@
+# Two teams of four, every match gets its own server
+server:
+  group: bedwars
+  allocation-timeout: 60s
+match:
+  min-players: 4
+  fill-time: 30s
+  countdown: 10s
+  teams:
+    count: 2
+    size: 4
+  parties:
+    max-size: 4

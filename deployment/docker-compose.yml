@@ -12,13 +12,12 @@ services:
       NETWORK_SECRET: sup3rS3cr3t
       CONTROLLER_URL: https://controller.simplecloud.app
       CONTROLLER_NATS_URL: wss://nats.simplecloud.app:443
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       OTEL_METRIC_EXPORT_INTERVAL: 15000
     volumes:
       - ./types:/types:ro
     depends_on:
       - nats
-      - alloy
     restart: unless-stopped
 
   nats:
@@ -31,6 +30,7 @@ services:
     restart: unless-stopped
 
   loki:
+    profiles: [monitoring]
     image: grafana/loki:3.5.0
     command: -config.file=/etc/loki/local-config.yaml
     ports:
@@ -40,6 +40,7 @@ services:
     restart: unless-stopped
 
   alloy:
+    profiles: [monitoring]
     image: grafana/alloy:v1.9.0
     command:
       - run
@@ -60,6 +61,7 @@ services:
     restart: unless-stopped
 
   prometheus:
+    profiles: [monitoring]
     image: prom/prometheus:v3.4.0
     command:
       - --config.file=/etc/prometheus/prometheus.yml
@@ -72,6 +74,7 @@ services:
     restart: unless-stopped
 
   grafana:
+    profiles: [monitoring]
     image: grafana/grafana:12.0.0
     ports:
       - "3000:3000"

@@ -11,9 +11,11 @@ import net.mythicisland.queue.runtime.metrics.Telemetry
 import net.mythicisland.queue.shared.logger.Field
 import net.mythicisland.queue.shared.logger.LoggerFactory
 import org.apache.logging.log4j.LogManager
+import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
+import kotlin.time.Duration.Companion.seconds
 
 class QueueRuntime(private val args: QueueStartCommand) {
 
@@ -64,14 +66,22 @@ class QueueRuntime(private val args: QueueStartCommand) {
         LogManager.shutdown()
     }
 
-    private fun connectToNats(): Connection {
+    private suspend fun connectToNats(): Connection {
         val options = Options.builder()
             .server(args.natsUrl)
             .userInfo(args.natsUser, args.natsSecret)
             .maxReconnects(-1)
+            .build()
 
         logger.info("Connecting to NATS", Field("url", args.natsUrl))
-        return Nats.connect(options.build())
+        while (true) {
+            try {
+                return Nats.connect(options)
+            } catch (e: IOException) {
+                logger.warn("NATS is not reachable, retrying", Field("url", args.natsUrl), Field.error(e))
+                delay(2.seconds)
+            }
+        }
     }
 
     private fun connectToController(): CloudApi {
