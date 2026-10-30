@@ -12,6 +12,7 @@ import net.mythicisland.queue.shared.logger.Field
 import net.mythicisland.queue.shared.logger.LoggerFactory
 import net.mythicisland.queue.shared.server.ServerProperties
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.jvm.optionals.getOrNull
 
 class ServerRegistry(private val api: CloudApi, private val types: QueueTypeRegistry) {
 
@@ -24,18 +25,29 @@ class ServerRegistry(private val api: CloudApi, private val types: QueueTypeRegi
     private val missing = ConcurrentHashMap.newKeySet<String>()
 
     suspend fun load(groups: Set<String>) {
-        for (name in groups) {
-            val group = api.group().getGroupByName(name).await()
-            groupNames[group.serverGroupId] = name
-            for (server in running(name)) {
-                update(server)
-            }
+        val loaded = groups.filter { load(it) }
+        if (loaded.isNotEmpty()) {
+            logger.info("Loaded game servers", Field("groups", loaded), Field("servers", servers.size))
+        }
+    }
+
+    private suspend fun load(name: String): Boolean {
+        val group = api.group().findGroupByName(name).await().getOrNull()
+        if (group == null) {
+            logger.warn("Server group of queue type does not exist", Field("group", name))
+            return false
         }
 
-        logger.info("Loaded game servers", Field("groups", groups.size), Field("servers", servers.size))
+        groupNames[group.serverGroupId] = name
+        for (server in running(name)) {
+            update(server)
+        }
+        return true
     }
 
     suspend fun sync(): List<GameServer> {
+        load(types.groups() - groupNames.values.toSet())
+
         val removed = mutableListOf<GameServer>()
         for (group in groupNames.values.toSet()) {
             val known = byGroup(group)
