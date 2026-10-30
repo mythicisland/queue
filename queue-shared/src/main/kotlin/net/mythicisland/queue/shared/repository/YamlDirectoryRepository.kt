@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.isActive
+import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.objectMapperFactory
 import org.spongepowered.configurate.yaml.YamlConfigurationLoader
 import java.nio.file.FileSystems
@@ -31,7 +32,7 @@ class YamlDirectoryRepository<T : Any>(
             return emptyMap()
         }
 
-        return directory.listDirectoryEntries("*.yml").associate { it.nameWithoutExtension to load(it) }
+        return files().mapValues { (_, file) -> load(file) }
     }
 
     fun watch(): Flow<DirectoryEvent<T>> = flow {
@@ -65,11 +66,14 @@ class YamlDirectoryRepository<T : Any>(
         }
     }.flowOn(Dispatchers.IO)
 
-    private fun contents(): Map<String, String> =
-        directory.listDirectoryEntries("*.yml").associate { it.nameWithoutExtension to it.readText() }
+    private fun files(): Map<String, Path> =
+        directory.listDirectoryEntries("*.{yml,yaml}").associateBy { it.nameWithoutExtension }
+
+    private fun contents(): Map<String, String> = files().mapValues { (_, file) -> file.readText() }
 
     private fun parse(name: String): DirectoryEvent<T> = try {
-        DirectoryEvent.Changed(name, load(directory.resolve("$name.yml")))
+        val file = files()[name] ?: throw IllegalStateException("$name does not exist anymore")
+        DirectoryEvent.Changed(name, load(file))
     } catch (e: Exception) {
         DirectoryEvent.Failed(name, e)
     }
@@ -85,7 +89,19 @@ class YamlDirectoryRepository<T : Any>(
             }
             .build()
 
-        return loader.load().get(type.java) ?: throw IllegalStateException("$file is empty")
+        val node = loader.load()
+        val value = node.get(type.java) ?: throw IllegalStateException("$file is empty")
+
+        val known = loader.createNode()
+        known.set(type.java, value)
+        val unknown = keys(node) - keys(known)
+        if (unknown.isNotEmpty()) {
+            throw IllegalStateException("$file has unknown keys: ${unknown.joinToString()}")
+        }
+        return value
     }
+
+    private fun keys(node: ConfigurationNode): Set<String> =
+        node.childrenMap().values.flatMap { child -> keys(child) + child.path().joinToString(".") }.toSet()
 
 }
