@@ -74,8 +74,8 @@ class MatchReconciler(
         }
     }
 
-    fun shutdown() {
-        scope.cancel()
+    suspend fun shutdown() {
+        scope.coroutineContext.job.cancelAndJoin()
     }
 
     fun isRejected(matchId: String, serverId: String): Boolean = rejections[matchId]?.contains(serverId) == true
