@@ -110,8 +110,11 @@ class QueueMetrics(meter: Meter) {
         }
     }
 
-    fun recordTicketDeletion(reason: TicketDeleteReason) {
-        ticketsDeleted.add(1, Attributes.of(REASON, reason.name.removePrefix("TICKET_DELETE_REASON_").lowercase()))
+    fun recordTicketDeletion(ticket: Ticket, reason: TicketDeleteReason) {
+        val name = reason.name.removePrefix("TICKET_DELETE_REASON_").lowercase()
+        for (queueType in ticket.queueTypes) {
+            ticketsDeleted.add(1, Attributes.of(QUEUE_TYPE, queueType, REASON, name))
+        }
     }
 
     fun recordMatchCreation(match: Match) {

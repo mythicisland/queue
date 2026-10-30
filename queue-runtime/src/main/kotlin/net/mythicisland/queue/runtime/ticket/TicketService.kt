@@ -124,7 +124,7 @@ class TicketService(
         val removed = store.remove(ticket.id) ?: return false
 
         events.ticketDeleted(removed, reason)
-        metrics.recordTicketDeletion(reason)
+        metrics.recordTicketDeletion(removed, reason)
         logger.info("Deleted ticket", Field("ticketId", removed.id), Field("reason", reason))
         reconciler.ticketLeft(removed)
         return true

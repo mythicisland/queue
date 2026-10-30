@@ -26,6 +26,7 @@ class Telemetry(
         private val INSTANCE_ID = AttributeKey.stringKey("service.instance.id")
         private val DEFAULTS = mapOf(
             "otel.service.name" to "queue",
+            "otel.exporter.otlp.protocol" to "http/protobuf",
             "otel.traces.exporter" to "none",
             "otel.logs.exporter" to "none",
         )

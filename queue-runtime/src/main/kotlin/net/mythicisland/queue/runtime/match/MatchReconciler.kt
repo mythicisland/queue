@@ -383,7 +383,7 @@ class MatchReconciler(
         for (ticket in present) {
             val removed = ticketStore.remove(ticket.id) ?: continue
             events.ticketDeleted(removed, TicketDeleteReason.TICKET_DELETE_REASON_TRANSFERRED)
-            metrics.recordTicketDeletion(TicketDeleteReason.TICKET_DELETE_REASON_TRANSFERRED)
+            metrics.recordTicketDeletion(removed, TicketDeleteReason.TICKET_DELETE_REASON_TRANSFERRED)
         }
 
         val completed = transferring.copy(state = MatchState.COMPLETED)

@@ -8,18 +8,35 @@
   "schemaVersion": 41,
   "refresh": "30s",
   "time": {
-    "from": "now-3h",
+    "from": "now-6h",
     "to": "now"
   },
+  "graphTooltip": 1,
   "templating": {
     "list": [
+      {
+        "name": "datasource",
+        "label": "Prometheus",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0
+      },
+      {
+        "name": "loki",
+        "label": "Loki",
+        "type": "datasource",
+        "query": "loki",
+        "current": {},
+        "hide": 0
+      },
       {
         "name": "queue_type",
         "label": "Queue type",
         "type": "query",
         "datasource": {
           "type": "prometheus",
-          "uid": "prometheus"
+          "uid": "${datasource}"
         },
         "query": {
           "query": "label_values(queue_players_searching, queue_type)",
@@ -27,6 +44,7 @@
         },
         "definition": "label_values(queue_players_searching, queue_type)",
         "refresh": 2,
+        "sort": 1,
         "includeAll": true,
         "multi": true,
         "allValue": ".*",
@@ -52,18 +70,31 @@
   },
   "panels": [
     {
+      "type": "row",
+      "title": "Overview",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "id": 1
+    },
+    {
       "type": "stat",
       "title": "Players searching",
       "description": "Players that are waiting for a match right now",
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${datasource}"
       },
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${datasource}"
           },
           "expr": "sum(queue_players_searching{queue_type=~\"$queue_type\"})",
           "legendFormat": "",
@@ -73,7 +104,19 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "decimals": 0
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
         },
         "overrides": []
       },
@@ -87,12 +130,13 @@
         },
         "colorMode": "value",
         "graphMode": "area",
-        "textMode": "auto"
+        "textMode": "auto",
+        "justifyMode": "auto"
       },
-      "id": 1,
+      "id": 2,
       "gridPos": {
         "x": 0,
-        "y": 0,
+        "y": 1,
         "w": 6,
         "h": 4
       }
@@ -100,16 +144,16 @@
     {
       "type": "stat",
       "title": "Running matches",
-      "description": "Matches whose players are on a server",
+      "description": "Matches whose players are on a server right now",
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${datasource}"
       },
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${datasource}"
           },
           "expr": "sum(queue_matches{queue_type=~\"$queue_type\", state=\"completed\"})",
           "legendFormat": "",
@@ -119,7 +163,19 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "decimals": 0
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
         },
         "overrides": []
       },
@@ -133,31 +189,32 @@
         },
         "colorMode": "value",
         "graphMode": "area",
-        "textMode": "auto"
+        "textMode": "auto",
+        "justifyMode": "auto"
       },
-      "id": 2,
+      "id": 3,
       "gridPos": {
         "x": 6,
-        "y": 0,
+        "y": 1,
         "w": 6,
         "h": 4
       }
     },
     {
       "type": "stat",
-      "title": "Wait time p95 (1h)",
-      "description": "95% of tickets found a match faster than this",
+      "title": "Wait time p95",
+      "description": "95% of tickets in the selected time range found a match faster than this",
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${datasource}"
       },
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(queue_ticket_wait_time_seconds_bucket{queue_type=~\"$queue_type\"}[1h])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (increase(queue_ticket_wait_time_seconds_bucket{queue_type=~\"$queue_type\"}[$__range])))",
           "legendFormat": "",
           "refId": "A"
         }
@@ -165,7 +222,27 @@
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "decimals": 1
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 30
+              },
+              {
+                "color": "red",
+                "value": 120
+              }
+            ]
+          }
         },
         "overrides": []
       },
@@ -179,31 +256,32 @@
         },
         "colorMode": "value",
         "graphMode": "area",
-        "textMode": "auto"
+        "textMode": "auto",
+        "justifyMode": "auto"
       },
-      "id": 3,
+      "id": 4,
       "gridPos": {
         "x": 12,
-        "y": 0,
+        "y": 1,
         "w": 6,
         "h": 4
       }
     },
     {
       "type": "stat",
-      "title": "Abandon rate (1h)",
-      "description": "Tickets that left the queue before they were transferred",
+      "title": "Abandon rate",
+      "description": "Tickets in the selected time range that left the queue before they were transferred",
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${datasource}"
       },
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${datasource}"
           },
-          "expr": "sum(increase(queue_tickets_deleted_total{reason=~\"cancelled|disconnected\"}[1h])) / sum(increase(queue_tickets_deleted_total[1h]))",
+          "expr": "sum(increase(queue_tickets_deleted_total{queue_type=~\"$queue_type\", reason=~\"cancelled|disconnected\"}[$__range])) / sum(increase(queue_tickets_deleted_total{queue_type=~\"$queue_type\"}[$__range]))",
           "legendFormat": "",
           "refId": "A"
         }
@@ -211,7 +289,27 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
-          "decimals": 1
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.2
+              },
+              {
+                "color": "red",
+                "value": 0.4
+              }
+            ]
+          }
         },
         "overrides": []
       },
@@ -225,15 +323,29 @@
         },
         "colorMode": "value",
         "graphMode": "area",
-        "textMode": "auto"
+        "textMode": "auto",
+        "justifyMode": "auto"
       },
-      "id": 4,
+      "id": 5,
       "gridPos": {
         "x": 18,
-        "y": 0,
+        "y": 1,
         "w": 6,
         "h": 4
       }
+    },
+    {
+      "type": "row",
+      "title": "Queue",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 24,
+        "h": 1
+      },
+      "id": 6
     },
     {
       "type": "timeseries",
@@ -241,13 +353,13 @@
       "description": "Players waiting for a match per queue type",
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${datasource}"
       },
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${datasource}"
           },
           "expr": "sum by (queue_type) (queue_players_searching{queue_type=~\"$queue_type\"})",
           "legendFormat": "{{queue_type}}",
@@ -257,115 +369,15 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
             "lineWidth": 2,
-            "fillOpacity": 15,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "id": 5,
-      "gridPos": {
-        "x": 0,
-        "y": 4,
-        "w": 12,
-        "h": 8
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Wait time",
-      "description": "Time from creating a ticket until it is put into a match",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "histogram_quantile(0.5, sum by (le, queue_type) (rate(queue_ticket_wait_time_seconds_bucket{queue_type=~\"$queue_type\"}[$__rate_interval])))",
-          "legendFormat": "p50 {{queue_type}}",
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "histogram_quantile(0.95, sum by (le, queue_type) (rate(queue_ticket_wait_time_seconds_bucket{queue_type=~\"$queue_type\"}[$__rate_interval])))",
-          "legendFormat": "p95 {{queue_type}}",
-          "refId": "B"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 15,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "id": 6,
-      "gridPos": {
-        "x": 12,
-        "y": 4,
-        "w": 12,
-        "h": 8
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Oldest searching ticket",
-      "description": "Grows without limit when a queue type is stuck",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "max by (queue_type) (queue_ticket_oldest_age_seconds{queue_type=~\"$queue_type\"})",
-          "legendFormat": "{{queue_type}}",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 15,
-            "showPoints": "never"
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
           }
         },
         "overrides": []
@@ -383,41 +395,51 @@
       "id": 7,
       "gridPos": {
         "x": 0,
-        "y": 12,
+        "y": 6,
         "w": 12,
         "h": 8
       }
     },
     {
       "type": "timeseries",
-      "title": "Matches by state",
-      "description": "Matches the queue keeps track of",
+      "title": "Wait time",
+      "description": "Time from creating a ticket until it is put into a match",
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${datasource}"
       },
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${datasource}"
           },
-          "expr": "sum by (state) (queue_matches{queue_type=~\"$queue_type\"})",
-          "legendFormat": "{{state}}",
+          "expr": "histogram_quantile(0.5, sum by (le, queue_type) (rate(queue_ticket_wait_time_seconds_bucket{queue_type=~\"$queue_type\"}[$__rate_interval])))",
+          "legendFormat": "p50 {{queue_type}}",
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, queue_type) (rate(queue_ticket_wait_time_seconds_bucket{queue_type=~\"$queue_type\"}[$__rate_interval])))",
+          "legendFormat": "p95 {{queue_type}}",
+          "refId": "B"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
+          "unit": "s",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
             "lineWidth": 2,
-            "fillOpacity": 15,
+            "fillOpacity": 10,
             "showPoints": "never",
-            "stacking": {
-              "mode": "normal",
-              "group": "A"
-            }
+            "spanNulls": true
           }
         },
         "overrides": []
@@ -435,42 +457,42 @@
       "id": 8,
       "gridPos": {
         "x": 12,
-        "y": 12,
+        "y": 6,
         "w": 12,
         "h": 8
       }
     },
     {
       "type": "timeseries",
-      "title": "Finished matches",
-      "description": "Matches that completed, failed or were cancelled",
+      "title": "Oldest searching ticket",
+      "description": "Grows without limit when a queue type is stuck",
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${datasource}"
       },
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${datasource}"
           },
-          "expr": "sum by (state) (increase(queue_matches_finished_total{queue_type=~\"$queue_type\"}[$__rate_interval]))",
-          "legendFormat": "{{state}}",
+          "expr": "max by (queue_type) (queue_ticket_oldest_age_seconds{queue_type=~\"$queue_type\"})",
+          "legendFormat": "{{queue_type}}",
           "refId": "A"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
+          "unit": "s",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
             "lineWidth": 2,
-            "fillOpacity": 80,
+            "fillOpacity": 10,
             "showPoints": "never",
-            "stacking": {
-              "mode": "normal",
-              "group": "A"
-            },
-            "drawStyle": "bars"
+            "spanNulls": true
           }
         },
         "overrides": []
@@ -488,42 +510,51 @@
       "id": 9,
       "gridPos": {
         "x": 0,
-        "y": 20,
+        "y": 14,
         "w": 12,
         "h": 8
       }
     },
     {
       "type": "timeseries",
-      "title": "Deleted tickets",
-      "description": "Why tickets left the queue",
+      "title": "Party size",
+      "description": "Players per ticket",
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${datasource}"
       },
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${datasource}"
           },
-          "expr": "sum by (reason) (increase(queue_tickets_deleted_total[$__rate_interval]))",
-          "legendFormat": "{{reason}}",
+          "expr": "histogram_quantile(0.5, sum by (le, queue_type) (rate(queue_ticket_players_bucket{queue_type=~\"$queue_type\"}[$__rate_interval])))",
+          "legendFormat": "p50 {{queue_type}}",
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, queue_type) (rate(queue_ticket_players_bucket{queue_type=~\"$queue_type\"}[$__rate_interval])))",
+          "legendFormat": "p95 {{queue_type}}",
+          "refId": "B"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
             "lineWidth": 2,
-            "fillOpacity": 80,
+            "fillOpacity": 10,
             "showPoints": "never",
-            "stacking": {
-              "mode": "normal",
-              "group": "A"
-            },
-            "drawStyle": "bars"
+            "spanNulls": true
           }
         },
         "overrides": []
@@ -541,94 +572,42 @@
       "id": 10,
       "gridPos": {
         "x": 12,
-        "y": 20,
+        "y": 14,
         "w": 12,
         "h": 8
       }
     },
     {
       "type": "timeseries",
-      "title": "Time to a server",
-      "description": "How long matches wait for a server and until the players are transferred",
+      "title": "Created tickets",
+      "description": "Tickets put into the queue",
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${datasource}"
       },
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.95, sum by (le, queue_type) (rate(queue_match_allocation_duration_seconds_bucket{queue_type=~\"$queue_type\"}[$__rate_interval])))",
-          "legendFormat": "allocation p95 {{queue_type}}",
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "histogram_quantile(0.95, sum by (le, queue_type) (rate(queue_match_time_to_play_seconds_bucket{queue_type=~\"$queue_type\"}[$__rate_interval])))",
-          "legendFormat": "time to play p95 {{queue_type}}",
-          "refId": "B"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 15,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "id": 11,
-      "gridPos": {
-        "x": 0,
-        "y": 28,
-        "w": 12,
-        "h": 8
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Offers to shared servers",
-      "description": "Answers of shared servers to match offers",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "sum by (result) (increase(queue_match_offers_total{queue_type=~\"$queue_type\"}[$__rate_interval]))",
-          "legendFormat": "{{result}}",
+          "expr": "sum by (queue_type) (increase(queue_tickets_created_total{queue_type=~\"$queue_type\"}[$__interval]))",
+          "legendFormat": "{{queue_type}}",
           "refId": "A"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
-            "lineWidth": 2,
+            "lineWidth": 1,
             "fillOpacity": 80,
             "showPoints": "never",
+            "spanNulls": true,
             "stacking": {
               "mode": "normal",
               "group": "A"
@@ -648,13 +627,826 @@
           "sort": "desc"
         }
       },
-      "id": 12,
+      "interval": "1m",
+      "id": 11,
       "gridPos": {
-        "x": 12,
-        "y": 28,
+        "x": 0,
+        "y": 22,
         "w": 12,
         "h": 8
       }
+    },
+    {
+      "type": "timeseries",
+      "title": "Deleted tickets",
+      "description": "Why tickets left the queue",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (reason) (increase(queue_tickets_deleted_total{queue_type=~\"$queue_type\"}[$__interval]))",
+          "legendFormat": "{{reason}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 80,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "drawStyle": "bars"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "transferred"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cancelled"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "gray"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "disconnected"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "interval": "1m",
+      "id": 12,
+      "gridPos": {
+        "x": 12,
+        "y": 22,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "row",
+      "title": "Matches",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 30,
+        "w": 24,
+        "h": 1
+      },
+      "id": 13
+    },
+    {
+      "type": "timeseries",
+      "title": "Matches by state",
+      "description": "Matches the queue keeps track of, completed ones are running on a server",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (state) (queue_matches{queue_type=~\"$queue_type\"})",
+          "legendFormat": "{{state}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "allocating"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "offered"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "countdown"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "transferring"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "completed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 14,
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Finished matches",
+      "description": "Matches that completed, failed or were cancelled",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (state) (increase(queue_matches_finished_total{queue_type=~\"$queue_type\"}[$__interval]))",
+          "legendFormat": "{{state}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 80,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "drawStyle": "bars"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "completed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "failed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cancelled"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "gray"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "interval": "1m",
+      "id": 15,
+      "gridPos": {
+        "x": 12,
+        "y": 31,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Allocation duration",
+      "description": "Time from creating a match until a server took it",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le, queue_type) (rate(queue_match_allocation_duration_seconds_bucket{queue_type=~\"$queue_type\"}[$__rate_interval])))",
+          "legendFormat": "p50 {{queue_type}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, queue_type) (rate(queue_match_allocation_duration_seconds_bucket{queue_type=~\"$queue_type\"}[$__rate_interval])))",
+          "legendFormat": "p95 {{queue_type}}",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 16,
+      "gridPos": {
+        "x": 0,
+        "y": 39,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Time to play",
+      "description": "Time from creating a match until its players were transferred",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le, queue_type) (rate(queue_match_time_to_play_seconds_bucket{queue_type=~\"$queue_type\"}[$__rate_interval])))",
+          "legendFormat": "p50 {{queue_type}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, queue_type) (rate(queue_match_time_to_play_seconds_bucket{queue_type=~\"$queue_type\"}[$__rate_interval])))",
+          "legendFormat": "p95 {{queue_type}}",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 17,
+      "gridPos": {
+        "x": 12,
+        "y": 39,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Offers to shared servers",
+      "description": "Answers of shared servers to match offers",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (result) (increase(queue_match_offers_total{queue_type=~\"$queue_type\"}[$__interval]))",
+          "legendFormat": "{{result}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 80,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "drawStyle": "bars"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "accepted"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "rejected"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "expired"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "interval": "1m",
+      "id": 18,
+      "gridPos": {
+        "x": 0,
+        "y": 47,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Transferred players",
+      "description": "Players that reached the server or got lost on the way",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (result) (increase(queue_players_transferred_total{queue_type=~\"$queue_type\"}[$__interval]))",
+          "legendFormat": "{{result}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 80,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "drawStyle": "bars"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "transferred"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "missing"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "interval": "1m",
+      "id": 19,
+      "gridPos": {
+        "x": 12,
+        "y": 47,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Transfer duration",
+      "description": "Time it took to transfer the players of a match",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le, queue_type) (rate(queue_transfer_duration_seconds_bucket{queue_type=~\"$queue_type\"}[$__rate_interval])))",
+          "legendFormat": "p50 {{queue_type}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, queue_type) (rate(queue_transfer_duration_seconds_bucket{queue_type=~\"$queue_type\"}[$__rate_interval])))",
+          "legendFormat": "p95 {{queue_type}}",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 20,
+      "gridPos": {
+        "x": 0,
+        "y": 55,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Match size",
+      "description": "Players per created match",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le, queue_type) (rate(queue_match_players_bucket{queue_type=~\"$queue_type\"}[$__rate_interval])))",
+          "legendFormat": "p50 {{queue_type}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, queue_type) (rate(queue_match_players_bucket{queue_type=~\"$queue_type\"}[$__rate_interval])))",
+          "legendFormat": "p95 {{queue_type}}",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 21,
+      "gridPos": {
+        "x": 12,
+        "y": 55,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "row",
+      "title": "Servers",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 63,
+        "w": 24,
+        "h": 1
+      },
+      "id": 22
     },
     {
       "type": "timeseries",
@@ -662,13 +1454,13 @@
       "description": "Servers of the queue groups by SimpleCloud state",
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${datasource}"
       },
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${datasource}"
           },
           "expr": "sum by (server_group, state) (queue_servers)",
           "legendFormat": "{{server_group}} {{state}}",
@@ -678,10 +1470,15 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
             "lineWidth": 2,
-            "fillOpacity": 15,
+            "fillOpacity": 10,
             "showPoints": "never",
+            "spanNulls": true,
             "stacking": {
               "mode": "normal",
               "group": "A"
@@ -700,10 +1497,10 @@
           "sort": "desc"
         }
       },
-      "id": 13,
+      "id": 23,
       "gridPos": {
         "x": 0,
-        "y": 36,
+        "y": 64,
         "w": 12,
         "h": 8
       }
@@ -714,82 +1511,65 @@
       "description": "Match slots of shared servers",
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${datasource}"
       },
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${datasource}"
           },
-          "expr": "sum by (server_group, kind) (queue_server_capacity)",
-          "legendFormat": "{{server_group}} {{kind}}",
+          "expr": "sum by (kind) (queue_server_capacity)",
+          "legendFormat": "{{kind}}",
           "refId": "A"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 15,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "id": 14,
-      "gridPos": {
-        "x": 12,
-        "y": 36,
-        "w": 12,
-        "h": 8
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Transferred players",
-      "description": "Players that reached the server or got lost on the way",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
           },
-          "expr": "sum by (result) (increase(queue_players_transferred_total{queue_type=~\"$queue_type\"}[$__rate_interval]))",
-          "legendFormat": "{{result}}",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
           "custom": {
             "lineWidth": 2,
-            "fillOpacity": 80,
+            "fillOpacity": 10,
             "showPoints": "never",
-            "stacking": {
-              "mode": "normal",
-              "group": "A"
+            "spanNulls": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "total"
             },
-            "drawStyle": "bars"
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "gray"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "used"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
           }
-        },
-        "overrides": []
+        ]
       },
       "options": {
         "legend": {
@@ -801,254 +1581,187 @@
           "sort": "desc"
         }
       },
-      "id": 15,
-      "gridPos": {
-        "x": 0,
-        "y": 44,
-        "w": 8,
-        "h": 8
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Transfer duration",
-      "description": "Time it took to transfer the players of a match",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "histogram_quantile(0.95, sum by (le, queue_type) (rate(queue_transfer_duration_seconds_bucket{queue_type=~\"$queue_type\"}[$__rate_interval])))",
-          "legendFormat": "p95 {{queue_type}}",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 15,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "id": 16,
-      "gridPos": {
-        "x": 8,
-        "y": 44,
-        "w": 8,
-        "h": 8
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Loop duration",
-      "description": "Time of one matchmaker and reconciler run",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(queue_matchmaker_duration_seconds_bucket[$__rate_interval])))",
-          "legendFormat": "matchmaker p99",
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(queue_reconciler_duration_seconds_bucket[$__rate_interval])))",
-          "legendFormat": "reconciler p99",
-          "refId": "B"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 15,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "id": 17,
-      "gridPos": {
-        "x": 16,
-        "y": 44,
-        "w": 8,
-        "h": 8
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Party size",
-      "description": "Players per ticket",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "histogram_quantile(0.5, sum by (le, queue_type) (rate(queue_ticket_players_bucket{queue_type=~\"$queue_type\"}[$__rate_interval])))",
-          "legendFormat": "p50 {{queue_type}}",
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "histogram_quantile(0.95, sum by (le, queue_type) (rate(queue_ticket_players_bucket{queue_type=~\"$queue_type\"}[$__rate_interval])))",
-          "legendFormat": "p95 {{queue_type}}",
-          "refId": "B"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 15,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "id": 18,
-      "gridPos": {
-        "x": 0,
-        "y": 52,
-        "w": 12,
-        "h": 8
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "JVM heap",
-      "description": "Heap used by the queue runtime",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "sum by (instance) (jvm_memory_used_bytes{job=\"queue\", jvm_memory_type=\"heap\"})",
-          "legendFormat": "{{instance}}",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 15,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "id": 19,
+      "id": 24,
       "gridPos": {
         "x": 12,
-        "y": 52,
+        "y": 64,
         "w": 12,
         "h": 8
       }
     },
     {
-      "type": "logs",
-      "title": "Logs",
-      "datasource": {
-        "type": "loki",
-        "uid": "loki"
-      },
-      "targets": [
+      "type": "row",
+      "title": "Runtime",
+      "collapsed": true,
+      "panels": [
         {
+          "type": "timeseries",
+          "title": "Loop duration",
+          "description": "Time of one matchmaker and reconciler run",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "expr": "histogram_quantile(0.99, sum by (le) (rate(queue_matchmaker_duration_seconds_bucket[$__rate_interval])))",
+              "legendFormat": "matchmaker p99",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "expr": "histogram_quantile(0.99, sum by (le) (rate(queue_reconciler_duration_seconds_bucket[$__rate_interval])))",
+              "legendFormat": "reconciler p99",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "min": 0,
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10,
+                "showPoints": "never",
+                "spanNulls": true
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "id": 26,
+          "gridPos": {
+            "x": 0,
+            "y": 73,
+            "w": 12,
+            "h": 8
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "JVM heap",
+          "description": "Heap used by each queue instance",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "expr": "sum by (instance) (jvm_memory_used_bytes{job=\"queue\", jvm_memory_type=\"heap\"})",
+              "legendFormat": "{{instance}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "min": 0,
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10,
+                "showPoints": "never",
+                "spanNulls": true
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "id": 27,
+          "gridPos": {
+            "x": 12,
+            "y": 73,
+            "w": 12,
+            "h": 8
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 72,
+        "w": 24,
+        "h": 1
+      },
+      "id": 25
+    },
+    {
+      "type": "row",
+      "title": "Logs",
+      "collapsed": true,
+      "panels": [
+        {
+          "type": "logs",
+          "title": "Logs",
           "datasource": {
             "type": "loki",
-            "uid": "loki"
+            "uid": "${loki}"
           },
-          "expr": "{service=\"queue\"} | json | level=~\"$level\"",
-          "refId": "A"
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki}"
+              },
+              "expr": "{service=\"queue\", level=~\"$level\"}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "showTime": true,
+            "wrapLogMessage": true,
+            "sortOrder": "Descending",
+            "enableLogDetails": true
+          },
+          "id": 29,
+          "gridPos": {
+            "x": 0,
+            "y": 82,
+            "w": 24,
+            "h": 14
+          }
         }
       ],
-      "options": {
-        "showTime": true,
-        "wrapLogMessage": true,
-        "sortOrder": "Descending",
-        "enableLogDetails": true
-      },
-      "id": 20,
       "gridPos": {
         "x": 0,
-        "y": 60,
+        "y": 81,
         "w": 24,
-        "h": 12
-      }
+        "h": 1
+      },
+      "id": 28
     }
   ]
 }
