@@ -11,6 +11,8 @@ import net.mythicisland.queue.runtime.listener.ServerListener
 import net.mythicisland.queue.runtime.match.MatchReconciler
 import net.mythicisland.queue.runtime.match.MatchStore
 import net.mythicisland.queue.runtime.match.Matchmaker
+import net.mythicisland.queue.runtime.metrics.QueueGauges
+import net.mythicisland.queue.runtime.metrics.QueueMetrics
 import net.mythicisland.queue.runtime.server.GameServerService
 import net.mythicisland.queue.runtime.server.ServerAllocator
 import net.mythicisland.queue.runtime.server.ServerRegistry
@@ -23,7 +25,13 @@ import net.mythicisland.queue.runtime.type.QueueTypeWatcher
 import net.mythicisland.queue.shared.logger.Field
 import net.mythicisland.queue.shared.logger.LoggerFactory
 
-class QueueServices(private val args: QueueStartCommand, nats: Connection, api: CloudApi) {
+class QueueServices(
+    private val args: QueueStartCommand,
+    nats: Connection,
+    api: CloudApi,
+    metrics: QueueMetrics,
+    gauges: QueueGauges,
+) {
 
     private val logger = LoggerFactory.getLogger(QueueServices::class)
 
@@ -42,13 +50,15 @@ class QueueServices(private val args: QueueStartCommand, nats: Connection, api: 
         allocator,
         PlayerTransferService(api),
         events,
+        metrics,
     )
-    private val ticketService = TicketService(types, ticketStore, reconciler, events)
+    private val ticketService = TicketService(types, ticketStore, reconciler, events, metrics)
 
     private val serverListener = ServerListener(api, registry, reconciler)
     private val playerListener = PlayerListener(api, ticketStore, ticketService)
-    private val matchmaker = Matchmaker(types, ticketStore, matchStore, events)
+    private val matchmaker = Matchmaker(types, ticketStore, matchStore, events, metrics)
     private val typeWatcher = QueueTypeWatcher(types, registry, ticketService)
+    private val observation = gauges.observe(types, ticketStore, matchStore, registry)
 
     val grpcServices: List<BindableService> = listOf(
         ticketService,
@@ -77,6 +87,7 @@ class QueueServices(private val args: QueueStartCommand, nats: Connection, api: 
         playerListener.shutdown()
         matchmaker.shutdown()
         reconciler.shutdown()
+        observation.close()
     }
 
 }

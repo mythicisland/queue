@@ -7,6 +7,7 @@ import io.nats.client.Nats
 import io.nats.client.Options
 import kotlinx.coroutines.*
 import net.mythicisland.queue.runtime.launcher.QueueStartCommand
+import net.mythicisland.queue.runtime.metrics.Telemetry
 import net.mythicisland.queue.shared.logger.Field
 import net.mythicisland.queue.shared.logger.LoggerFactory
 import org.apache.logging.log4j.LogManager
@@ -21,21 +22,22 @@ class QueueRuntime(private val args: QueueStartCommand) {
     suspend fun start() {
         logger.info("Starting queue runtime")
 
+        val telemetry = Telemetry.create(args.instanceId)
         val nc = connectToNats()
         val api = connectToController()
-        val node = QueueNode(args, nc, api)
+        val node = QueueNode(args, nc, api, telemetry.otel)
 
         try {
             node.start()
         } catch (e: Exception) {
             logger.error("Failed to start queue runtime", Field.error(e))
-            stop(node, api, nc)
+            stop(node, api, nc, telemetry)
             throw e
         }
 
         val stopped = CountDownLatch(1)
         awaitShutdown(stopped)
-        stop(node, api, nc)
+        stop(node, api, nc, telemetry)
         stopped.countDown()
     }
 
@@ -50,12 +52,13 @@ class QueueRuntime(private val args: QueueStartCommand) {
         stopped.await(30L, TimeUnit.SECONDS)
     }
 
-    private suspend fun stop(node: QueueNode, api: CloudApi, nc: Connection) {
+    private suspend fun stop(node: QueueNode, api: CloudApi, nc: Connection, telemetry: Telemetry) {
         logger.info("Shutting down queue runtime")
 
         node.shutdown()
         api.close()
         nc.close()
+        telemetry.shutdown()
 
         logger.info("Queue runtime stopped")
         LogManager.shutdown()

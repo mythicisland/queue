@@ -12,6 +12,10 @@ kraken = "1.1.1"
 log4j = "2.26.1"
 slf4j = "2.0.20"
 
+# Telemetry
+opentelemetry = "1.67.0"
+opentelemetry-instrumentation = "2.33.1-alpha"
+
 # Configuration & CLI
 clikt = "5.1.0"
 configurate = "4.2.0"
@@ -38,6 +42,13 @@ log4j-layout-template-json = { module = "org.apache.logging.log4j:log4j-layout-t
 log4j-slf4j2-impl ={ module = "org.apache.logging.log4j:log4j-slf4j2-impl", version.ref = "log4j" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 
+# Telemetry
+opentelemetry-api = { module = "io.opentelemetry:opentelemetry-api", version.ref = "opentelemetry" }
+opentelemetry-sdk-autoconfigure = { module = "io.opentelemetry:opentelemetry-sdk-extension-autoconfigure", version.ref = "opentelemetry" }
+opentelemetry-exporter-otlp = { module = "io.opentelemetry:opentelemetry-exporter-otlp", version.ref = "opentelemetry" }
+opentelemetry-runtime-telemetry = { module = "io.opentelemetry.instrumentation:opentelemetry-runtime-telemetry", version.ref = "opentelemetry-instrumentation" }
+opentelemetry-grpc = { module = "io.opentelemetry.instrumentation:opentelemetry-grpc-1.6", version.ref = "opentelemetry-instrumentation" }
+
 # Configuration & CLI
 configurate-yaml = { module = "org.spongepowered:configurate-yaml", version.ref = "configurate" }
 configurate-extra-kotlin = { module = "org.spongepowered:configurate-extra-kotlin", version.ref = "configurate" }
@@ -59,6 +70,7 @@ simplecloud-api = { module = "app.simplecloud.api:api", version.ref = "simpleclo
 [bundles]
 logging = ["log4j-core", "log4j-api", "log4j-layout-template-json", "log4j-slf4j2-impl", "slf4j-api"]
 configurate = ["configurate-yaml", "configurate-extra-kotlin"]
+opentelemetry = ["opentelemetry-api", "opentelemetry-sdk-autoconfigure", "opentelemetry-exporter-otlp", "opentelemetry-runtime-telemetry", "opentelemetry-grpc"]
 grpc = ["grpc-stub", "grpc-netty-shaded", "grpc-kotlin-stub", "grpc-protobuf", "protobuf-kotlin"]
 
 [plugins]

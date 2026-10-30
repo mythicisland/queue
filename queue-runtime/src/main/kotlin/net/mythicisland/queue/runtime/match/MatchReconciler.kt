@@ -4,6 +4,7 @@ import build.buf.gen.mythicisland.queue.v1.MatchReleaseReason
 import build.buf.gen.mythicisland.queue.v1.TicketDeleteReason
 import kotlinx.coroutines.*
 import net.mythicisland.queue.runtime.event.EventPublisher
+import net.mythicisland.queue.runtime.metrics.QueueMetrics
 import net.mythicisland.queue.runtime.server.GameServer
 import net.mythicisland.queue.runtime.server.ServerAllocator
 import net.mythicisland.queue.runtime.server.ServerRegistry
@@ -22,6 +23,7 @@ import net.mythicisland.queue.shared.type.SharedMode
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeSource
 
 /**
  * The reconciler compares the state of every match in the [MatchStore] with the servers
@@ -55,6 +57,7 @@ class MatchReconciler(
     private val allocator: ServerAllocator,
     private val service: PlayerTransferService,
     private val events: EventPublisher,
+    private val metrics: QueueMetrics,
 ) {
 
     private val logger = LoggerFactory.getLogger(MatchReconciler::class)
@@ -91,6 +94,7 @@ class MatchReconciler(
         }
 
         offerDeadlines.remove(match.id)
+        metrics.recordOfferAccepted(match)
         return accepted
     }
 
@@ -106,6 +110,7 @@ class MatchReconciler(
         rejections.merge(match.id, setOf(serverId)) { old, new -> old + new }
         offerDeadlines.remove(match.id)
         registry.removeMatch(serverId, match.id)
+        metrics.recordOfferRejected(match, expired = reason == ACCEPT_TIMEOUT)
 
         logger.info("Match offer rejected", Field("matchId", match.id), Field("serverId", serverId), Field("reason", reason))
         return true
@@ -117,6 +122,7 @@ class MatchReconciler(
         allocator.free(released)
 
         events.matchReleased(released, reason)
+        metrics.recordMatchRelease(released, reason)
         logger.info("Match released", Field("matchId", released.id), Field("reason", reason))
     }
 
@@ -226,6 +232,7 @@ class MatchReconciler(
     }
 
     private suspend fun reconcile() {
+        val started = TimeSource.Monotonic.markNow()
         val now = Instant.now()
         for (match in matchStore.all().sortedBy { it.createdAt }) {
             try {
@@ -238,6 +245,7 @@ class MatchReconciler(
         }
         provision()
         retryFailedWrites()
+        metrics.recordReconcilerRun(started.elapsedNow())
     }
 
     private suspend fun reconcile(match: Match, now: Instant) {
@@ -307,7 +315,7 @@ class MatchReconciler(
 
     private suspend fun expireOffer(match: Match) {
         val serverId = match.assignment?.serverId ?: return
-        reject(match, serverId, "accept timeout")
+        reject(match, serverId, ACCEPT_TIMEOUT)
     }
 
     private suspend fun startCountdown(match: Match, type: QueueType, assignment: Assignment): Match? {
@@ -366,13 +374,16 @@ class MatchReconciler(
     }
 
     private suspend fun complete(transferring: Match, present: List<Ticket>, assignment: Assignment) {
+        val started = TimeSource.Monotonic.markNow()
         val result = service.transfer(present.flatMap { it.playerIds }, assignment.serverName)
         val missing = transferring.tickets.flatMap { it.playerIds } - result.transferred.toSet()
         events.matchTransferred(transferring, result.transferred, missing)
+        metrics.recordTransfer(transferring, result.transferred.size, missing.size, started.elapsedNow())
 
         for (ticket in present) {
             val removed = ticketStore.remove(ticket.id) ?: continue
             events.ticketDeleted(removed, TicketDeleteReason.TICKET_DELETE_REASON_TRANSFERRED)
+            metrics.recordTicketDeletion(TicketDeleteReason.TICKET_DELETE_REASON_TRANSFERRED)
         }
 
         val completed = transferring.copy(state = MatchState.COMPLETED)
@@ -452,6 +463,7 @@ class MatchReconciler(
         }
 
         events.matchStateChanged(current, previous)
+        metrics.recordMatchTransition(current)
         logger.info("Match state changed", Field("matchId", current.id), Field("from", previous.state), Field("to", current.state))
         return true
     }
@@ -479,6 +491,10 @@ class MatchReconciler(
     private fun clear(matchId: String) {
         offerDeadlines.remove(matchId)
         rejections.remove(matchId)
+    }
+
+    private companion object {
+        const val ACCEPT_TIMEOUT = "accept timeout"
     }
 
 }

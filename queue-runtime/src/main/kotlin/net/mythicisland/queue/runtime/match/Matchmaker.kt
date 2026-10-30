@@ -2,6 +2,7 @@ package net.mythicisland.queue.runtime.match
 
 import kotlinx.coroutines.*
 import net.mythicisland.queue.runtime.event.EventPublisher
+import net.mythicisland.queue.runtime.metrics.QueueMetrics
 import net.mythicisland.queue.runtime.ticket.TicketStore
 import net.mythicisland.queue.runtime.type.QueueTypeRegistry
 import net.mythicisland.queue.shared.logger.Field
@@ -13,12 +14,14 @@ import net.mythicisland.queue.shared.type.QueueType
 import java.time.Instant
 import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeSource
 
 class Matchmaker(
     private val types: QueueTypeRegistry,
     private val ticketStore: TicketStore,
     private val matchStore: MatchStore,
     private val events: EventPublisher,
+    private val metrics: QueueMetrics,
 ) {
 
     private val logger = LoggerFactory.getLogger(Matchmaker::class)
@@ -27,6 +30,7 @@ class Matchmaker(
     fun start() {
         scope.launch {
             while (isActive) {
+                val started = TimeSource.Monotonic.markNow()
                 for (type in types.all()) {
                     try {
                         matchmake(type)
@@ -36,6 +40,7 @@ class Matchmaker(
                         logger.error("Matchmaking failed", Field("queueType", type.name), Field.error(e))
                     }
                 }
+                metrics.recordMatchmakerRun(started.elapsedNow())
                 delay(500.milliseconds)
             }
         }
@@ -63,6 +68,7 @@ class Matchmaker(
             )
             matchStore.add(match)
             events.matchCreated(match)
+            metrics.recordMatchCreation(match)
             for (ticket in claimed) {
                 if (ticketStore.get(ticket.id)?.matchId == matchId) {
                     events.ticketStateChanged(ticket, TicketState.SEARCHING)

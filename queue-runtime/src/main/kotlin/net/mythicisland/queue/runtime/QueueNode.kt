@@ -6,8 +6,12 @@ import io.grpc.ServerBuilder
 import io.grpc.health.v1.HealthCheckResponse.ServingStatus
 import io.grpc.protobuf.services.HealthStatusManager
 import io.nats.client.Connection
+import io.opentelemetry.api.OpenTelemetry
+import io.opentelemetry.instrumentation.grpc.v1_6.GrpcTelemetry
 import kotlinx.coroutines.*
 import net.mythicisland.queue.runtime.launcher.QueueStartCommand
+import net.mythicisland.queue.runtime.metrics.QueueGauges
+import net.mythicisland.queue.runtime.metrics.QueueMetrics
 import net.mythicisland.queue.runtime.leader.LeaderElection
 import net.mythicisland.queue.runtime.leader.LeaderForwarder
 import net.mythicisland.queue.runtime.leader.Lease
@@ -19,9 +23,17 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.seconds
 
-class QueueNode(private val args: QueueStartCommand, private val nats: Connection, private val api: CloudApi) {
+class QueueNode(
+    private val args: QueueStartCommand,
+    private val nats: Connection,
+    private val api: CloudApi,
+    openTelemetry: OpenTelemetry,
+) {
 
     private val logger = LoggerFactory.getLogger(QueueNode::class)
+    private val meter = openTelemetry.getMeter("net.mythicisland.queue")
+    private val metrics = QueueMetrics(meter)
+    private val gauges = QueueGauges(meter)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val self = Lease(args.instanceId, args.advertiseAddress)
     private val election = LeaderElection.init(nats, args.leaderBucket, self, args.leaderTtl.seconds)
@@ -33,6 +45,7 @@ class QueueNode(private val args: QueueStartCommand, private val nats: Connectio
     private val server: Server = ServerBuilder.forPort(args.grpcPort)
         .addService(health.healthService)
         .fallbackHandlerRegistry(registry)
+        .intercept(GrpcTelemetry.create(openTelemetry).createServerInterceptor())
         .build()
 
     fun start() {
@@ -80,7 +93,7 @@ class QueueNode(private val args: QueueStartCommand, private val nats: Connectio
     }
 
     private suspend fun startServices(): QueueServices {
-        val created = QueueServices(args, nats, api)
+        val created = QueueServices(args, nats, api, metrics, gauges)
         try {
             created.start()
             return created

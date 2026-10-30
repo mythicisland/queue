@@ -13,6 +13,7 @@ import build.buf.gen.mythicisland.queue.v1.updateTicketPropertiesResponse
 import io.grpc.Status
 import net.mythicisland.queue.runtime.event.EventPublisher
 import net.mythicisland.queue.runtime.match.MatchReconciler
+import net.mythicisland.queue.runtime.metrics.QueueMetrics
 import net.mythicisland.queue.runtime.type.QueueTypeRegistry
 import net.mythicisland.queue.shared.logger.Field
 import net.mythicisland.queue.shared.logger.LoggerFactory
@@ -26,6 +27,7 @@ class TicketService(
     private val store: TicketStore,
     private val reconciler: MatchReconciler,
     private val events: EventPublisher,
+    private val metrics: QueueMetrics,
 ) : TicketServiceGrpcKt.TicketServiceCoroutineImplBase() {
 
     private val logger = LoggerFactory.getLogger(TicketService::class)
@@ -59,6 +61,7 @@ class TicketService(
         }
 
         events.ticketCreated(created)
+        metrics.recordTicketCreation(created)
         logger.info(
             "Created ticket",
             Field("ticketId", created.id),
@@ -121,6 +124,7 @@ class TicketService(
         val removed = store.remove(ticket.id) ?: return false
 
         events.ticketDeleted(removed, reason)
+        metrics.recordTicketDeletion(reason)
         logger.info("Deleted ticket", Field("ticketId", removed.id), Field("reason", reason))
         reconciler.ticketLeft(removed)
         return true

@@ -1,4 +1,35 @@
 services:
+  queue:
+    image: ghcr.io/mythicisland/queue:latest
+    ports:
+      - "4564:4564"
+    environment:
+      NATS_URL: nats://nats:4222
+      NATS_USER: admin
+      NATS_SECRET: sup3rS3cr3t
+      TYPE_PATH: /types
+      NETWORK_ID: default
+      NETWORK_SECRET: sup3rS3cr3t
+      CONTROLLER_URL: https://controller.simplecloud.app
+      CONTROLLER_NATS_URL: wss://nats.simplecloud.app:443
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
+      OTEL_METRIC_EXPORT_INTERVAL: 15000
+    volumes:
+      - ./types:/types:ro
+    depends_on:
+      - nats
+      - alloy
+    restart: unless-stopped
+
+  nats:
+    image: nats:2.11.4
+    command: ["-js", "-sd", "/data", "--user", "admin", "--pass", "sup3rS3cr3t"]
+    ports:
+      - "4222:4222"
+    volumes:
+      - nats-data:/data
+    restart: unless-stopped
+
   loki:
     image: grafana/loki:3.5.0
     command: -config.file=/etc/loki/local-config.yaml
@@ -17,12 +48,27 @@ services:
       - /etc/alloy/config.alloy
     ports:
       - "12345:12345"
+      - "4317:4317"
+      - "4318:4318"
     volumes:
       - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - alloy-data:/var/lib/alloy/data
     depends_on:
       - loki
+      - prometheus
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.4.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-remote-write-receiver
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus-data:/prometheus
     restart: unless-stopped
 
   grafana:
@@ -34,9 +80,12 @@ services:
       - grafana-data:/var/lib/grafana
     depends_on:
       - loki
+      - prometheus
     restart: unless-stopped
 
 volumes:
+  nats-data:
   loki-data:
   alloy-data:
+  prometheus-data:
   grafana-data:
