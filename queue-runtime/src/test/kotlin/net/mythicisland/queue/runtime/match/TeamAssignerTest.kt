@@ -57,15 +57,43 @@ class TeamAssignerTest {
         assertEquals(2, teams.size)
     }
 
-    private fun teams(count: Int, size: Int): QueueType =
-        QueueType(server = ServerConfig(group = "teams"), match = MatchConfig(minPlayers = 1, teams = TeamConfig(count, size)))
+    @Test
+    fun `balance by puts the strongest players into different teams`() {
+        val tickets = listOf(ticket(1, rating = 1800), ticket(1, rating = 1500), ticket(1, rating = 1400), ticket(1, rating = 1100))
+        val teams = assertNotNull(TeamAssigner.assign(teams(count = 2, size = 2, balanceBy = "rating"), tickets))
 
-    private fun ticket(players: Int): Ticket = Ticket(
+        assertEquals(listOf(2900, 2900), teams.map { team -> tickets.filter { it.playerIds.first() in team.playerIds }.sumOf { rating(it) } })
+    }
+
+    @Test
+    fun `balance by keeps parties together`() {
+        val party = ticket(2, rating = 1500)
+        val tickets = listOf(ticket(1, rating = 2000), party, ticket(1, rating = 1000))
+        val teams = assertNotNull(TeamAssigner.assign(teams(count = 2, size = 2, balanceBy = "rating"), tickets))
+
+        assertTrue(teams.any { it.playerIds.containsAll(party.playerIds) })
+    }
+
+    @Test
+    fun `balance by keeps the teams the same size`() {
+        val tickets = listOf(ticket(1, rating = 3000), ticket(1, rating = 100), ticket(1, rating = 100), ticket(1, rating = 100))
+        val teams = assertNotNull(TeamAssigner.assign(teams(count = 2, size = 4, balanceBy = "rating"), tickets))
+
+        assertEquals(listOf(2, 2), teams.map { it.playerIds.size })
+    }
+
+    private fun teams(count: Int, size: Int, balanceBy: String? = null): QueueType =
+        QueueType(server = ServerConfig(group = "teams"), match = MatchConfig(minPlayers = 1, teams = TeamConfig(count, size, balanceBy)))
+
+    private fun rating(ticket: Ticket): Int = ticket.properties.getValue("rating").toInt()
+
+    private fun ticket(players: Int, rating: Int? = null): Ticket = Ticket(
         id = UUID.randomUUID().toString(),
         playerIds = List(players) { UUID.randomUUID() },
         queueTypes = listOf("teams"),
         state = TicketState.SEARCHING,
         createdAt = Instant.EPOCH,
+        properties = if (rating == null) emptyMap() else mapOf("rating" to rating.toString()),
     )
 
 }

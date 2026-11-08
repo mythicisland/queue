@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.isActive
+import net.mythicisland.queue.shared.type.MatchRuleType
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.objectMapperFactory
 import org.spongepowered.configurate.yaml.YamlConfigurationLoader
@@ -84,6 +85,7 @@ class YamlDirectoryRepository<T : Any>(
             .defaultOptions { options ->
                 options.serializers { serializers ->
                     serializers.register(Duration::class.java, DurationSerializer())
+                    serializers.register(MatchRuleType::class.java, EnumSerializer(MatchRuleType::class.java))
                     serializers.registerAnnotatedObjects(objectMapperFactory())
                 }
             }
@@ -102,6 +104,8 @@ class YamlDirectoryRepository<T : Any>(
     }
 
     private fun keys(node: ConfigurationNode): Set<String> =
-        node.childrenMap().values.flatMap { child -> keys(child) + child.path().joinToString(".") }.toSet()
+        (node.childrenMap().values + node.childrenList())
+            .flatMap { child -> keys(child) + child.path().joinToString(".") }
+            .toSet()
 
 }
