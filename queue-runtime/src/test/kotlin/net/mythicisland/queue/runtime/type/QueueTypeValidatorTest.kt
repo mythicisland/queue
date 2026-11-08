@@ -1,11 +1,14 @@
 package net.mythicisland.queue.runtime.type
 
 import net.mythicisland.queue.shared.type.MatchConfig
+import net.mythicisland.queue.shared.type.MatchRule
+import net.mythicisland.queue.shared.type.MatchRuleType
 import net.mythicisland.queue.shared.type.PartyConfig
 import net.mythicisland.queue.shared.type.QueueType
 import net.mythicisland.queue.shared.type.ServerConfig
 import net.mythicisland.queue.shared.type.SharedMode
 import net.mythicisland.queue.shared.type.TeamConfig
+import java.time.Duration
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -96,10 +99,63 @@ class QueueTypeValidatorTest {
     }
 
     @Test
+    fun `accepts valid match rules`() {
+        val rules = listOf(
+            MatchRule(type = MatchRuleType.EQUAL, key = "region", relaxAfter = Duration.ofSeconds(60)),
+            MatchRule(type = MatchRuleType.RANGE, key = "rating", start = 100.0, widen = 50.0, every = Duration.ofSeconds(10), max = 500.0),
+        )
+
+        assertEquals(emptyList(), QueueTypeValidator.validate(withRules(rules)))
+    }
+
+    @Test
+    fun `requires a type for every rule`() {
+        assertEquals(1, QueueTypeValidator.validate(withRules(listOf(MatchRule(key = "region")))).size)
+    }
+
+    @Test
+    fun `rejects range settings on an equal rule`() {
+        val rule = MatchRule(type = MatchRuleType.EQUAL, key = "region", start = 100.0)
+
+        assertEquals(1, QueueTypeValidator.validate(withRules(listOf(rule))).size)
+    }
+
+    @Test
+    fun `requires start for a range rule`() {
+        val rule = MatchRule(type = MatchRuleType.RANGE, key = "rating")
+
+        assertEquals(1, QueueTypeValidator.validate(withRules(listOf(rule))).size)
+    }
+
+    @Test
+    fun `requires every when a range rule widens`() {
+        val rule = MatchRule(type = MatchRuleType.RANGE, key = "rating", start = 100.0, widen = 50.0)
+
+        assertEquals(1, QueueTypeValidator.validate(withRules(listOf(rule))).size)
+    }
+
+    @Test
+    fun `rejects a range max below start`() {
+        val rule = MatchRule(type = MatchRuleType.RANGE, key = "rating", start = 100.0, max = 50.0)
+
+        assertEquals(1, QueueTypeValidator.validate(withRules(listOf(rule))).size)
+    }
+
+    @Test
+    fun `rejects two rules for the same key`() {
+        val rule = MatchRule(type = MatchRuleType.EQUAL, key = "region")
+
+        assertEquals(1, QueueTypeValidator.validate(withRules(listOf(rule, rule))).size)
+    }
+
+    @Test
     fun `collects every problem`() {
         val type = QueueType(name = "broken")
 
         assertTrue(QueueTypeValidator.validate(type).size >= 3)
     }
+
+    private fun withRules(rules: List<MatchRule>): QueueType =
+        valid.copy(match = valid.match.copy(rules = rules))
 
 }

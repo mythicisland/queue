@@ -1,17 +1,23 @@
 package net.mythicisland.queue.shared.type
 
+import build.buf.gen.mythicisland.queue.v1.equalRule
 import build.buf.gen.mythicisland.queue.v1.exclusiveMode
 import build.buf.gen.mythicisland.queue.v1.matchConfig
+import build.buf.gen.mythicisland.queue.v1.matchRule
 import build.buf.gen.mythicisland.queue.v1.partyConfig
 import build.buf.gen.mythicisland.queue.v1.queueType
+import build.buf.gen.mythicisland.queue.v1.rangeRule
 import build.buf.gen.mythicisland.queue.v1.serverConfig
 import build.buf.gen.mythicisland.queue.v1.sharedMode
 import build.buf.gen.mythicisland.queue.v1.teamConfig
 import com.google.protobuf.duration
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import java.time.Duration
+import build.buf.gen.mythicisland.queue.v1.EqualRule as EqualRuleProto
 import build.buf.gen.mythicisland.queue.v1.MatchConfig as MatchConfigProto
+import build.buf.gen.mythicisland.queue.v1.MatchRule as MatchRuleProto
 import build.buf.gen.mythicisland.queue.v1.QueueType as QueueTypeProto
+import build.buf.gen.mythicisland.queue.v1.RangeRule as RangeRuleProto
 import build.buf.gen.mythicisland.queue.v1.ServerConfig as ServerConfigProto
 import build.buf.gen.mythicisland.queue.v1.SharedMode as SharedModeProto
 import build.buf.gen.mythicisland.queue.v1.TeamConfig as TeamConfigProto
@@ -100,6 +106,7 @@ data class MatchConfig(
     val countdown: Duration = Duration.ZERO,
     val teams: TeamConfig? = null,
     val parties: PartyConfig = PartyConfig(),
+    val rules: List<MatchRule> = emptyList(),
 ) {
 
     val effectiveMaxPlayers: Int
@@ -107,6 +114,9 @@ data class MatchConfig(
 
     val effectivePartySize: Int
         get() = parties.maxSize ?: (teams?.size ?: effectiveMaxPlayers)
+
+    val numberProperties: Set<String>
+        get() = rules.filter { it.type == MatchRuleType.RANGE }.map { it.key }.toSet() + listOfNotNull(teams?.balanceBy)
 
     fun toProto(): MatchConfigProto = matchConfig {
         minPlayers = this@MatchConfig.minPlayers
@@ -117,6 +127,7 @@ data class MatchConfig(
             teams = this@MatchConfig.teams.toProto()
         }
         parties = partyConfig { maxSize = this@MatchConfig.effectivePartySize }
+        rules += this@MatchConfig.rules.map { it.toProto() }
     }
 
     companion object {
@@ -127,7 +138,72 @@ data class MatchConfig(
             countdown = proto.countdown.toJavaDuration(),
             teams = if (proto.hasTeams()) TeamConfig.fromProto(proto.teams) else null,
             parties = PartyConfig(proto.parties.maxSize),
+            rules = proto.rulesList.map(MatchRule::fromProto),
         )
+    }
+
+}
+
+enum class MatchRuleType {
+    EQUAL,
+    RANGE,
+}
+
+@ConfigSerializable
+data class MatchRule(
+    val type: MatchRuleType? = null,
+    val key: String = "",
+    val relaxAfter: Duration? = null,
+    val start: Double? = null,
+    val widen: Double? = null,
+    val every: Duration? = null,
+    val max: Double? = null,
+) {
+
+    fun toProto(): MatchRuleProto = matchRule {
+        key = this@MatchRule.key
+        if (this@MatchRule.type == MatchRuleType.EQUAL) {
+            equal = toEqualProto()
+        }
+        if (this@MatchRule.type == MatchRuleType.RANGE) {
+            range = toRangeProto()
+        }
+    }
+
+    private fun toEqualProto(): EqualRuleProto = equalRule {
+        if (this@MatchRule.relaxAfter != null) {
+            relaxAfter = this@MatchRule.relaxAfter.toProto()
+        }
+    }
+
+    private fun toRangeProto(): RangeRuleProto = rangeRule {
+        start = this@MatchRule.start ?: 0.0
+        widen = this@MatchRule.widen ?: 0.0
+        if (this@MatchRule.every != null) {
+            every = this@MatchRule.every.toProto()
+        }
+        if (this@MatchRule.max != null) {
+            max = this@MatchRule.max
+        }
+    }
+
+    companion object {
+        fun fromProto(proto: MatchRuleProto): MatchRule = when (proto.ruleCase) {
+            MatchRuleProto.RuleCase.EQUAL -> MatchRule(
+                type = MatchRuleType.EQUAL,
+                key = proto.key,
+                relaxAfter = if (proto.equal.hasRelaxAfter()) proto.equal.relaxAfter.toJavaDuration() else null,
+            )
+            MatchRuleProto.RuleCase.RANGE -> MatchRule(
+                type = MatchRuleType.RANGE,
+                key = proto.key,
+                start = proto.range.start,
+                widen = proto.range.widen,
+                every = if (proto.range.hasEvery()) proto.range.every.toJavaDuration() else null,
+                max = if (proto.range.hasMax()) proto.range.max else null,
+            )
+            else -> MatchRule(key = proto.key)
+        }
     }
 
 }
@@ -136,15 +212,23 @@ data class MatchConfig(
 data class TeamConfig(
     val count: Int = 0,
     val size: Int = 0,
+    val balanceBy: String? = null,
 ) {
 
     fun toProto(): TeamConfigProto = teamConfig {
         count = this@TeamConfig.count
         size = this@TeamConfig.size
+        if (this@TeamConfig.balanceBy != null) {
+            balanceBy = this@TeamConfig.balanceBy
+        }
     }
 
     companion object {
-        fun fromProto(proto: TeamConfigProto): TeamConfig = TeamConfig(proto.count, proto.size)
+        fun fromProto(proto: TeamConfigProto): TeamConfig = TeamConfig(
+            count = proto.count,
+            size = proto.size,
+            balanceBy = if (proto.hasBalanceBy()) proto.balanceBy else null,
+        )
     }
 
 }

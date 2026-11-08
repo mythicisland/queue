@@ -13,9 +13,12 @@ import net.mythicisland.queue.api.stats.QueueStats
 import net.mythicisland.queue.api.ticket.Ticket
 import net.mythicisland.queue.api.ticket.TicketDeleteReason
 import net.mythicisland.queue.api.ticket.TicketState
+import net.mythicisland.queue.api.type.EqualRule
 import net.mythicisland.queue.api.type.MatchConfig
+import net.mythicisland.queue.api.type.MatchRule
 import net.mythicisland.queue.api.type.PartyConfig
 import net.mythicisland.queue.api.type.QueueType
+import net.mythicisland.queue.api.type.RangeRule
 import net.mythicisland.queue.api.type.ServerConfig
 import net.mythicisland.queue.api.type.SharedMode
 import net.mythicisland.queue.api.type.TeamConfig
@@ -25,6 +28,7 @@ import java.util.UUID
 import build.buf.gen.mythicisland.queue.v1.Assignment as ProtoAssignment
 import build.buf.gen.mythicisland.queue.v1.Match as ProtoMatch
 import build.buf.gen.mythicisland.queue.v1.MatchConfig as ProtoMatchConfig
+import build.buf.gen.mythicisland.queue.v1.MatchRule as ProtoMatchRule
 import build.buf.gen.mythicisland.queue.v1.MatchReleaseReason as ProtoMatchReleaseReason
 import build.buf.gen.mythicisland.queue.v1.MatchState as ProtoMatchState
 import build.buf.gen.mythicisland.queue.v1.QueueStats as ProtoQueueStats
@@ -32,6 +36,7 @@ import build.buf.gen.mythicisland.queue.v1.QueueType as ProtoQueueType
 import build.buf.gen.mythicisland.queue.v1.ServerConfig as ProtoServerConfig
 import build.buf.gen.mythicisland.queue.v1.SharedMode as ProtoSharedMode
 import build.buf.gen.mythicisland.queue.v1.Team as ProtoTeam
+import build.buf.gen.mythicisland.queue.v1.TeamConfig as ProtoTeamConfig
 import build.buf.gen.mythicisland.queue.v1.Ticket as ProtoTicket
 import build.buf.gen.mythicisland.queue.v1.TicketDeleteReason as ProtoTicketDeleteReason
 import build.buf.gen.mythicisland.queue.v1.TicketState as ProtoTicketState
@@ -120,9 +125,31 @@ internal object ProtoUtil {
         maxPlayers = proto.maxPlayers,
         fillTime = toDuration(proto.fillTime),
         countdown = toDuration(proto.countdown),
-        teams = if (proto.hasTeams()) TeamConfig(proto.teams.count, proto.teams.size) else null,
+        teams = if (proto.hasTeams()) toTeamConfig(proto.teams) else null,
         parties = PartyConfig(proto.parties.maxSize),
+        rules = proto.rulesList.mapNotNull(::toMatchRule),
     )
+
+    fun toTeamConfig(proto: ProtoTeamConfig): TeamConfig = TeamConfig(
+        count = proto.count,
+        size = proto.size,
+        balanceBy = if (proto.hasBalanceBy()) proto.balanceBy else null,
+    )
+
+    fun toMatchRule(proto: ProtoMatchRule): MatchRule? = when (proto.ruleCase) {
+        ProtoMatchRule.RuleCase.EQUAL -> EqualRule(
+            key = proto.key,
+            relaxAfter = if (proto.equal.hasRelaxAfter()) toDuration(proto.equal.relaxAfter) else null,
+        )
+        ProtoMatchRule.RuleCase.RANGE -> RangeRule(
+            key = proto.key,
+            start = proto.range.start,
+            widen = proto.range.widen,
+            every = if (proto.range.hasEvery()) toDuration(proto.range.every) else null,
+            max = if (proto.range.hasMax()) proto.range.max else null,
+        )
+        else -> null
+    }
 
     fun toQueueStats(proto: ProtoQueueStats): QueueStats = QueueStats(
         queueType = proto.queueType,

@@ -88,11 +88,32 @@ message MatchConfig {
   google.protobuf.Duration countdown = 4;
   optional TeamConfig teams = 5;
   PartyConfig parties = 6;
+  repeated MatchRule rules = 7;
+}
+
+message MatchRule {
+  string key = 1;
+  oneof rule {
+    EqualRule equal = 2;
+    RangeRule range = 3;
+  }
+}
+
+message EqualRule {
+  optional google.protobuf.Duration relax_after = 1;
+}
+
+message RangeRule {
+  double start = 1;
+  double widen = 2;
+  google.protobuf.Duration every = 3;
+  optional double max = 4;
 }
 
 message TeamConfig {
   uint32 count = 1;
   uint32 size = 2;
+  optional string balance_by = 3;
 }
 
 message PartyConfig {

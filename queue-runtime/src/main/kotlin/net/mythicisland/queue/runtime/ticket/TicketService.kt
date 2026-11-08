@@ -19,6 +19,7 @@ import net.mythicisland.queue.shared.logger.Field
 import net.mythicisland.queue.shared.logger.LoggerFactory
 import net.mythicisland.queue.shared.ticket.Ticket
 import net.mythicisland.queue.shared.ticket.TicketState
+import net.mythicisland.queue.shared.type.QueueType
 import java.time.Instant
 import java.util.UUID
 
@@ -47,6 +48,7 @@ class TicketService(
         if (exceeded != null) {
             throw invalidArgument("Queue type ${exceeded.name} allows at most ${exceeded.match.effectivePartySize} players per ticket")
         }
+        validateNumberProperties(queueTypes, request.propertiesMap)
 
         val created = Ticket(
             id = UUID.randomUUID().toString(),
@@ -99,6 +101,7 @@ class TicketService(
         val current = store.get(ticketId) ?: return null
         val merged = current.properties - removedKeys + properties
         validateProperties(merged)
+        validateNumberProperties(current.queueTypes.mapNotNull { types.get(it) }, merged)
 
         val updated = current.copy(properties = merged)
         if (!store.replace(current, updated)) {
@@ -139,6 +142,17 @@ class TicketService(
         }
         if (properties.values.any { it.length > MAX_PROPERTY_VALUE_LENGTH }) {
             throw invalidArgument("Property values have at most $MAX_PROPERTY_VALUE_LENGTH characters")
+        }
+    }
+
+    private fun validateNumberProperties(queueTypes: List<QueueType>, properties: Map<String, String>) {
+        for (type in queueTypes) {
+            for (key in type.match.numberProperties) {
+                val value = properties[key]?.toDoubleOrNull()
+                if (value == null || !value.isFinite()) {
+                    throw invalidArgument("Queue type ${type.name} needs the property $key as a number")
+                }
+            }
         }
     }
 
