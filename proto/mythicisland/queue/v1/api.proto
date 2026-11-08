@@ -12,7 +12,8 @@ service TicketService {
   //
   // Errors:
   // - INVALID_ARGUMENT: no players or queue types, the ticket is larger than the party limit
-  //   of one of the queue types, or the properties exceed their limits.
+  //   of one of the queue types, the properties exceed their limits, or a property that a range
+  //   rule or balance_by of one of the queue types needs is missing or not a number.
   // - NOT_FOUND: one of the queue types does not exist.
   // - ALREADY_EXISTS: one of the players already has a ticket.
   rpc CreateTicket(CreateTicketRequest) returns (CreateTicketResponse);
@@ -25,7 +26,8 @@ service TicketService {
   // A key that is set and removed at once is set.
   //
   // Errors:
-  // - INVALID_ARGUMENT: the properties exceed their limits afterwards.
+  // - INVALID_ARGUMENT: the properties exceed their limits afterwards, or a property that a range
+  //   rule or balance_by of one of the queue types needs is missing or not a number.
   // - NOT_FOUND: there is no such ticket, or the player has none.
   rpc UpdateTicketProperties(UpdateTicketPropertiesRequest) returns (UpdateTicketPropertiesResponse);
 }
