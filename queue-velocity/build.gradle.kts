@@ -21,6 +21,7 @@ sourceSets {
 }
 
 tasks.shadowJar {
+    archiveFileName = "queue-velocity.jar"
     dependencies {
         exclude(dependency("org.apache.logging.log4j:.*"))
         exclude(dependency("org.slf4j:.*"))
