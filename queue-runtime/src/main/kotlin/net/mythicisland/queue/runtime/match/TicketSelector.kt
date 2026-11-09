@@ -12,7 +12,7 @@ import kotlin.math.abs
 object TicketSelector {
 
     fun select(type: QueueType, searching: List<Ticket>, now: Instant): TicketSelection? {
-        val sorted = searching.sortedBy { it.createdAt }
+        val sorted = searching.filter { it.isSearchingIn(type, now) }.sortedBy { it.createdAt }
         val rules = type.match.rules
         val anchors = if (rules.isEmpty()) sorted.take(1) else sorted
 

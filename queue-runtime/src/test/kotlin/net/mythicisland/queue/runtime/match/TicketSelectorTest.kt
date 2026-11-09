@@ -135,7 +135,40 @@ class TicketSelectorTest {
         assertEquals(listOf(anchor, low, high), TicketSelector.select(type, listOf(anchor, low, high), start.plusSeconds(10))?.tickets)
     }
 
+    @Test
+    fun `skips tickets that waited longer than max wait`() {
+        val expired = ticket(0)
+        val first = ticket(30)
+        val second = ticket(40)
+
+        assertEquals(listOf(first, second), TicketSelector.select(limited(maxWait = 60), listOf(expired, first, second), start.plusSeconds(70))?.tickets)
+    }
+
+    @Test
+    fun `skips tickets that reached max failures in the queue type`() {
+        val failed = ticket(0).failed("ffa")
+        val first = ticket(1)
+        val second = ticket(2)
+
+        assertEquals(listOf(first, second), TicketSelector.select(limited(maxFailures = 1), listOf(failed, first, second), start.plusSeconds(10))?.tickets)
+    }
+
+    @Test
+    fun `failures in other queue types do not count`() {
+        val failed = ticket(0).failed("teams")
+        val other = ticket(1)
+
+        assertEquals(listOf(failed, other), TicketSelector.select(limited(maxFailures = 1), listOf(failed, other), start.plusSeconds(10))?.tickets)
+    }
+
+    private fun limited(maxWait: Long? = null, maxFailures: Int? = null): QueueType {
+        val type = ffa(min = 2, max = 2)
+        val wait = if (maxWait == null) null else Duration.ofSeconds(maxWait)
+        return type.copy(match = type.match.copy(maxWait = wait, maxFailures = maxFailures))
+    }
+
     private fun ffa(min: Int, max: Int, fillTime: Long = 0, rules: List<MatchRule> = emptyList()): QueueType = QueueType(
+        name = "ffa",
         server = ServerConfig(group = "ffa"),
         match = MatchConfig(minPlayers = min, maxPlayers = max, fillTime = Duration.ofSeconds(fillTime), rules = rules),
     )

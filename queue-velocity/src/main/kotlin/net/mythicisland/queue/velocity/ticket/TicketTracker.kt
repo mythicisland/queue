@@ -7,6 +7,7 @@ import net.kyori.adventure.text.Component
 import net.mythicisland.queue.api.event.Subscription
 import net.mythicisland.queue.api.event.ticket.TicketEventApi
 import net.mythicisland.queue.api.ticket.Ticket
+import net.mythicisland.queue.api.ticket.TicketDeleteReason
 import net.mythicisland.queue.api.ticket.TicketState
 import net.mythicisland.queue.velocity.Colors
 import java.util.UUID
@@ -27,7 +28,12 @@ class TicketTracker(private val server: ProxyServer) {
                 send(event.ticket, Component.text("Your match was cancelled, searching again.", Colors.TEXT))
             }
         },
-        events.onDeleted { event -> untrack(event.ticket) },
+        events.onDeleted { event ->
+            untrack(event.ticket)
+            if (event.reason == TicketDeleteReason.EXPIRED) {
+                send(event.ticket, Component.text("No match found, you left the queue.", Colors.ERROR))
+            }
+        },
     )
 
     fun load(tickets: List<Ticket>) {

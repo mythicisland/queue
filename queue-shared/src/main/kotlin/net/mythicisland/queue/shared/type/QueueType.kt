@@ -107,6 +107,8 @@ data class MatchConfig(
     val teams: TeamConfig? = null,
     val parties: PartyConfig = PartyConfig(),
     val rules: List<MatchRule> = emptyList(),
+    val maxWait: Duration? = null,
+    val maxFailures: Int? = null,
 ) {
 
     val effectiveMaxPlayers: Int
@@ -128,6 +130,12 @@ data class MatchConfig(
         }
         parties = partyConfig { maxSize = this@MatchConfig.effectivePartySize }
         rules += this@MatchConfig.rules.map { it.toProto() }
+        if (this@MatchConfig.maxWait != null) {
+            maxWait = this@MatchConfig.maxWait.toProto()
+        }
+        if (this@MatchConfig.maxFailures != null) {
+            maxFailures = this@MatchConfig.maxFailures
+        }
     }
 
     companion object {
@@ -139,6 +147,8 @@ data class MatchConfig(
             teams = if (proto.hasTeams()) TeamConfig.fromProto(proto.teams) else null,
             parties = PartyConfig(proto.parties.maxSize),
             rules = proto.rulesList.map(MatchRule::fromProto),
+            maxWait = if (proto.hasMaxWait()) proto.maxWait.toJavaDuration() else null,
+            maxFailures = if (proto.hasMaxFailures()) proto.maxFailures else null,
         )
     }
 

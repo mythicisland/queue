@@ -17,6 +17,7 @@ import net.mythicisland.queue.runtime.server.GameServerService
 import net.mythicisland.queue.runtime.server.ServerAllocator
 import net.mythicisland.queue.runtime.server.ServerRegistry
 import net.mythicisland.queue.runtime.state.NatsStateStore
+import net.mythicisland.queue.runtime.ticket.TicketExpirer
 import net.mythicisland.queue.runtime.ticket.TicketService
 import net.mythicisland.queue.runtime.ticket.TicketStore
 import net.mythicisland.queue.runtime.transfer.PlayerTransferService
@@ -57,6 +58,7 @@ class QueueServices(
     private val serverListener = ServerListener(api, registry, reconciler)
     private val playerListener = PlayerListener(api, ticketStore, ticketService)
     private val matchmaker = Matchmaker(types, ticketStore, matchStore, events, metrics)
+    private val ticketExpirer = TicketExpirer(types, ticketStore, ticketService)
     private val typeWatcher = QueueTypeWatcher(types, registry, ticketService)
     private val observation = gauges.observe(types, ticketStore, matchStore, registry)
 
@@ -77,6 +79,7 @@ class QueueServices(
         allocator.recover()
         playerListener.start()
         matchmaker.start()
+        ticketExpirer.start()
         reconciler.start()
         typeWatcher.start()
     }
@@ -86,6 +89,7 @@ class QueueServices(
         serverListener.shutdown()
         playerListener.shutdown()
         matchmaker.shutdown()
+        ticketExpirer.shutdown()
         reconciler.shutdown()
         observation.close()
     }

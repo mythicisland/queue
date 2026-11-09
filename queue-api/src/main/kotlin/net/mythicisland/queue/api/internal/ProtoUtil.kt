@@ -54,6 +54,7 @@ internal object ProtoUtil {
         assignment = if (proto.hasAssignment()) toAssignment(proto.assignment) else null,
         countdownEndsAt = if (proto.hasCountdownEndTime()) toInstant(proto.countdownEndTime) else null,
         properties = proto.propertiesMap.toMap(),
+        failures = proto.failuresMap.toMap(),
     )
 
     fun toMatch(proto: ProtoMatch): Match = Match(
@@ -93,6 +94,7 @@ internal object ProtoUtil {
         ProtoTicketDeleteReason.TICKET_DELETE_REASON_CANCELLED -> TicketDeleteReason.CANCELLED
         ProtoTicketDeleteReason.TICKET_DELETE_REASON_TRANSFERRED -> TicketDeleteReason.TRANSFERRED
         ProtoTicketDeleteReason.TICKET_DELETE_REASON_DISCONNECTED -> TicketDeleteReason.DISCONNECTED
+        ProtoTicketDeleteReason.TICKET_DELETE_REASON_EXPIRED -> TicketDeleteReason.EXPIRED
         else -> throw IllegalArgumentException("Unknown ticket delete reason: $reason")
     }
 
@@ -128,6 +130,8 @@ internal object ProtoUtil {
         teams = if (proto.hasTeams()) toTeamConfig(proto.teams) else null,
         parties = PartyConfig(proto.parties.maxSize),
         rules = proto.rulesList.mapNotNull(::toMatchRule),
+        maxWait = if (proto.hasMaxWait()) toDuration(proto.maxWait) else null,
+        maxFailures = if (proto.hasMaxFailures()) proto.maxFailures else null,
     )
 
     fun toTeamConfig(proto: ProtoTeamConfig): TeamConfig = TeamConfig(

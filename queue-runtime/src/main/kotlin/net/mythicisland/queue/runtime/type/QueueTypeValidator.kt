@@ -14,6 +14,8 @@ object QueueTypeValidator {
         val teams = match.teams
         val partySize = match.parties.maxSize
         val balanceBy = teams?.balanceBy
+        val maxWait = match.maxWait
+        val maxFailures = match.maxFailures
         val problems = mutableListOf<String>()
 
         if (server.group.isBlank()) {
@@ -37,6 +39,12 @@ object QueueTypeValidator {
         }
         if (match.countdown.isNegative) {
             problems += "match.countdown must not be negative"
+        }
+        if (maxWait != null && !maxWait.isPositive) {
+            problems += "match.max-wait must be positive"
+        }
+        if (maxFailures != null && maxFailures < 1) {
+            problems += "match.max-failures must be at least 1"
         }
 
         if (teams == null && match.maxPlayers == null) {

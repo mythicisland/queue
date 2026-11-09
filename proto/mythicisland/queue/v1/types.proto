@@ -18,6 +18,7 @@ message Ticket {
   google.protobuf.Timestamp countdown_end_time = 7;
   google.protobuf.Timestamp created_at = 8;
   map<string, string> properties = 9;
+  map<string, uint32> failures = 10;
 }
 
 enum TicketState {
@@ -89,6 +90,8 @@ message MatchConfig {
   optional TeamConfig teams = 5;
   PartyConfig parties = 6;
   repeated MatchRule rules = 7;
+  optional google.protobuf.Duration max_wait = 8;
+  optional uint32 max_failures = 9;
 }
 
 message MatchRule {

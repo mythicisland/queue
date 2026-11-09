@@ -3,6 +3,7 @@ package net.mythicisland.queue.shared.ticket
 import build.buf.gen.mythicisland.queue.v1.ticket
 import com.google.protobuf.timestamp
 import net.mythicisland.queue.shared.match.Assignment
+import net.mythicisland.queue.shared.type.QueueType
 import java.time.Instant
 import java.util.UUID
 import build.buf.gen.mythicisland.queue.v1.Ticket as TicketProto
@@ -17,6 +18,7 @@ data class Ticket(
     val assignment: Assignment? = null,
     val countdownEndTime: Instant? = null,
     val properties: Map<String, String> = emptyMap(),
+    val failures: Map<String, Int> = emptyMap(),
 ) {
 
     fun getPlayerCount(): Int = playerIds.size
@@ -27,6 +29,19 @@ data class Ticket(
         copy(state = TicketState.ASSIGNED, assignment = assignment, countdownEndTime = countdownEnd)
 
     fun searching(): Ticket = copy(state = TicketState.SEARCHING, matchId = null, assignment = null, countdownEndTime = null)
+
+    fun failed(queueType: String): Ticket = copy(failures = failures + (queueType to (failures[queueType] ?: 0) + 1))
+
+    fun isSearchingIn(type: QueueType, now: Instant): Boolean {
+        val maxWait = type.match.maxWait
+        if (maxWait != null && !now.isBefore(createdAt.plus(maxWait))) {
+            return false
+        }
+        val maxFailures = type.match.maxFailures
+        return maxFailures == null || (failures[type.name] ?: 0) < maxFailures
+    }
+
+    fun isExpired(types: List<QueueType>, now: Instant): Boolean = types.none { isSearchingIn(it, now) }
 
     fun toProto(): TicketProto = ticket {
         id = this@Ticket.id
@@ -48,6 +63,7 @@ data class Ticket(
             nanos = this@Ticket.createdAt.nano
         }
         properties.putAll(this@Ticket.properties)
+        failures.putAll(this@Ticket.failures)
     }
 
     companion object {
@@ -65,6 +81,7 @@ data class Ticket(
                 null
             },
             properties = proto.propertiesMap.toMap(),
+            failures = proto.failuresMap.toMap(),
         )
     }
 
