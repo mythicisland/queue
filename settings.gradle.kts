@@ -5,7 +5,8 @@ plugins {
 include(
     "queue-api", 
     "queue-runtime",
-    "queue-shared"
+    "queue-shared",
+    "queue-velocity",
 )
 
 rootProject.name = "queue"
