@@ -21,7 +21,7 @@ services:
     restart: unless-stopped
 
   nats:
-    image: nats:2.11.4
+    image: nats:2.15.2
     command: ["-js", "-sd", "/data", "--user", "admin", "--pass", "sup3rS3cr3t"]
     ports:
       - "4222:4222"
@@ -31,7 +31,7 @@ services:
 
   loki:
     profiles: [monitoring]
-    image: grafana/loki:3.5.0
+    image: grafana/loki:3.7.9
     command: -config.file=/etc/loki/local-config.yaml
     ports:
       - "3100:3100"
@@ -41,7 +41,7 @@ services:
 
   alloy:
     profiles: [monitoring]
-    image: grafana/alloy:v1.9.0
+    image: grafana/alloy:v1.21.3
     command:
       - run
       - --server.http.listen-addr=0.0.0.0:12345
@@ -62,7 +62,7 @@ services:
 
   prometheus:
     profiles: [monitoring]
-    image: prom/prometheus:v3.4.0
+    image: prom/prometheus:v3.16.0
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -75,7 +75,7 @@ services:
 
   grafana:
     profiles: [monitoring]
-    image: grafana/grafana:12.0.0
+    image: grafana/grafana:12.4.14
     ports:
       - "3000:3000"
     volumes:

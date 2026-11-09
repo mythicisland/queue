@@ -14,7 +14,7 @@ log4j = "2.26.1"
 slf4j = "2.0.20"
 
 # Telemetry
-opentelemetry = "1.67.0"
+opentelemetry = "1.68.0"
 opentelemetry-instrumentation = "2.33.1-alpha"
 
 # Configuration & CLI
@@ -29,8 +29,8 @@ queue-protos = "1.5.0.4.20261108125908.47e31d538458"
 
 # Infrastructure
 jnats = "2.26.4"
-simplecloud-api = "0.1.0-platform.59-dev.6.1-9cfd057"
-velocity = "3.5.0-SNAPSHOT"
+simplecloud-api = "0.1.0-platform.61-dev.8.1-9a2bef3"
+velocity = "3.5.1"
 
 [libraries]
 # Kotlin
