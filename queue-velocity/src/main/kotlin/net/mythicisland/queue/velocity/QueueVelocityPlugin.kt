@@ -58,7 +58,7 @@ class QueueVelocityPlugin @Inject constructor(private val server: ProxyServer) {
 
     @Subscribe
     fun onShutdown(event: ProxyShutdownEvent) {
-        subscriptions.forEach { it.unsubsribe() }
+        subscriptions.forEach { it.unsubscribe() }
         scope.cancel()
         api.close()
     }

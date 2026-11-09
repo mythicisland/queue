@@ -7,6 +7,7 @@ kotlin-coroutines = "1.11.0"
 shadow = "9.6.1"
 jib = "3.5.4"
 kraken = "1.1.1"
+blossom = "2.2.0"
 
 # Logging
 log4j = "2.26.1"
@@ -80,3 +81,4 @@ kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 jib = { id = "com.google.cloud.tools.jib", version.ref = "jib" }
 kraken = { id = "dev.xxjanisxx.kraken", version.ref = "kraken" }
+blossom = { id = "net.kyori.blossom", version.ref = "blossom" }

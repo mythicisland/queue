@@ -1,0 +1,3 @@
+package net.mythicisland.queue.velocity
+
+internal const val VERSION = "{{ version }}"

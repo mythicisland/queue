@@ -1,6 +1,7 @@
 plugins {
     kotlin("kapt")
     alias(libs.plugins.shadow)
+    alias(libs.plugins.blossom)
 }
 
 dependencies {
@@ -9,20 +10,14 @@ dependencies {
     implementation(project(":queue-api"))
 }
 
-val generateBuildConstants by tasks.registering {
-    val version = project.version.toString()
-    val output = layout.buildDirectory.dir("generated/sources/buildConstants")
-    inputs.property("version", version)
-    outputs.dir(output)
-    doLast {
-        val file = output.get().file("net/mythicisland/queue/velocity/BuildConstants.kt").asFile
-        file.parentFile.mkdirs()
-        file.writeText("package net.mythicisland.queue.velocity\n\ninternal const val VERSION = \"$version\"\n")
+sourceSets {
+    main {
+        blossom {
+            kotlinSources {
+                property("version", project.version.toString())
+            }
+        }
     }
-}
-
-kotlin.sourceSets.main {
-    kotlin.srcDir(generateBuildConstants)
 }
 
 tasks.shadowJar {
