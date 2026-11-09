@@ -18,6 +18,11 @@ enum class TicketDeleteReason {
     /**
      * One of the players disconnected.
      */
-    DISCONNECTED;
+    DISCONNECTED,
+
+    /**
+     * The ticket reached the max wait or max failures of all its queue types.
+     */
+    EXPIRED;
 
 }

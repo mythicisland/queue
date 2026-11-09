@@ -421,7 +421,8 @@ class MatchReconciler(
         for (ticket in finished.tickets) {
             val current = ticketStore.get(ticket.id) ?: continue
             if (current.matchId == finished.id) {
-                updateTicket(current, current.searching())
+                val searching = current.searching()
+                updateTicket(current, if (state == MatchState.FAILED) searching.failed(finished.queueType) else searching)
             }
         }
 

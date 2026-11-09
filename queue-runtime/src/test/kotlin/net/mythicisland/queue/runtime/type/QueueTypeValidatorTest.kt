@@ -155,6 +155,20 @@ class QueueTypeValidatorTest {
         assertTrue(QueueTypeValidator.validate(type).size >= 3)
     }
 
+    @Test
+    fun `rejects a max wait that is not positive`() {
+        val type = valid.copy(match = valid.match.copy(maxWait = Duration.ZERO))
+
+        assertEquals(1, QueueTypeValidator.validate(type).size)
+    }
+
+    @Test
+    fun `rejects max failures below one`() {
+        val type = valid.copy(match = valid.match.copy(maxFailures = 0))
+
+        assertEquals(1, QueueTypeValidator.validate(type).size)
+    }
+
     private fun withRules(rules: List<MatchRule>): QueueType =
         valid.copy(match = valid.match.copy(rules = rules))
 

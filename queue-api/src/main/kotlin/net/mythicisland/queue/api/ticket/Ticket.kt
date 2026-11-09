@@ -8,6 +8,7 @@ import java.util.UUID
  * One or more players queueing together for one or more queue types.
  *
  * [matchId] is `null` while searching, [assignment] and [countdownEndsAt] are `null` until the match has a server.
+ * [failures] counts the failed matches per queue type, see [net.mythicisland.queue.api.type.MatchConfig.maxFailures].
  */
 data class Ticket(
     val id: UUID,
@@ -19,4 +20,5 @@ data class Ticket(
     val assignment: Assignment?,
     val countdownEndsAt: Instant?,
     val properties: Map<String, String>,
+    val failures: Map<String, Int>,
 )
