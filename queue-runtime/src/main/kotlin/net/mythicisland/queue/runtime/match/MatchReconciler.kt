@@ -151,7 +151,11 @@ class MatchReconciler(
             return
         }
 
-        if (!matchStore.replace(stored, withCurrentProperties(stored))) {
+        val synced = withCurrentProperties(stored)
+        if (synced == stored) {
+            return
+        }
+        if (!matchStore.replace(stored, synced)) {
             return ticketUpdated(ticketId)
         }
     }
