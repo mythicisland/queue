@@ -16,6 +16,8 @@ import net.mythicisland.queue.api.match.Match
 import net.mythicisland.queue.api.match.MatchApi
 import net.mythicisland.queue.api.match.MatchState
 import net.mythicisland.queue.api.match.OfferDecision
+import net.mythicisland.queue.shared.logger.Field
+import net.mythicisland.queue.shared.logger.LoggerFactory
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.function.Function
@@ -26,6 +28,8 @@ internal class MatchApiImpl(
     private val events: EventApi,
     private val defaultServerId: String?,
 ) : MatchApi {
+
+    private val logger = LoggerFactory.getLogger(MatchApiImpl::class)
 
     override suspend fun acceptMatch(serverId: String, matchId: UUID): Match {
         val request = AcceptMatchRequest.newBuilder()
@@ -111,6 +115,7 @@ internal class MatchApiImpl(
         val decision = try {
             handler.apply(match)
         } catch (e: Exception) {
+            logger.error("Offer handler failed", Field("matchId", match.id), Field("serverId", serverId), Field.error(e))
             OfferDecision.reject("Offer handler failed: ${e.message}")
         }
 
@@ -120,7 +125,14 @@ internal class MatchApiImpl(
             } else {
                 rejectMatch(serverId, match.id, decision.reason)
             }
-        } catch (_: QueueException) {
+        } catch (e: QueueException) {
+            logger.warn(
+                "Failed to answer match offer",
+                Field("matchId", match.id),
+                Field("serverId", serverId),
+                Field("accepted", decision.accepted),
+                Field.error(e),
+            )
         }
     }
 
