@@ -64,7 +64,8 @@ class EnqueueCommand(
 
     private fun errorMessage(e: QueueException, queueType: String): String = when (e.code) {
         QueueException.Code.ALREADY_EXISTS -> "You are already in a queue."
-        QueueException.Code.INVALID_ARGUMENT -> "Unknown queue $queueType."
+        QueueException.Code.NOT_FOUND -> "Unknown queue $queueType."
+        QueueException.Code.INVALID_ARGUMENT -> e.message ?: "You can't join $queueType."
         QueueException.Code.UNAVAILABLE -> "The queue is not available right now."
         else -> "Something went wrong, please try again."
     }
