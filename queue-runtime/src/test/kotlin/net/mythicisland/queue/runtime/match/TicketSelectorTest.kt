@@ -116,6 +116,15 @@ class TicketSelectorTest {
     }
 
     @Test
+    fun `range window widens with an interval below one millisecond`() {
+        val tickets = listOf(rated(0, 1000), rated(0, 1150))
+        val rule = range("rating", start = 100.0, widen = 50.0).copy(every = Duration.ofNanos(500_000))
+        val type = ffa(min = 2, max = 2, rules = listOf(rule))
+
+        assertEquals(tickets, TicketSelector.select(type, tickets, start.plusMillis(1))?.tickets)
+    }
+
+    @Test
     fun `an unmatched oldest ticket does not block younger tickets`() {
         val outlier = rated(0, 3000)
         val first = rated(1, 1000)

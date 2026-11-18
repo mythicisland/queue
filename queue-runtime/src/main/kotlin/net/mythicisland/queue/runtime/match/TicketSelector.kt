@@ -87,7 +87,7 @@ object TicketSelector {
             return start
         }
 
-        val grown = start + widen * (waited.toMillis() / every.toMillis())
+        val grown = start + widen * waited.dividedBy(every)
         val max = rule.max ?: return grown
         return minOf(grown, max)
     }
