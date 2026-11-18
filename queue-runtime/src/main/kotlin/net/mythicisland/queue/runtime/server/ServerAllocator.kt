@@ -77,11 +77,19 @@ class ServerAllocator(
         return true
     }
 
-    suspend fun provision(group: String, servers: Int) {
+    suspend fun provision(group: String, waitingMatches: Int) {
         val cloudGroup = api.group().findGroupByName(group).await().getOrNull() ?: return
+        if (cloudGroup.isActive() == false) {
+            return
+        }
+
+        val matchesPerServer = if (types.isShared(group)) sharedCapacity(group) else 1
         val provisioner = if (cloudGroup.scaling?.scalingMode == ScalingMode.SLOTS) slotsProvisioner else serversProvisioner
-        provisioner.provision(cloudGroup, servers)
+        provisioner.provision(cloudGroup, serversNeeded(waitingMatches, matchesPerServer))
     }
+
+    private fun sharedCapacity(group: String): Int? =
+        types.capacity(group) ?: registry.byGroup(group).mapNotNull { it.capacity }.maxOrNull()
 
     private suspend fun removeStaleHostedMatches() {
         val completed = matchStore.all().filter { it.state == MatchState.COMPLETED }.map { it.id }.toSet()
@@ -123,6 +131,13 @@ class ServerAllocator(
         fun chooseShared(servers: List<GameServer>, excluded: Set<String>): GameServer? =
             servers.filter { it.state in SHARED_STATES && it.freeCapacity > 0 && it.id !in excluded }
                 .maxByOrNull { it.matches.size }
+
+        fun serversNeeded(waitingMatches: Int, matchesPerServer: Int?): Int {
+            if (matchesPerServer == null || matchesPerServer < 1) {
+                return minOf(waitingMatches, 1)
+            }
+            return (waitingMatches + matchesPerServer - 1) / matchesPerServer
+        }
 
     }
 

@@ -27,6 +27,21 @@ class ServerAllocatorTest {
     }
 
     @Test
+    fun `shared needs enough servers for all waiting matches`() {
+        assertEquals(3, ServerAllocator.serversNeeded(9, 4))
+    }
+
+    @Test
+    fun `shared starts one server at a time while its capacity is unknown`() {
+        assertEquals(1, ServerAllocator.serversNeeded(9, null))
+    }
+
+    @Test
+    fun `shared falls back to one server for an invalid capacity`() {
+        assertEquals(1, ServerAllocator.serversNeeded(9, 0))
+    }
+
+    @Test
     fun `shared prefers the fullest server with free capacity`() {
         val servers = listOf(
             server("empty", capacity = 4),

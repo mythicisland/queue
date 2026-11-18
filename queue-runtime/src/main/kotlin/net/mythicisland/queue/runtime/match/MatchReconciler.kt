@@ -20,6 +20,7 @@ import net.mythicisland.queue.shared.ticket.Ticket
 import net.mythicisland.queue.shared.ticket.TicketState
 import net.mythicisland.queue.shared.type.QueueType
 import net.mythicisland.queue.shared.type.SharedMode
+import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.milliseconds
@@ -64,6 +65,7 @@ class MatchReconciler(
     private val logger = LoggerFactory.getLogger(MatchReconciler::class)
     private val offerDeadlines = ConcurrentHashMap<String, Instant>()
     private val rejections = ConcurrentHashMap<String, Set<String>>()
+    private val nextProvisions = ConcurrentHashMap<String, Instant>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     fun start() {
@@ -244,7 +246,7 @@ class MatchReconciler(
                 logger.error("Failed to reconcile match", Field("matchId", match.id), Field("state", match.state), Field.error(e))
             }
         }
-        provision()
+        provision(now)
         retryFailedWrites()
         metrics.recordReconcilerRun(started.elapsedNow())
     }
@@ -441,16 +443,19 @@ class MatchReconciler(
         allocator.free(finished)
     }
 
-    private suspend fun provision() {
+    private suspend fun provision(now: Instant) {
         val waiting = matchStore.all()
             .filter { it.state == MatchState.ALLOCATING }
             .mapNotNull { types.get(it.queueType) }
             .groupBy { it.server.group }
 
         for ((group, waitingTypes) in waiting) {
-            val shared = types.isShared(group)
+            if (now.isBefore(nextProvisions[group] ?: now)) {
+                continue
+            }
+            nextProvisions[group] = now.plus(PROVISION_INTERVAL)
             try {
-                allocator.provision(group, if (shared) 1 else waitingTypes.size)
+                allocator.provision(group, waitingTypes.size)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -508,6 +513,7 @@ class MatchReconciler(
 
     private companion object {
         const val ACCEPT_TIMEOUT = "accept timeout"
+        val PROVISION_INTERVAL: Duration = Duration.ofSeconds(2)
     }
 
 }
