@@ -48,6 +48,7 @@ import kotlin.time.TimeSource
  *
  * - matches with state [MatchState.TRANSFERRING]:
  *   -> transfer the players, delete their tickets and set state to [MatchState.COMPLETED]
+ *   -> tickets whose players could not be transferred search again and count as a failure
  */
 class MatchReconciler(
     private val types: QueueTypeRegistry,
@@ -211,7 +212,7 @@ class MatchReconciler(
                 offerDeadlines[match.id] = now.plus(shared.acceptTimeout)
             }
             MatchState.COUNTDOWN -> assignTickets(match, assignment)
-            MatchState.TRANSFERRING -> launchCompletion(match, present(match), assignment)
+            MatchState.TRANSFERRING -> launchCompletion(match, assignment)
             MatchState.COMPLETED -> if (server != null && match.id !in server.hosted) allocator.host(match)
             else -> Unit
         }
@@ -353,18 +354,19 @@ class MatchReconciler(
         }
 
         val assignment = match.assignment ?: return
-        val transferring = match.copy(state = MatchState.TRANSFERRING)
+        val left = match.tickets.filter { !isPresent(it, match) }
+        val transferring = match.without(left).copy(state = MatchState.TRANSFERRING)
         if (!transition(match, transferring)) {
             return
         }
 
-        launchCompletion(transferring, present, assignment)
+        launchCompletion(transferring, assignment)
     }
 
-    private fun launchCompletion(transferring: Match, present: List<Ticket>, assignment: Assignment) {
+    private fun launchCompletion(transferring: Match, assignment: Assignment) {
         scope.launch {
             try {
-                complete(transferring, present, assignment)
+                complete(transferring, assignment)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -373,15 +375,25 @@ class MatchReconciler(
         }
     }
 
-    private suspend fun complete(transferring: Match, present: List<Ticket>, assignment: Assignment) {
+    private suspend fun complete(transferring: Match, assignment: Assignment) {
         val started = TimeSource.Monotonic.markNow()
-        val result = service.transfer(present.flatMap { it.playerIds }, assignment.serverName)
-        val missing = transferring.tickets.flatMap { it.playerIds } - result.transferred.toSet()
+        val players = transferring.tickets.flatMap { it.playerIds }
+        val result = service.transfer(players, assignment.serverName)
+        val transferred = result.transferred.toSet()
+        val missing = players - transferred
         events.matchTransferred(transferring, result.transferred, missing)
         metrics.recordTransfer(transferring, result.transferred.size, missing.size, started.elapsedNow())
 
-        for (ticket in present) {
-            val removed = ticketStore.remove(ticket.id) ?: continue
+        for (ticket in transferring.tickets) {
+            val current = ticketStore.get(ticket.id) ?: continue
+            if (current.matchId != transferring.id) {
+                continue
+            }
+            if (current.playerIds.none { it in transferred }) {
+                updateTicket(current, current.searching().failed(transferring.queueType))
+                continue
+            }
+            val removed = ticketStore.remove(current.id) ?: continue
             events.ticketDeleted(removed, TicketDeleteReason.TICKET_DELETE_REASON_TRANSFERRED)
             metrics.recordTicketDeletion(removed, TicketDeleteReason.TICKET_DELETE_REASON_TRANSFERRED)
         }
