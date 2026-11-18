@@ -5,6 +5,7 @@ import net.mythicisland.queue.shared.ticket.TicketState
 import net.mythicisland.queue.shared.type.MatchConfig
 import net.mythicisland.queue.shared.type.MatchRule
 import net.mythicisland.queue.shared.type.MatchRuleType
+import net.mythicisland.queue.shared.type.PartyConfig
 import net.mythicisland.queue.shared.type.QueueType
 import net.mythicisland.queue.shared.type.ServerConfig
 import net.mythicisland.queue.shared.type.TeamConfig
@@ -122,6 +123,17 @@ class TicketSelectorTest {
         val type = ffa(min = 2, max = 2, rules = listOf(rule))
 
         assertEquals(tickets, TicketSelector.select(type, tickets, start.plusMillis(1))?.tickets)
+    }
+
+    @Test
+    fun `skips tickets that are too large for the queue type`() {
+        val party = ticket(0, players = 3)
+        val first = ticket(1)
+        val second = ticket(2)
+        val type = ffa(min = 2, max = 4)
+        val limited = type.copy(match = type.match.copy(parties = PartyConfig(maxSize = 2)))
+
+        assertEquals(listOf(first, second), TicketSelector.select(limited, listOf(party, first, second), start.plusSeconds(10))?.tickets)
     }
 
     @Test

@@ -1,6 +1,9 @@
 package net.mythicisland.queue.shared.ticket
 
 import net.mythicisland.queue.shared.type.MatchConfig
+import net.mythicisland.queue.shared.type.MatchRule
+import net.mythicisland.queue.shared.type.MatchRuleType
+import net.mythicisland.queue.shared.type.PartyConfig
 import net.mythicisland.queue.shared.type.QueueType
 import java.time.Duration
 import java.time.Instant
@@ -39,6 +42,22 @@ class TicketTest {
     }
 
     @Test
+    fun `a ticket expires when its party became too large for all its queue types`() {
+        val types = listOf(type("ffa"), type("teams")).map { it.copy(match = it.match.copy(parties = PartyConfig(maxSize = 1))) }
+
+        assertTrue(ticket(players = 2).isExpired(types, start))
+    }
+
+    @Test
+    fun `a ticket stops searching in a queue type that needs a number property it lacks`() {
+        val ffa = type("ffa")
+        val ranked = ffa.copy(match = ffa.match.copy(rules = listOf(MatchRule(type = MatchRuleType.RANGE, key = "rating", start = 100.0))))
+
+        assertFalse(ticket().isSearchingIn(ranked, start))
+        assertTrue(ticket(properties = mapOf("rating" to "1000")).isSearchingIn(ranked, start))
+    }
+
+    @Test
     fun `failures are counted per queue type`() {
         val failed = ticket().failed("ffa").failed("ffa").failed("teams")
 
@@ -55,12 +74,13 @@ class TicketTest {
         ),
     )
 
-    private fun ticket(): Ticket = Ticket(
+    private fun ticket(players: Int = 1, properties: Map<String, String> = emptyMap()): Ticket = Ticket(
         id = UUID.randomUUID().toString(),
-        playerIds = listOf(UUID.randomUUID()),
+        playerIds = List(players) { UUID.randomUUID() },
         queueTypes = listOf("ffa", "teams"),
         state = TicketState.SEARCHING,
         createdAt = start,
+        properties = properties,
     )
 
 }

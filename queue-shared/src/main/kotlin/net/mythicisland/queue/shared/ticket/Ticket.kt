@@ -33,6 +33,9 @@ data class Ticket(
     fun failed(queueType: String): Ticket = copy(failures = failures + (queueType to (failures[queueType] ?: 0) + 1))
 
     fun isSearchingIn(type: QueueType, now: Instant): Boolean {
+        if (!fits(type)) {
+            return false
+        }
         val maxWait = type.match.maxWait
         if (maxWait != null && !now.isBefore(createdAt.plus(maxWait))) {
             return false
@@ -42,6 +45,10 @@ data class Ticket(
     }
 
     fun isExpired(types: List<QueueType>, now: Instant): Boolean = types.none { isSearchingIn(it, now) }
+
+    private fun fits(type: QueueType): Boolean =
+        getPlayerCount() <= type.match.effectivePartySize &&
+            type.match.numberProperties.all { key -> properties[key]?.toDoubleOrNull()?.isFinite() == true }
 
     fun toProto(): TicketProto = ticket {
         id = this@Ticket.id
