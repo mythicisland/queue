@@ -10,6 +10,7 @@ import net.mythicisland.queue.shared.type.MatchRuleType
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.objectMapperFactory
 import org.spongepowered.configurate.yaml.YamlConfigurationLoader
+import java.io.IOException
 import java.nio.file.FileSystems
 import java.nio.file.Path
 import java.nio.file.StandardWatchEventKinds
@@ -45,14 +46,14 @@ class YamlDirectoryRepository<T : Any>(
                 StandardWatchEventKinds.ENTRY_MODIFY,
                 StandardWatchEventKinds.ENTRY_DELETE,
             )
-            val known = contents().toMutableMap()
+            val known = (readContents() ?: emptyMap()).toMutableMap()
 
             while (currentCoroutineContext().isActive) {
                 val key = watcher.poll(1, TimeUnit.SECONDS) ?: continue
                 key.pollEvents()
                 key.reset()
 
-                val current = contents()
+                val current = readContents() ?: continue
                 for ((name, content) in current) {
                     if (known[name] != content) {
                         known[name] = content
@@ -71,6 +72,12 @@ class YamlDirectoryRepository<T : Any>(
         directory.listDirectoryEntries("*.{yml,yaml}").associateBy { it.nameWithoutExtension }
 
     private fun contents(): Map<String, String> = files().mapValues { (_, file) -> file.readText() }
+
+    private fun readContents(): Map<String, String>? = try {
+        contents()
+    } catch (_: IOException) {
+        null
+    }
 
     private fun parse(name: String): DirectoryEvent<T> = try {
         val file = files()[name] ?: throw IllegalStateException("$name does not exist anymore")
