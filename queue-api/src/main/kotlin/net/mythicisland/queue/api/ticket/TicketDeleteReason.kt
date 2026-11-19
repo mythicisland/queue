@@ -23,6 +23,11 @@ enum class TicketDeleteReason {
     /**
      * The ticket reached the max wait or max failures of all its queue types.
      */
-    EXPIRED;
+    EXPIRED,
+
+    /**
+     * All queue types of the ticket were deactivated while it was searching.
+     */
+    QUEUE_TYPE_INACTIVE;
 
 }

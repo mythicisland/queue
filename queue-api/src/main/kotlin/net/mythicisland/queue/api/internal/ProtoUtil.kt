@@ -33,6 +33,8 @@ import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 import build.buf.gen.mythicisland.queue.v1.Assignment as ProtoAssignment
+import build.buf.gen.mythicisland.queue.v1.EqualRule as ProtoEqualRule
+import build.buf.gen.mythicisland.queue.v1.ExclusiveMode as ProtoExclusiveMode
 import build.buf.gen.mythicisland.queue.v1.Match as ProtoMatch
 import build.buf.gen.mythicisland.queue.v1.MatchConfig as ProtoMatchConfig
 import build.buf.gen.mythicisland.queue.v1.MatchFilter as ProtoMatchFilter
@@ -40,15 +42,21 @@ import build.buf.gen.mythicisland.queue.v1.MatchQuality as ProtoMatchQuality
 import build.buf.gen.mythicisland.queue.v1.MatchRule as ProtoMatchRule
 import build.buf.gen.mythicisland.queue.v1.MatchReleaseReason as ProtoMatchReleaseReason
 import build.buf.gen.mythicisland.queue.v1.MatchState as ProtoMatchState
+import build.buf.gen.mythicisland.queue.v1.NumberFilter as ProtoNumberFilter
+import build.buf.gen.mythicisland.queue.v1.PartyConfig as ProtoPartyConfig
+import build.buf.gen.mythicisland.queue.v1.PresenceFilter as ProtoPresenceFilter
 import build.buf.gen.mythicisland.queue.v1.QueueStats as ProtoQueueStats
 import build.buf.gen.mythicisland.queue.v1.QueueType as ProtoQueueType
+import build.buf.gen.mythicisland.queue.v1.RangeRule as ProtoRangeRule
 import build.buf.gen.mythicisland.queue.v1.ServerConfig as ProtoServerConfig
 import build.buf.gen.mythicisland.queue.v1.SharedMode as ProtoSharedMode
+import build.buf.gen.mythicisland.queue.v1.SpreadLimit as ProtoSpreadLimit
 import build.buf.gen.mythicisland.queue.v1.Team as ProtoTeam
 import build.buf.gen.mythicisland.queue.v1.TeamConfig as ProtoTeamConfig
 import build.buf.gen.mythicisland.queue.v1.Ticket as ProtoTicket
 import build.buf.gen.mythicisland.queue.v1.TicketDeleteReason as ProtoTicketDeleteReason
 import build.buf.gen.mythicisland.queue.v1.TicketState as ProtoTicketState
+import build.buf.gen.mythicisland.queue.v1.ValuesFilter as ProtoValuesFilter
 import build.buf.gen.mythicisland.queue.v1.Window as ProtoWindow
 import com.google.protobuf.Duration as ProtoDuration
 
@@ -105,6 +113,7 @@ internal object ProtoUtil {
         ProtoTicketDeleteReason.TICKET_DELETE_REASON_TRANSFERRED -> TicketDeleteReason.TRANSFERRED
         ProtoTicketDeleteReason.TICKET_DELETE_REASON_DISCONNECTED -> TicketDeleteReason.DISCONNECTED
         ProtoTicketDeleteReason.TICKET_DELETE_REASON_EXPIRED -> TicketDeleteReason.EXPIRED
+        ProtoTicketDeleteReason.TICKET_DELETE_REASON_QUEUE_TYPE_INACTIVE -> TicketDeleteReason.QUEUE_TYPE_INACTIVE
         else -> throw IllegalArgumentException("Unknown ticket delete reason: $reason")
     }
 
@@ -119,6 +128,7 @@ internal object ProtoUtil {
         server = toServerConfig(proto.server),
         match = toMatchConfig(proto.match),
         properties = proto.propertiesMap.toMap(),
+        active = if (proto.hasActive()) proto.active else true,
     )
 
     fun toServerConfig(proto: ProtoServerConfig): ServerConfig = ServerConfig(
@@ -189,6 +199,164 @@ internal object ProtoUtil {
         )
         else -> null
     }
+
+    fun fromQueueType(type: QueueType): ProtoQueueType = ProtoQueueType.newBuilder()
+        .setName(type.name)
+        .setServer(fromServerConfig(type.server))
+        .setMatch(fromMatchConfig(type.match))
+        .putAllProperties(type.properties)
+        .setActive(type.active)
+        .build()
+
+    fun fromServerConfig(config: ServerConfig): ProtoServerConfig {
+        val builder = ProtoServerConfig.newBuilder()
+            .setGroup(config.group)
+            .setAllocationTimeout(fromDuration(config.allocationTimeout))
+        val shared = config.shared
+        if (shared == null) {
+            builder.setExclusive(ProtoExclusiveMode.getDefaultInstance())
+        } else {
+            builder.setShared(fromSharedMode(shared))
+        }
+        return builder.build()
+    }
+
+    fun fromSharedMode(mode: SharedMode): ProtoSharedMode {
+        val builder = ProtoSharedMode.newBuilder()
+            .setAcceptTimeout(fromDuration(mode.acceptTimeout))
+        val capacity = mode.capacity
+        if (capacity != null) {
+            builder.setCapacity(capacity)
+        }
+        return builder.build()
+    }
+
+    fun fromMatchConfig(config: MatchConfig): ProtoMatchConfig {
+        val builder = ProtoMatchConfig.newBuilder()
+            .setMinPlayers(config.minPlayers)
+            .setMaxPlayers(config.maxPlayers)
+            .setFillTime(fromDuration(config.fillTime))
+            .setCountdown(fromDuration(config.countdown))
+            .setParties(ProtoPartyConfig.newBuilder().setMaxSize(config.parties.maxSize))
+            .addAllRules(config.rules.map(::fromMatchRule))
+            .addAllFilters(config.filters.map(::fromMatchFilter))
+            .setQuality(fromMatchQuality(config.quality))
+        val teams = config.teams
+        if (teams != null) {
+            builder.setTeams(fromTeamConfig(teams))
+        }
+        val maxWait = config.maxWait
+        if (maxWait != null) {
+            builder.setMaxWait(fromDuration(maxWait))
+        }
+        val maxFailures = config.maxFailures
+        if (maxFailures != null) {
+            builder.setMaxFailures(maxFailures)
+        }
+        return builder.build()
+    }
+
+    fun fromTeamConfig(config: TeamConfig): ProtoTeamConfig {
+        val builder = ProtoTeamConfig.newBuilder()
+            .setCount(config.count)
+            .setSize(config.size)
+        val balanceBy = config.balanceBy
+        if (balanceBy != null) {
+            builder.setBalanceBy(balanceBy)
+        }
+        return builder.build()
+    }
+
+    fun fromMatchRule(rule: MatchRule): ProtoMatchRule {
+        val builder = ProtoMatchRule.newBuilder().setKey(rule.key)
+        when (rule) {
+            is EqualRule -> builder.setEqual(fromEqualRule(rule))
+            is RangeRule -> builder.setRange(fromRangeRule(rule))
+        }
+        return builder.build()
+    }
+
+    fun fromEqualRule(rule: EqualRule): ProtoEqualRule {
+        val builder = ProtoEqualRule.newBuilder()
+        val relaxAfter = rule.relaxAfter
+        if (relaxAfter != null) {
+            builder.setRelaxAfter(fromDuration(relaxAfter))
+        }
+        return builder.build()
+    }
+
+    fun fromRangeRule(rule: RangeRule): ProtoRangeRule {
+        val builder = ProtoRangeRule.newBuilder()
+            .setStart(rule.start)
+            .setWiden(rule.widen)
+        val every = rule.every
+        if (every != null) {
+            builder.setEvery(fromDuration(every))
+        }
+        val max = rule.max
+        if (max != null) {
+            builder.setMax(max)
+        }
+        return builder.build()
+    }
+
+    fun fromMatchFilter(filter: MatchFilter): ProtoMatchFilter {
+        val builder = ProtoMatchFilter.newBuilder().setKey(filter.key)
+        when (filter) {
+            is ValuesFilter -> builder.setValues(ProtoValuesFilter.newBuilder().addAllValues(filter.values))
+            is NumberFilter -> builder.setNumber(fromNumberFilter(filter))
+            is PresenceFilter -> builder.setPresence(ProtoPresenceFilter.newBuilder().setPresent(filter.present))
+        }
+        return builder.build()
+    }
+
+    fun fromNumberFilter(filter: NumberFilter): ProtoNumberFilter {
+        val builder = ProtoNumberFilter.newBuilder()
+        val min = filter.min
+        if (min != null) {
+            builder.setMin(min)
+        }
+        val max = filter.max
+        if (max != null) {
+            builder.setMax(max)
+        }
+        return builder.build()
+    }
+
+    fun fromMatchQuality(quality: MatchQuality): ProtoMatchQuality {
+        val builder = ProtoMatchQuality.newBuilder()
+            .addAllSpread(quality.spread.map(::fromSpreadLimit))
+        val teamBalance = quality.teamBalance
+        if (teamBalance != null) {
+            builder.setTeamBalance(fromWindow(teamBalance))
+        }
+        return builder.build()
+    }
+
+    fun fromSpreadLimit(limit: SpreadLimit): ProtoSpreadLimit = ProtoSpreadLimit.newBuilder()
+        .setKey(limit.key)
+        .setWindow(fromWindow(limit.window))
+        .build()
+
+    fun fromWindow(window: Window): ProtoWindow {
+        val builder = ProtoWindow.newBuilder()
+            .setStart(window.start)
+            .setWiden(window.widen)
+        val every = window.every
+        if (every != null) {
+            builder.setEvery(fromDuration(every))
+        }
+        val max = window.max
+        if (max != null) {
+            builder.setMax(max)
+        }
+        return builder.build()
+    }
+
+    fun fromDuration(duration: Duration): ProtoDuration = ProtoDuration.newBuilder()
+        .setSeconds(duration.seconds)
+        .setNanos(duration.nano)
+        .build()
 
     fun toQueueStats(proto: ProtoQueueStats): QueueStats = QueueStats(
         queueType = proto.queueType,

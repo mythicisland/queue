@@ -5,6 +5,7 @@ import net.mythicisland.queue.api.event.EventApi
 import net.mythicisland.queue.api.internal.QueueApiImpl
 import net.mythicisland.queue.api.match.MatchApi
 import net.mythicisland.queue.api.ticket.TicketApi
+import net.mythicisland.queue.api.type.QueueTypeApi
 
 /**
  * Entrypoint for talking to the queue.
@@ -29,7 +30,12 @@ interface QueueApi : AutoCloseable {
     fun data(): QueueDataApi
 
     /**
-     * Subscribing to ticket and match events.
+     * Creating, updating and deleting queue types.
+     */
+    fun queueType(): QueueTypeApi
+
+    /**
+     * Subscribing to ticket, match and queue type events.
      */
     fun event(): EventApi
 

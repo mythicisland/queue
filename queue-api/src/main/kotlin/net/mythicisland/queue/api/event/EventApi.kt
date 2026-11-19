@@ -2,6 +2,7 @@ package net.mythicisland.queue.api.event
 
 import net.mythicisland.queue.api.event.match.MatchEventApi
 import net.mythicisland.queue.api.event.ticket.TicketEventApi
+import net.mythicisland.queue.api.event.type.QueueTypeEventApi
 
 /**
  * Subscribing to queue events.
@@ -33,5 +34,10 @@ interface EventApi {
      * and its last state change shows up here when an offer to [serverId] is withdrawn.
      */
     fun match(serverId: String): MatchEventApi
+
+    /**
+     * Events of all queue types.
+     */
+    fun queueType(): QueueTypeEventApi
 
 }
