@@ -14,16 +14,16 @@ object TicketSelector {
     fun select(type: QueueType, searching: List<Ticket>, now: Instant): TicketSelection? {
         val sorted = searching.filter { it.isSearchingIn(type, now) }.sortedBy { it.createdAt }
         val rules = type.match.rules
-        val anchors = if (rules.isEmpty()) sorted.take(1) else sorted
+        val anchors = if (rules.isEmpty() && !type.match.quality.hasLimits()) sorted.take(1) else sorted
 
         return anchors.firstNotNullOfOrNull { anchor ->
             val waited = Duration.between(anchor.createdAt, now)
             val candidates = sorted.filter { it != anchor && allows(rules, anchor, it, waited) }
-            selectFrom(type, listOf(anchor) + candidates, now)
+            selectFrom(type, listOf(anchor) + candidates, now, waited)
         }
     }
 
-    private fun selectFrom(type: QueueType, candidates: List<Ticket>, now: Instant): TicketSelection? {
+    private fun selectFrom(type: QueueType, candidates: List<Ticket>, now: Instant, waited: Duration): TicketSelection? {
         val config = type.match
         val selected = mutableListOf<Ticket>()
         val teams = mutableListOf<Team>()
@@ -36,6 +36,9 @@ object TicketSelector {
             if (players(candidate) > config.effectiveMaxPlayers) {
                 continue
             }
+            if (!MatchQualityCheck.fitsSpread(config.quality.spread, candidate, waited)) {
+                continue
+            }
             val assigned = TeamAssigner.assign(type, candidate) ?: continue
             selected.add(ticket)
             teams.clear()
@@ -44,6 +47,9 @@ object TicketSelector {
 
         val players = players(selected)
         if (players < config.minPlayers) {
+            return null
+        }
+        if (!MatchQualityCheck.fitsTeamBalance(type, teams, selected, waited)) {
             return null
         }
         val selection = TicketSelection(selected.toList(), teams.toList())
@@ -76,20 +82,7 @@ object TicketSelector {
     private fun isInRange(rule: MatchRule, anchor: Ticket, candidate: Ticket, waited: Duration): Boolean {
         val anchorValue = anchor.properties[rule.key]?.toDoubleOrNull() ?: return false
         val candidateValue = candidate.properties[rule.key]?.toDoubleOrNull() ?: return false
-        return abs(anchorValue - candidateValue) <= window(rule, waited)
-    }
-
-    private fun window(rule: MatchRule, waited: Duration): Double {
-        val start = rule.start ?: 0.0
-        val widen = rule.widen ?: 0.0
-        val every = rule.every
-        if (every == null || !every.isPositive || widen == 0.0 || waited.isNegative) {
-            return start
-        }
-
-        val grown = start + widen * waited.dividedBy(every)
-        val max = rule.max ?: return grown
-        return minOf(grown, max)
+        return abs(anchorValue - candidateValue) <= rule.window.at(waited)
     }
 
     private fun players(tickets: List<Ticket>): Int = tickets.sumOf { it.getPlayerCount() }

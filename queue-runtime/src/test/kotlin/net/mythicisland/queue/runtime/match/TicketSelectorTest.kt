@@ -3,12 +3,15 @@ package net.mythicisland.queue.runtime.match
 import net.mythicisland.queue.shared.ticket.Ticket
 import net.mythicisland.queue.shared.ticket.TicketState
 import net.mythicisland.queue.shared.type.MatchConfig
+import net.mythicisland.queue.shared.type.MatchQuality
 import net.mythicisland.queue.shared.type.MatchRule
 import net.mythicisland.queue.shared.type.MatchRuleType
 import net.mythicisland.queue.shared.type.PartyConfig
 import net.mythicisland.queue.shared.type.QueueType
 import net.mythicisland.queue.shared.type.ServerConfig
+import net.mythicisland.queue.shared.type.SpreadLimit
 import net.mythicisland.queue.shared.type.TeamConfig
+import net.mythicisland.queue.shared.type.Window
 import java.time.Duration
 import java.time.Instant
 import java.util.UUID
@@ -157,6 +160,44 @@ class TicketSelectorTest {
     }
 
     @Test
+    fun `spread skips a ticket that fits the oldest ticket but not the others`() {
+        val anchor = rated(0, 1000)
+        val low = rated(1, 900)
+        val high = rated(2, 1100)
+        val type = withQuality(ffa(min = 2, max = 3), MatchQuality(spread = listOf(SpreadLimit(key = "rating", start = 150.0))))
+
+        assertEquals(listOf(anchor, low), TicketSelector.select(type, listOf(anchor, low, high), start.plusSeconds(10))?.tickets)
+    }
+
+    @Test
+    fun `spread window widens with the wait time of the oldest ticket`() {
+        val tickets = listOf(rated(0, 1000), rated(0, 1200))
+        val limit = SpreadLimit(key = "rating", start = 100.0, widen = 100.0, every = Duration.ofSeconds(10))
+        val type = withQuality(ffa(min = 2, max = 2), MatchQuality(spread = listOf(limit)))
+
+        assertNull(TicketSelector.select(type, tickets, start.plusSeconds(9)))
+        assertEquals(tickets, TicketSelector.select(type, tickets, start.plusSeconds(10))?.tickets)
+    }
+
+    @Test
+    fun `waits until the team balance window allows the difference between the teams`() {
+        val tickets = listOf(rated(0, 1000), rated(0, 1600))
+        val balance = Window(start = 100.0, widen = 500.0, every = Duration.ofSeconds(30))
+        val type = QueueType(
+            name = "duel",
+            server = ServerConfig(group = "duel"),
+            match = MatchConfig(
+                minPlayers = 2,
+                teams = TeamConfig(count = 2, size = 1, balanceBy = "rating"),
+                quality = MatchQuality(teamBalance = balance),
+            ),
+        )
+
+        assertNull(TicketSelector.select(type, tickets, start.plusSeconds(10)))
+        assertEquals(tickets.toSet(), TicketSelector.select(type, tickets, start.plusSeconds(30))?.tickets?.toSet())
+    }
+
+    @Test
     fun `skips tickets that waited longer than max wait`() {
         val expired = ticket(0)
         val first = ticket(30)
@@ -187,6 +228,9 @@ class TicketSelectorTest {
         val wait = if (maxWait == null) null else Duration.ofSeconds(maxWait)
         return type.copy(match = type.match.copy(maxWait = wait, maxFailures = maxFailures))
     }
+
+    private fun withQuality(type: QueueType, quality: MatchQuality): QueueType =
+        type.copy(match = type.match.copy(quality = quality))
 
     private fun ffa(min: Int, max: Int, fillTime: Long = 0, rules: List<MatchRule> = emptyList()): QueueType = QueueType(
         name = "ffa",

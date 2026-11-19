@@ -49,6 +49,7 @@ class TicketService(
             throw invalidArgument("Queue type ${exceeded.name} allows at most ${exceeded.match.effectivePartySize} players per ticket")
         }
         validateNumberProperties(queueTypes, request.propertiesMap)
+        validateFilters(queueTypes, request.propertiesMap)
 
         val created = Ticket(
             id = UUID.randomUUID().toString(),
@@ -101,7 +102,9 @@ class TicketService(
         val current = store.get(ticketId) ?: return null
         val merged = current.properties - removedKeys + properties
         validateProperties(merged)
-        validateNumberProperties(current.queueTypes.mapNotNull { types.get(it) }, merged)
+        val queueTypes = current.queueTypes.mapNotNull { types.get(it) }
+        validateNumberProperties(queueTypes, merged)
+        validateFilters(queueTypes, merged)
 
         val updated = current.copy(properties = merged)
         if (!store.replace(current, updated)) {
@@ -152,6 +155,15 @@ class TicketService(
                 if (value == null || !value.isFinite()) {
                     throw invalidArgument("Queue type ${type.name} needs the property $key as a number")
                 }
+            }
+        }
+    }
+
+    private fun validateFilters(queueTypes: List<QueueType>, properties: Map<String, String>) {
+        for (type in queueTypes) {
+            val failed = type.match.filters.firstOrNull { !it.accepts(properties) }
+            if (failed != null) {
+                throw invalidArgument("Queue type ${type.name} needs ${failed.describe()}")
             }
         }
     }

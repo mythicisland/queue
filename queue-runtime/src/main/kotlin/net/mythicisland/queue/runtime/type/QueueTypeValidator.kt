@@ -1,8 +1,11 @@
 package net.mythicisland.queue.runtime.type
 
+import net.mythicisland.queue.shared.type.MatchFilter
 import net.mythicisland.queue.shared.type.MatchRule
 import net.mythicisland.queue.shared.type.MatchRuleType
 import net.mythicisland.queue.shared.type.QueueType
+import net.mythicisland.queue.shared.type.SpreadLimit
+import net.mythicisland.queue.shared.type.Window
 
 object QueueTypeValidator {
 
@@ -77,13 +80,67 @@ object QueueTypeValidator {
         }
 
         match.rules.forEachIndexed { index, rule -> problems += validateRule("match.rules[$index]", rule) }
-        val duplicates = match.rules.map { it.key }.filter { it.isNotBlank() }.groupingBy { it }.eachCount().filterValues { it > 1 }.keys
-        for (key in duplicates) {
+        for (key in duplicateKeys(match.rules.map { it.key })) {
             problems += "match.rules must not have more than one rule for key $key"
+        }
+
+        match.filters.forEachIndexed { index, filter -> problems += validateFilter("match.filters[$index]", filter) }
+        for (key in duplicateKeys(match.filters.map { it.key })) {
+            problems += "match.filters must not have more than one filter for key $key"
+        }
+
+        val teamBalance = match.quality.teamBalance
+        match.quality.spread.forEachIndexed { index, limit -> problems += validateSpread("match.quality.spread[$index]", limit) }
+        for (key in duplicateKeys(match.quality.spread.map { it.key })) {
+            problems += "match.quality.spread must not have more than one limit for key $key"
+        }
+        if (teamBalance != null) {
+            problems += validateWindow("match.quality.team-balance", teamBalance)
+        }
+        if (teamBalance != null && balanceBy == null) {
+            problems += "match.quality.team-balance needs match.teams.balance-by"
         }
 
         return problems
     }
+
+    private fun validateSpread(path: String, limit: SpreadLimit): List<String> {
+        val problems = mutableListOf<String>()
+        if (limit.key.isBlank()) {
+            problems += "$path.key must be set"
+        }
+        return problems + validateWindow(path, limit.window)
+    }
+
+    private fun validateFilter(path: String, filter: MatchFilter): List<String> {
+        val values = filter.values
+        val min = filter.min
+        val max = filter.max
+        val problems = mutableListOf<String>()
+
+        if (filter.key.isBlank()) {
+            problems += "$path.key must be set"
+        }
+        if (listOf(values != null, min != null || max != null, filter.present != null).count { it } != 1) {
+            problems += "$path must set exactly one of values, min and max, or present"
+        }
+        if (values != null && values.isEmpty()) {
+            problems += "$path.values must not be empty"
+        }
+        if (min != null && !min.isFinite()) {
+            problems += "$path.min must be a finite number"
+        }
+        if (max != null && !max.isFinite()) {
+            problems += "$path.max must be a finite number"
+        }
+        if (min != null && max != null && min > max) {
+            problems += "$path.min must not be larger than max"
+        }
+        return problems
+    }
+
+    private fun duplicateKeys(keys: List<String>): Set<String> =
+        keys.filter { it.isNotBlank() }.groupingBy { it }.eachCount().filterValues { it > 1 }.keys
 
     private fun validateRule(path: String, rule: MatchRule): List<String> {
         val relaxAfter = rule.relaxAfter
@@ -113,9 +170,18 @@ object QueueTypeValidator {
             }
             return problems
         }
+        return problems + validateWindow(path, rule.window)
+    }
+
+    private fun validateWindow(path: String, window: Window): List<String> {
+        val start = window.start
+        val widen = window.widen
+        val every = window.every
+        val max = window.max
+        val problems = mutableListOf<String>()
 
         if (start == null) {
-            problems += "$path.start must be set for range rules"
+            problems += "$path.start must be set"
         }
         if (start != null && (start < 0 || !start.isFinite())) {
             problems += "$path.start must be a number that is not negative"

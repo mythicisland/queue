@@ -8,6 +8,8 @@ import java.time.Duration
  * A match starts once [minPlayers] are found and either [maxPlayers] is reached or [fillTime] ran out.
  * [maxPlayers] is `count * size` if there are [teams]. Only tickets that pass all [rules] play in the same match.
  *
+ * Only tickets that pass all [filters] search in this queue type, and every match stays within the limits of [quality].
+ *
  * A ticket stops searching in this queue type once it waited [maxWait] or had [maxFailures] failed matches in it,
  * `null` means no limit. It is deleted once it doesn't search in any of its queue types anymore.
  */
@@ -21,6 +23,8 @@ data class MatchConfig(
     val rules: List<MatchRule>,
     val maxWait: Duration?,
     val maxFailures: Int?,
+    val filters: List<MatchFilter>,
+    val quality: MatchQuality,
 )
 
 /**

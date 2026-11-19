@@ -68,6 +68,7 @@ class Matchmaker(
             matchStore.add(match)
             events.matchCreated(match)
             metrics.recordMatchCreation(match)
+            metrics.recordMatchQuality(type, match)
             for (ticket in claimed) {
                 if (ticketStore.get(ticket.id)?.matchId == matchId) {
                     events.ticketStateChanged(ticket, TicketState.SEARCHING)

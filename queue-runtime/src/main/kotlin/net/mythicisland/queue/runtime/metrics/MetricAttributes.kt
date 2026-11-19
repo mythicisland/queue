@@ -10,5 +10,6 @@ object MetricAttributes {
     val REASON: AttributeKey<String> = AttributeKey.stringKey("reason")
     val RESULT: AttributeKey<String> = AttributeKey.stringKey("result")
     val KIND: AttributeKey<String> = AttributeKey.stringKey("kind")
+    val KEY: AttributeKey<String> = AttributeKey.stringKey("key")
 
 }
