@@ -1,6 +1,6 @@
 # Queue
 
-A lightweight and extensible matchmaking queue for Minecraft networks running on [SimpleCloud](https://simplecloud.app).
+Lightweight, extensible and scalable matchmaking for Minecraft.
 
 ## Requirements
 
