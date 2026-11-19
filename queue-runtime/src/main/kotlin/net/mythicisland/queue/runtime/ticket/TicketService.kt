@@ -43,6 +43,10 @@ class TicketService(
         val queueTypes = request.queueTypesList.distinct().map { name ->
             types.get(name) ?: throw Status.NOT_FOUND.withDescription("Queue type $name does not exist").asException()
         }
+        val inactive = queueTypes.firstOrNull { !it.active }
+        if (inactive != null) {
+            throw Status.FAILED_PRECONDITION.withDescription("Queue type ${inactive.name} is not active").asException()
+        }
 
         val exceeded = queueTypes.firstOrNull { players.size > it.match.effectivePartySize }
         if (exceeded != null) {
@@ -119,9 +123,14 @@ class TicketService(
 
     suspend fun recover() {
         for (ticket in store.all()) {
-            if (ticket.queueTypes.none { types.get(it) != null }) {
+            val existing = ticket.queueTypes.mapNotNull { types.get(it) }
+            if (existing.isEmpty()) {
                 logger.warn("Queue types of ticket do not exist anymore", Field("ticketId", ticket.id), Field("queueTypes", ticket.queueTypes))
                 delete(ticket, TicketDeleteReason.TICKET_DELETE_REASON_CANCELLED)
+                continue
+            }
+            if (ticket.state == TicketState.SEARCHING && ticket.isInactive(existing)) {
+                delete(ticket, TicketDeleteReason.TICKET_DELETE_REASON_QUEUE_TYPE_INACTIVE)
             }
         }
     }
