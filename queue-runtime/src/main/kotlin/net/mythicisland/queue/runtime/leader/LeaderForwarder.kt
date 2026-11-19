@@ -2,6 +2,7 @@ package net.mythicisland.queue.runtime.leader
 
 import build.buf.gen.mythicisland.queue.v1.GameServerServiceGrpcKt
 import build.buf.gen.mythicisland.queue.v1.QueueDataServiceGrpcKt
+import build.buf.gen.mythicisland.queue.v1.QueueTypeServiceGrpcKt
 import build.buf.gen.mythicisland.queue.v1.TicketServiceGrpcKt
 import io.grpc.CallOptions
 import io.grpc.Context
@@ -32,6 +33,7 @@ class LeaderForwarder(private val leader: StateFlow<Lease?>, private val self: L
         TicketServiceGrpcKt.serviceDescriptor,
         GameServerServiceGrpcKt.serviceDescriptor,
         QueueDataServiceGrpcKt.serviceDescriptor,
+        QueueTypeServiceGrpcKt.serviceDescriptor,
     ).map { forwarding(it) }
 
     fun shutdown() {

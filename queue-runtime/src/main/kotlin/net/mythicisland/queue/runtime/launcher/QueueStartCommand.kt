@@ -45,6 +45,9 @@ object QueueStartCommand : SuspendingCliktCommand() {
     val matchesBucket: String by option(help = "NATS KV bucket for matches (default: queue-matches)", envvar = "MATCHES_BUCKET")
         .default("queue-matches")
 
+    val typesBucket: String by option(help = "NATS KV bucket for queue types (default: queue-types)", envvar = "TYPES_BUCKET")
+        .default("queue-types")
+
     val leaderBucket: String by option(help = "NATS KV bucket for the leader lease (default: queue-leader)", envvar = "LEADER_BUCKET")
         .default("queue-leader")
 
@@ -59,9 +62,10 @@ object QueueStartCommand : SuspendingCliktCommand() {
     val advertiseAddress: String by option(help = "Address other instances use to reach this gRPC server (default: <ip>:<grpc-port>)", envvar = "ADVERTISE_ADDRESS")
         .defaultLazy { "${InetAddress.getLocalHost().hostAddress}:$grpcPort" }
 
-    val typesPath: Path by option(help = "Path used for queue types (default: types)", envvar = "TYPE_PATH")
-        .path()
-        .default(Path.of("types"))
+    val typesPath: Path? by option(
+        help = "Directory with queue type files. If set, the files are the only source of queue types and the API can't change them (default: none)",
+        envvar = "TYPE_PATH",
+    ).path()
 
     val networkId: String by option(help = "Your SimpleCloud Network ID (default: default)", envvar = "NETWORK_ID")
         .default("default")

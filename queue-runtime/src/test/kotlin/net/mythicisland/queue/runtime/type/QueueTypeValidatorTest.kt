@@ -38,6 +38,18 @@ class QueueTypeValidatorTest {
     }
 
     @Test
+    fun `rejects names that can not be used as keys`() {
+        for (name in listOf("", "-bedwars", "bed wars", "bed.wars", "a".repeat(65))) {
+            assertEquals(1, QueueTypeValidator.validate(valid.copy(name = name)).size, name)
+        }
+    }
+
+    @Test
+    fun `accepts names with letters, digits, dashes and underscores`() {
+        assertEquals(emptyList(), QueueTypeValidator.validate(valid.copy(name = "Bedwars_4x4-ranked")))
+    }
+
+    @Test
     fun `requires a group`() {
         val type = valid.copy(server = ServerConfig(group = ""))
 
