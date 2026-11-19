@@ -41,6 +41,7 @@ func Execute() error {
 	addToGroup(root, "start", contexts.NewCommand(), newStatusCommand())
 	addToGroup(root, "types", types.NewCommand(), newApplyCommand(), newDiffCommand())
 	addToGroup(root, "debug", tickets.NewCommand(), matches.NewCommand())
+	addToGroup(root, "cli", newUpgradeCommand())
 	root.SetHelpCommandGroupID("cli")
 	root.SetCompletionCommandGroupID("cli")
 
