@@ -5,7 +5,7 @@ import (
 
 	"charm.land/fang/v2"
 	"github.com/mythicisland/queue/cli/cmd/contexts"
-	"github.com/mythicisland/queue/cli/internal/config"
+	"github.com/mythicisland/queue/cli/cmd/types"
 	"github.com/spf13/cobra"
 )
 
@@ -13,17 +13,17 @@ import (
 var version = "dev"
 
 func Execute() error {
-	var overrides config.Overrides
-
 	root := &cobra.Command{
 		Use:   "queue",
 		Short: "Manage your queue from the terminal",
 	}
-	root.PersistentFlags().StringVar(&overrides.Context, "context", "", "context to use instead of the current one")
-	root.PersistentFlags().StringVar(&overrides.URL, "url", "", "queue address, overrides the context")
-	root.PersistentFlags().StringVar(&overrides.Secret, "secret", "", "auth secret, overrides the context")
+	flags := root.PersistentFlags()
+	flags.String("context", "", "context to use instead of the current one")
+	flags.String("url", "", "queue address, overrides the context")
+	flags.String("secret", "", "auth secret, overrides the context")
+	flags.StringP("output", "o", "", "output format: table, yaml or json")
 
-	root.AddCommand(contexts.NewCommand())
+	root.AddCommand(contexts.NewCommand(), types.NewCommand())
 
 	return fang.Execute(context.Background(), root, fang.WithVersion(version))
 }

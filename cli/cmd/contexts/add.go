@@ -35,6 +35,9 @@ func newAddCommand() *cobra.Command {
 					Validate(required).
 					Value(&ctx.Secret).
 					Run()
+				if errors.Is(err, huh.ErrUserAborted) {
+					return nil
+				}
 				if err != nil {
 					return err
 				}
