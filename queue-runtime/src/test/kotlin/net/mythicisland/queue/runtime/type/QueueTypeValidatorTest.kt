@@ -1,6 +1,7 @@
 package net.mythicisland.queue.runtime.type
 
 import net.mythicisland.queue.shared.type.MatchConfig
+import net.mythicisland.queue.shared.type.MatchFilter
 import net.mythicisland.queue.shared.type.MatchRule
 import net.mythicisland.queue.shared.type.MatchRuleType
 import net.mythicisland.queue.shared.type.PartyConfig
@@ -169,7 +170,54 @@ class QueueTypeValidatorTest {
         assertEquals(1, QueueTypeValidator.validate(type).size)
     }
 
+    @Test
+    fun `accepts valid match filters`() {
+        val filters = listOf(
+            MatchFilter(key = "version", values = listOf("1.21.4")),
+            MatchFilter(key = "rating", min = 0.0, max = 1500.0),
+            MatchFilter(key = "banned", present = false),
+        )
+
+        assertEquals(emptyList(), QueueTypeValidator.validate(withFilters(filters)))
+    }
+
+    @Test
+    fun `rejects a filter with more than one condition`() {
+        val filter = MatchFilter(key = "rating", values = listOf("1000"), min = 0.0)
+
+        assertEquals(1, QueueTypeValidator.validate(withFilters(listOf(filter))).size)
+    }
+
+    @Test
+    fun `rejects a filter without a condition`() {
+        assertEquals(1, QueueTypeValidator.validate(withFilters(listOf(MatchFilter(key = "rating")))).size)
+    }
+
+    @Test
+    fun `rejects a filter with empty values`() {
+        val filter = MatchFilter(key = "version", values = emptyList())
+
+        assertEquals(1, QueueTypeValidator.validate(withFilters(listOf(filter))).size)
+    }
+
+    @Test
+    fun `rejects a filter min above max`() {
+        val filter = MatchFilter(key = "rating", min = 1500.0, max = 0.0)
+
+        assertEquals(1, QueueTypeValidator.validate(withFilters(listOf(filter))).size)
+    }
+
+    @Test
+    fun `rejects two filters for the same key`() {
+        val filter = MatchFilter(key = "region", values = listOf("eu"))
+
+        assertEquals(1, QueueTypeValidator.validate(withFilters(listOf(filter, filter))).size)
+    }
+
     private fun withRules(rules: List<MatchRule>): QueueType =
         valid.copy(match = valid.match.copy(rules = rules))
+
+    private fun withFilters(filters: List<MatchFilter>): QueueType =
+        valid.copy(match = valid.match.copy(filters = filters))
 
 }

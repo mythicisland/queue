@@ -1,6 +1,7 @@
 package net.mythicisland.queue.shared.ticket
 
 import net.mythicisland.queue.shared.type.MatchConfig
+import net.mythicisland.queue.shared.type.MatchFilter
 import net.mythicisland.queue.shared.type.MatchRule
 import net.mythicisland.queue.shared.type.MatchRuleType
 import net.mythicisland.queue.shared.type.PartyConfig
@@ -55,6 +56,15 @@ class TicketTest {
 
         assertFalse(ticket().isSearchingIn(ranked, start))
         assertTrue(ticket(properties = mapOf("rating" to "1000")).isSearchingIn(ranked, start))
+    }
+
+    @Test
+    fun `a ticket stops searching in a queue type whose filters it does not pass`() {
+        val ffa = type("ffa")
+        val filtered = ffa.copy(match = ffa.match.copy(filters = listOf(MatchFilter(key = "region", values = listOf("eu")))))
+
+        assertFalse(ticket(properties = mapOf("region" to "us")).isSearchingIn(filtered, start))
+        assertTrue(ticket(properties = mapOf("region" to "eu")).isSearchingIn(filtered, start))
     }
 
     @Test

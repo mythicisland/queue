@@ -48,7 +48,8 @@ data class Ticket(
 
     private fun fits(type: QueueType): Boolean =
         getPlayerCount() <= type.match.effectivePartySize &&
-            type.match.numberProperties.all { key -> properties[key]?.toDoubleOrNull()?.isFinite() == true }
+            type.match.numberProperties.all { key -> properties[key]?.toDoubleOrNull()?.isFinite() == true } &&
+            type.match.filters.all { it.accepts(properties) }
 
     fun toProto(): TicketProto = ticket {
         id = this@Ticket.id

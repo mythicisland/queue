@@ -18,7 +18,7 @@ A lightweight and extensible matchmaking queue for Minecraft networks running on
 - [x] **Ticket expiry**: Remove tickets after a maximum wait time or too many failed matches.
 - [ ] **Backfill**: Fill running matches with players from the queue, e.g. to replace players who left.
 - [ ] **Wait time estimates**: Show players how long they will probably wait.
-- [ ] **Filters**: Only let tickets into a queue type that match fixed values, e.g. a region or client version.
+- [x] **Filters**: Only let tickets into a queue type that match fixed values, e.g. a region or client version.
 
 ## Requirements
 

@@ -1,5 +1,6 @@
 package net.mythicisland.queue.runtime.type
 
+import net.mythicisland.queue.shared.type.MatchFilter
 import net.mythicisland.queue.shared.type.MatchRule
 import net.mythicisland.queue.shared.type.MatchRuleType
 import net.mythicisland.queue.shared.type.QueueType
@@ -78,13 +79,47 @@ object QueueTypeValidator {
         }
 
         match.rules.forEachIndexed { index, rule -> problems += validateRule("match.rules[$index]", rule) }
-        val duplicates = match.rules.map { it.key }.filter { it.isNotBlank() }.groupingBy { it }.eachCount().filterValues { it > 1 }.keys
-        for (key in duplicates) {
+        for (key in duplicateKeys(match.rules.map { it.key })) {
             problems += "match.rules must not have more than one rule for key $key"
+        }
+
+        match.filters.forEachIndexed { index, filter -> problems += validateFilter("match.filters[$index]", filter) }
+        for (key in duplicateKeys(match.filters.map { it.key })) {
+            problems += "match.filters must not have more than one filter for key $key"
         }
 
         return problems
     }
+
+    private fun validateFilter(path: String, filter: MatchFilter): List<String> {
+        val values = filter.values
+        val min = filter.min
+        val max = filter.max
+        val problems = mutableListOf<String>()
+
+        if (filter.key.isBlank()) {
+            problems += "$path.key must be set"
+        }
+        if (listOf(values != null, min != null || max != null, filter.present != null).count { it } != 1) {
+            problems += "$path must set exactly one of values, min and max, or present"
+        }
+        if (values != null && values.isEmpty()) {
+            problems += "$path.values must not be empty"
+        }
+        if (min != null && !min.isFinite()) {
+            problems += "$path.min must be a finite number"
+        }
+        if (max != null && !max.isFinite()) {
+            problems += "$path.max must be a finite number"
+        }
+        if (min != null && max != null && min > max) {
+            problems += "$path.min must not be larger than max"
+        }
+        return problems
+    }
+
+    private fun duplicateKeys(keys: List<String>): Set<String> =
+        keys.filter { it.isNotBlank() }.groupingBy { it }.eachCount().filterValues { it > 1 }.keys
 
     private fun validateRule(path: String, rule: MatchRule): List<String> {
         val relaxAfter = rule.relaxAfter
