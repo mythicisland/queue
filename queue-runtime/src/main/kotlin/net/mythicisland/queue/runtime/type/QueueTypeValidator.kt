@@ -4,6 +4,7 @@ import net.mythicisland.queue.shared.type.MatchFilter
 import net.mythicisland.queue.shared.type.MatchRule
 import net.mythicisland.queue.shared.type.MatchRuleType
 import net.mythicisland.queue.shared.type.QueueType
+import net.mythicisland.queue.shared.type.SpreadLimit
 import net.mythicisland.queue.shared.type.Window
 
 object QueueTypeValidator {
@@ -88,7 +89,27 @@ object QueueTypeValidator {
             problems += "match.filters must not have more than one filter for key $key"
         }
 
+        val teamBalance = match.quality.teamBalance
+        match.quality.spread.forEachIndexed { index, limit -> problems += validateSpread("match.quality.spread[$index]", limit) }
+        for (key in duplicateKeys(match.quality.spread.map { it.key })) {
+            problems += "match.quality.spread must not have more than one limit for key $key"
+        }
+        if (teamBalance != null) {
+            problems += validateWindow("match.quality.team-balance", teamBalance)
+        }
+        if (teamBalance != null && balanceBy == null) {
+            problems += "match.quality.team-balance needs match.teams.balance-by"
+        }
+
         return problems
+    }
+
+    private fun validateSpread(path: String, limit: SpreadLimit): List<String> {
+        val problems = mutableListOf<String>()
+        if (limit.key.isBlank()) {
+            problems += "$path.key must be set"
+        }
+        return problems + validateWindow(path, limit.window)
     }
 
     private fun validateFilter(path: String, filter: MatchFilter): List<String> {

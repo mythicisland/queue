@@ -2,13 +2,16 @@ package net.mythicisland.queue.runtime.type
 
 import net.mythicisland.queue.shared.type.MatchConfig
 import net.mythicisland.queue.shared.type.MatchFilter
+import net.mythicisland.queue.shared.type.MatchQuality
 import net.mythicisland.queue.shared.type.MatchRule
 import net.mythicisland.queue.shared.type.MatchRuleType
 import net.mythicisland.queue.shared.type.PartyConfig
 import net.mythicisland.queue.shared.type.QueueType
 import net.mythicisland.queue.shared.type.ServerConfig
 import net.mythicisland.queue.shared.type.SharedMode
+import net.mythicisland.queue.shared.type.SpreadLimit
 import net.mythicisland.queue.shared.type.TeamConfig
+import net.mythicisland.queue.shared.type.Window
 import java.time.Duration
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -212,6 +215,40 @@ class QueueTypeValidatorTest {
         val filter = MatchFilter(key = "region", values = listOf("eu"))
 
         assertEquals(1, QueueTypeValidator.validate(withFilters(listOf(filter, filter))).size)
+    }
+
+    @Test
+    fun `accepts a valid match quality`() {
+        val teams = TeamConfig(count = 2, size = 4, balanceBy = "rating")
+        val quality = MatchQuality(
+            spread = listOf(SpreadLimit(key = "rating", start = 200.0, widen = 50.0, every = Duration.ofSeconds(30), max = 600.0)),
+            teamBalance = Window(start = 50.0),
+        )
+        val type = valid.copy(match = valid.match.copy(teams = teams, quality = quality))
+
+        assertEquals(emptyList(), QueueTypeValidator.validate(type))
+    }
+
+    @Test
+    fun `requires balance by for a team balance limit`() {
+        val type = valid.copy(match = valid.match.copy(quality = MatchQuality(teamBalance = Window(start = 50.0))))
+
+        assertEquals(1, QueueTypeValidator.validate(type).size)
+    }
+
+    @Test
+    fun `requires start for a spread limit`() {
+        val type = valid.copy(match = valid.match.copy(quality = MatchQuality(spread = listOf(SpreadLimit(key = "rating")))))
+
+        assertEquals(1, QueueTypeValidator.validate(type).size)
+    }
+
+    @Test
+    fun `rejects two spread limits for the same key`() {
+        val limit = SpreadLimit(key = "rating", start = 100.0)
+        val type = valid.copy(match = valid.match.copy(quality = MatchQuality(spread = listOf(limit, limit))))
+
+        assertEquals(1, QueueTypeValidator.validate(type).size)
     }
 
     private fun withRules(rules: List<MatchRule>): QueueType =

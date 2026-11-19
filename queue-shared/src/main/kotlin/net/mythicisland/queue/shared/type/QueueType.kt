@@ -4,6 +4,7 @@ import build.buf.gen.mythicisland.queue.v1.equalRule
 import build.buf.gen.mythicisland.queue.v1.exclusiveMode
 import build.buf.gen.mythicisland.queue.v1.matchConfig
 import build.buf.gen.mythicisland.queue.v1.matchFilter
+import build.buf.gen.mythicisland.queue.v1.matchQuality
 import build.buf.gen.mythicisland.queue.v1.matchRule
 import build.buf.gen.mythicisland.queue.v1.numberFilter
 import build.buf.gen.mythicisland.queue.v1.partyConfig
@@ -12,21 +13,26 @@ import build.buf.gen.mythicisland.queue.v1.queueType
 import build.buf.gen.mythicisland.queue.v1.rangeRule
 import build.buf.gen.mythicisland.queue.v1.serverConfig
 import build.buf.gen.mythicisland.queue.v1.sharedMode
+import build.buf.gen.mythicisland.queue.v1.spreadLimit
 import build.buf.gen.mythicisland.queue.v1.teamConfig
 import build.buf.gen.mythicisland.queue.v1.valuesFilter
+import build.buf.gen.mythicisland.queue.v1.window
 import com.google.protobuf.duration
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import java.time.Duration
 import build.buf.gen.mythicisland.queue.v1.EqualRule as EqualRuleProto
 import build.buf.gen.mythicisland.queue.v1.MatchConfig as MatchConfigProto
 import build.buf.gen.mythicisland.queue.v1.MatchFilter as MatchFilterProto
+import build.buf.gen.mythicisland.queue.v1.MatchQuality as MatchQualityProto
 import build.buf.gen.mythicisland.queue.v1.NumberFilter as NumberFilterProto
 import build.buf.gen.mythicisland.queue.v1.MatchRule as MatchRuleProto
 import build.buf.gen.mythicisland.queue.v1.QueueType as QueueTypeProto
 import build.buf.gen.mythicisland.queue.v1.RangeRule as RangeRuleProto
 import build.buf.gen.mythicisland.queue.v1.ServerConfig as ServerConfigProto
 import build.buf.gen.mythicisland.queue.v1.SharedMode as SharedModeProto
+import build.buf.gen.mythicisland.queue.v1.SpreadLimit as SpreadLimitProto
 import build.buf.gen.mythicisland.queue.v1.TeamConfig as TeamConfigProto
+import build.buf.gen.mythicisland.queue.v1.Window as WindowProto
 import com.google.protobuf.Duration as DurationProto
 
 @ConfigSerializable
@@ -116,6 +122,7 @@ data class MatchConfig(
     val maxWait: Duration? = null,
     val maxFailures: Int? = null,
     val filters: List<MatchFilter> = emptyList(),
+    val quality: MatchQuality = MatchQuality(),
 ) {
 
     val effectiveMaxPlayers: Int
@@ -125,7 +132,9 @@ data class MatchConfig(
         get() = parties.maxSize ?: (teams?.size ?: effectiveMaxPlayers)
 
     val numberProperties: Set<String>
-        get() = rules.filter { it.type == MatchRuleType.RANGE }.map { it.key }.toSet() + listOfNotNull(teams?.balanceBy)
+        get() = rules.filter { it.type == MatchRuleType.RANGE }.map { it.key }.toSet() +
+            quality.spread.map { it.key } +
+            listOfNotNull(teams?.balanceBy)
 
     fun toProto(): MatchConfigProto = matchConfig {
         minPlayers = this@MatchConfig.minPlayers
@@ -144,6 +153,7 @@ data class MatchConfig(
             maxFailures = this@MatchConfig.maxFailures
         }
         filters += this@MatchConfig.filters.map { it.toProto() }
+        quality = this@MatchConfig.quality.toProto()
     }
 
     companion object {
@@ -158,7 +168,58 @@ data class MatchConfig(
             maxWait = if (proto.hasMaxWait()) proto.maxWait.toJavaDuration() else null,
             maxFailures = if (proto.hasMaxFailures()) proto.maxFailures else null,
             filters = proto.filtersList.map(MatchFilter::fromProto),
+            quality = MatchQuality.fromProto(proto.quality),
         )
+    }
+
+}
+
+@ConfigSerializable
+data class MatchQuality(
+    val spread: List<SpreadLimit> = emptyList(),
+    val teamBalance: Window? = null,
+) {
+
+    fun hasLimits(): Boolean = spread.isNotEmpty() || teamBalance != null
+
+    fun toProto(): MatchQualityProto = matchQuality {
+        spread += this@MatchQuality.spread.map { it.toProto() }
+        if (this@MatchQuality.teamBalance != null) {
+            teamBalance = this@MatchQuality.teamBalance.toProto()
+        }
+    }
+
+    companion object {
+        fun fromProto(proto: MatchQualityProto): MatchQuality = MatchQuality(
+            spread = proto.spreadList.map(SpreadLimit::fromProto),
+            teamBalance = if (proto.hasTeamBalance()) Window.fromProto(proto.teamBalance) else null,
+        )
+    }
+
+}
+
+@ConfigSerializable
+data class SpreadLimit(
+    val key: String = "",
+    val start: Double? = null,
+    val widen: Double? = null,
+    val every: Duration? = null,
+    val max: Double? = null,
+) {
+
+    val window: Window
+        get() = Window(start, widen, every, max)
+
+    fun toProto(): SpreadLimitProto = spreadLimit {
+        key = this@SpreadLimit.key
+        window = this@SpreadLimit.window.toProto()
+    }
+
+    companion object {
+        fun fromProto(proto: SpreadLimitProto): SpreadLimit {
+            val window = Window.fromProto(proto.window)
+            return SpreadLimit(proto.key, window.start, window.widen, window.every, window.max)
+        }
     }
 
 }
@@ -323,6 +384,26 @@ data class Window(
             return grown
         }
         return minOf(grown, max)
+    }
+
+    fun toProto(): WindowProto = window {
+        start = this@Window.start ?: 0.0
+        widen = this@Window.widen ?: 0.0
+        if (this@Window.every != null) {
+            every = this@Window.every.toProto()
+        }
+        if (this@Window.max != null) {
+            max = this@Window.max
+        }
+    }
+
+    companion object {
+        fun fromProto(proto: WindowProto): Window = Window(
+            start = proto.start,
+            widen = proto.widen,
+            every = if (proto.hasEvery()) proto.every.toJavaDuration() else null,
+            max = if (proto.hasMax()) proto.max else null,
+        )
     }
 
 }
