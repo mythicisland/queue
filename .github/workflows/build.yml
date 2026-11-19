@@ -36,3 +36,31 @@ jobs:
           name: test-reports
           path: '**/build/reports/tests/'
           retention-days: 7
+
+  cli:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build & test
+        run: |
+          go build ./...
+          go test ./...
+
+      - name: Check release config
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          workdir: cli
+          version: "~> v2"
+          args: check

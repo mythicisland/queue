@@ -1,0 +1,24 @@
+version: 2
+
+project_name: queue
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X github.com/mythicisland/queue/cli/cmd.version={{ .Version }}
+
+archives:
+  - name_template: "queue-cli_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: queue-cli_checksums.txt
+
+changelog:
+  disable: true

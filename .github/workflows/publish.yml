@@ -122,3 +122,31 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.release.tag_name }}
         run: gh release upload "$TAG" queue-velocity/build/libs/queue-velocity.jar --clobber
+
+  cli:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Build binaries
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          workdir: cli
+          version: "~> v2"
+          args: release --clean --skip=publish
+
+      - name: Upload binaries to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" cli/dist/*.tar.gz cli/dist/*.zip cli/dist/queue-cli_checksums.txt --clobber
