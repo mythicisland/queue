@@ -9,6 +9,8 @@ import net.mythicisland.queue.shared.type.Window
 
 object QueueTypeValidator {
 
+    private val NAME = Regex("[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
+
     fun validate(type: QueueType): List<String> {
         val server = type.server
         val shared = server.shared
@@ -21,40 +23,43 @@ object QueueTypeValidator {
         val maxFailures = match.maxFailures
         val problems = mutableListOf<String>()
 
+        if (!NAME.matches(type.name)) {
+            problems += "name must be 1 to 64 letters, digits, - or _ and start with a letter or digit"
+        }
         if (server.group.isBlank()) {
             problems += "server.group must be set"
         }
         if (!server.allocationTimeout.isPositive) {
-            problems += "server.allocation-timeout must be positive"
+            problems += "server.allocation_timeout must be positive"
         }
         if (shared != null && !shared.acceptTimeout.isPositive) {
-            problems += "server.shared.accept-timeout must be positive"
+            problems += "server.shared.accept_timeout must be positive"
         }
         if (capacity != null && capacity < 1) {
             problems += "server.shared.capacity must be at least 1"
         }
 
         if (match.minPlayers < 1) {
-            problems += "match.min-players must be at least 1"
+            problems += "match.min_players must be at least 1"
         }
         if (match.fillTime.isNegative) {
-            problems += "match.fill-time must not be negative"
+            problems += "match.fill_time must not be negative"
         }
         if (match.countdown.isNegative) {
             problems += "match.countdown must not be negative"
         }
         if (maxWait != null && !maxWait.isPositive) {
-            problems += "match.max-wait must be positive"
+            problems += "match.max_wait must be positive"
         }
         if (maxFailures != null && maxFailures < 1) {
-            problems += "match.max-failures must be at least 1"
+            problems += "match.max_failures must be at least 1"
         }
 
         if (teams == null && match.maxPlayers == null) {
-            problems += "match.max-players or match.teams must be set"
+            problems += "match.max_players or match.teams must be set"
         }
         if (teams != null && match.maxPlayers != null) {
-            problems += "match.max-players must not be set together with match.teams, it is always count * size"
+            problems += "match.max_players must not be set together with match.teams, it is always count * size"
         }
         if (teams != null && teams.count < 2) {
             problems += "match.teams.count must be at least 2"
@@ -63,20 +68,20 @@ object QueueTypeValidator {
             problems += "match.teams.size must be at least 1"
         }
         if ((teams != null || match.maxPlayers != null) && match.minPlayers > match.effectiveMaxPlayers) {
-            problems += "match.min-players must not be larger than the maximum of ${match.effectiveMaxPlayers} players"
+            problems += "match.min_players must not be larger than the maximum of ${match.effectiveMaxPlayers} players"
         }
 
         if (partySize != null && partySize < 1) {
-            problems += "match.parties.max-size must be at least 1"
+            problems += "match.parties.max_size must be at least 1"
         }
         if (partySize != null && teams != null && partySize > teams.size) {
-            problems += "match.parties.max-size must not be larger than match.teams.size"
+            problems += "match.parties.max_size must not be larger than match.teams.size"
         }
         if (partySize != null && teams == null && partySize > match.effectiveMaxPlayers) {
-            problems += "match.parties.max-size must not be larger than match.max-players"
+            problems += "match.parties.max_size must not be larger than match.max_players"
         }
         if (balanceBy != null && balanceBy.isBlank()) {
-            problems += "match.teams.balance-by must not be blank"
+            problems += "match.teams.balance_by must not be blank"
         }
 
         match.rules.forEachIndexed { index, rule -> problems += validateRule("match.rules[$index]", rule) }
@@ -95,10 +100,10 @@ object QueueTypeValidator {
             problems += "match.quality.spread must not have more than one limit for key $key"
         }
         if (teamBalance != null) {
-            problems += validateWindow("match.quality.team-balance", teamBalance)
+            problems += validateWindow("match.quality.team_balance", teamBalance)
         }
         if (teamBalance != null && balanceBy == null) {
-            problems += "match.quality.team-balance needs match.teams.balance-by"
+            problems += "match.quality.team_balance needs match.teams.balance_by"
         }
 
         return problems

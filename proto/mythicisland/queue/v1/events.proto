@@ -32,6 +32,7 @@ enum TicketDeleteReason {
   TICKET_DELETE_REASON_TRANSFERRED = 2;
   TICKET_DELETE_REASON_DISCONNECTED = 3;
   TICKET_DELETE_REASON_EXPIRED = 4;
+  TICKET_DELETE_REASON_QUEUE_TYPE_INACTIVE = 5;
 }
 
 message MatchCreatedEvent {
@@ -58,4 +59,17 @@ enum MatchReleaseReason {
   MATCH_RELEASE_REASON_UNSPECIFIED = 0;
   MATCH_RELEASE_REASON_RELEASED = 1;
   MATCH_RELEASE_REASON_SERVER_STOPPED = 2;
+}
+
+message QueueTypeCreatedEvent {
+  QueueType queue_type = 1;
+}
+
+message QueueTypeUpdatedEvent {
+  QueueType queue_type = 1;
+  QueueType previous = 2;
+}
+
+message QueueTypeDeletedEvent {
+  QueueType queue_type = 1;
 }

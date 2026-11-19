@@ -21,7 +21,7 @@ sealed interface MatchRule {
  */
 data class EqualRule(
     override val key: String,
-    val relaxAfter: Duration?,
+    val relaxAfter: Duration? = null,
 ) : MatchRule
 
 /**
@@ -34,7 +34,7 @@ data class EqualRule(
 data class RangeRule(
     override val key: String,
     val start: Double,
-    val widen: Double,
-    val every: Duration?,
-    val max: Double?,
+    val widen: Double = 0.0,
+    val every: Duration? = null,
+    val max: Double? = null,
 ) : MatchRule

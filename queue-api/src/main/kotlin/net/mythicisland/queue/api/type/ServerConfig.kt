@@ -10,8 +10,8 @@ import java.time.Duration
  */
 data class ServerConfig(
     val group: String,
-    val allocationTimeout: Duration,
-    val shared: SharedMode?,
+    val allocationTimeout: Duration = Duration.ofSeconds(60),
+    val shared: SharedMode? = null,
 )
 
 /**
@@ -22,6 +22,6 @@ data class ServerConfig(
  * `null` if every server has to set it.
  */
 data class SharedMode(
-    val acceptTimeout: Duration,
-    val capacity: Int?,
+    val acceptTimeout: Duration = Duration.ofSeconds(10),
+    val capacity: Int? = null,
 )

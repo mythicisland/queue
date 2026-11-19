@@ -11,7 +11,6 @@ dependencies {
     implementation(libs.bundles.grpc)
     implementation(libs.grpc.services)
     implementation(libs.bundles.logging)
-    implementation(libs.bundles.configurate)
     implementation(libs.bundles.opentelemetry)
 }
 

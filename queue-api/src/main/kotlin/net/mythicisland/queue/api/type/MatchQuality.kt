@@ -1,7 +1,5 @@
 package net.mythicisland.queue.api.type
 
-import java.time.Duration
-
 /**
  * Limits for a whole match. They grow with the wait time of the oldest ticket, so players wait for a better match
  * first and take a worse one later.
@@ -10,8 +8,8 @@ import java.time.Duration
  * [teamBalance] limits the difference between the team averages of [TeamConfig.balanceBy], `null` means no limit.
  */
 data class MatchQuality(
-    val spread: List<SpreadLimit>,
-    val teamBalance: Window?,
+    val spread: List<SpreadLimit> = emptyList(),
+    val teamBalance: Window? = null,
 )
 
 /**
@@ -23,14 +21,4 @@ data class MatchQuality(
 data class SpreadLimit(
     val key: String,
     val window: Window,
-)
-
-/**
- * A limit that starts at [start] and grows by [widen] every [every], up to [max] if it is set.
- */
-data class Window(
-    val start: Double,
-    val widen: Double,
-    val every: Duration?,
-    val max: Double?,
 )

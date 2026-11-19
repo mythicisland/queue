@@ -19,13 +19,12 @@ opentelemetry-instrumentation = "2.33.1-alpha"
 
 # Configuration & CLI
 clikt = "5.2.1"
-configurate = "4.2.0"
 
 # gRPC & Protobuf
 protobuf = "4.36.2"
 grpc = "1.85.1"
 grpc-kotlin = "1.5.0"
-queue-protos = "1.5.0.4.00000000000000.b17e606c8f4a"
+queue-protos = "1.5.0.4.20261119194250.946ceb964546"
 
 # Infrastructure
 jnats = "2.27.0"
@@ -52,8 +51,6 @@ opentelemetry-runtime-telemetry = { module = "io.opentelemetry.instrumentation:o
 opentelemetry-grpc = { module = "io.opentelemetry.instrumentation:opentelemetry-grpc-1.6", version.ref = "opentelemetry-instrumentation" }
 
 # Configuration & CLI
-configurate-yaml = { module = "org.spongepowered:configurate-yaml", version.ref = "configurate" }
-configurate-extra-kotlin = { module = "org.spongepowered:configurate-extra-kotlin", version.ref = "configurate" }
 clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
 
 # gRPC & Protobuf
@@ -72,7 +69,6 @@ velocity-api = { module = "com.velocitypowered:velocity-api", version.ref = "vel
 
 [bundles]
 logging = ["log4j-core", "log4j-api", "log4j-layout-template-json", "log4j-slf4j2-impl", "slf4j-api"]
-configurate = ["configurate-yaml", "configurate-extra-kotlin"]
 opentelemetry = ["opentelemetry-api", "opentelemetry-sdk-autoconfigure", "opentelemetry-exporter-otlp", "opentelemetry-runtime-telemetry", "opentelemetry-grpc"]
 grpc = ["grpc-stub", "grpc-netty-shaded", "grpc-kotlin-stub", "grpc-protobuf", "protobuf-kotlin"]
 

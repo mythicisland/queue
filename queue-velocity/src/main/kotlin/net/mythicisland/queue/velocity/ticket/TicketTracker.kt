@@ -33,6 +33,9 @@ class TicketTracker(private val server: ProxyServer) {
             if (event.reason == TicketDeleteReason.EXPIRED) {
                 send(event.ticket, Component.text("No match found, you left the queue.", Colors.ERROR))
             }
+            if (event.reason == TicketDeleteReason.QUEUE_TYPE_INACTIVE) {
+                send(event.ticket, Component.text("The queue was closed, you left the queue.", Colors.ERROR))
+            }
         },
     )
 

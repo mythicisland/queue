@@ -21,8 +21,10 @@ import net.mythicisland.queue.runtime.ticket.TicketExpirer
 import net.mythicisland.queue.runtime.ticket.TicketService
 import net.mythicisland.queue.runtime.ticket.TicketStore
 import net.mythicisland.queue.runtime.transfer.PlayerTransferService
+import net.mythicisland.queue.runtime.type.QueueTypeManager
 import net.mythicisland.queue.runtime.type.QueueTypeRegistry
-import net.mythicisland.queue.runtime.type.QueueTypeWatcher
+import net.mythicisland.queue.runtime.type.QueueTypeService
+import net.mythicisland.queue.runtime.type.QueueTypeStore
 import net.mythicisland.queue.shared.logger.Field
 import net.mythicisland.queue.shared.logger.LoggerFactory
 
@@ -36,7 +38,7 @@ class QueueServices(
 
     private val logger = LoggerFactory.getLogger(QueueServices::class)
 
-    private val types = QueueTypeRegistry(args.typesPath)
+    private val types = QueueTypeRegistry()
     private val events = EventPublisher(nats)
     private val ticketStore = TicketStore(NatsStateStore.init(nats, args.ticketsBucket))
     private val matchStore = MatchStore(NatsStateStore.init(nats, args.matchesBucket))
@@ -54,24 +56,31 @@ class QueueServices(
         metrics,
     )
     private val ticketService = TicketService(types, ticketStore, reconciler, events, metrics)
+    private val typeManager = QueueTypeManager(types, QueueTypeStore.init(nats, args.typesBucket), registry, ticketService, events)
 
     private val serverListener = ServerListener(api, registry, reconciler)
     private val playerListener = PlayerListener(api, ticketStore, ticketService)
     private val matchmaker = Matchmaker(types, ticketStore, matchStore, events, metrics)
     private val ticketExpirer = TicketExpirer(types, ticketStore, ticketService)
-    private val typeWatcher = QueueTypeWatcher(types, registry, ticketService)
     private val observation = gauges.observe(types, ticketStore, matchStore, registry)
 
     val grpcServices: List<BindableService> = listOf(
         ticketService,
         GameServerService(matchStore, allocator, reconciler),
         QueueDataService(types, ticketStore, matchStore),
+        QueueTypeService(typeManager),
     )
 
     suspend fun start() {
         ticketStore.load()
         matchStore.load()
-        logger.info("Loaded state", Field("tickets", ticketStore.all().size), Field("matches", matchStore.all().size))
+        typeManager.load()
+        logger.info(
+            "Loaded state",
+            Field("tickets", ticketStore.all().size),
+            Field("matches", matchStore.all().size),
+            Field("queueTypes", types.all().size),
+        )
 
         serverListener.start(types.groups())
         reconciler.recover()
@@ -81,11 +90,9 @@ class QueueServices(
         matchmaker.start()
         ticketExpirer.start()
         reconciler.start()
-        typeWatcher.start()
     }
 
     suspend fun shutdown() {
-        typeWatcher.shutdown()
         serverListener.shutdown()
         playerListener.shutdown()
         matchmaker.shutdown()

@@ -2,6 +2,7 @@ package net.mythicisland.queue.api.internal
 
 import build.buf.gen.mythicisland.queue.v1.GameServerServiceGrpcKt.GameServerServiceCoroutineStub
 import build.buf.gen.mythicisland.queue.v1.QueueDataServiceGrpcKt.QueueDataServiceCoroutineStub
+import build.buf.gen.mythicisland.queue.v1.QueueTypeServiceGrpcKt.QueueTypeServiceCoroutineStub
 import build.buf.gen.mythicisland.queue.v1.TicketServiceGrpcKt.TicketServiceCoroutineStub
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
@@ -20,8 +21,10 @@ import net.mythicisland.queue.api.internal.data.QueueDataApiImpl
 import net.mythicisland.queue.api.internal.event.EventApiImpl
 import net.mythicisland.queue.api.internal.match.MatchApiImpl
 import net.mythicisland.queue.api.internal.ticket.TicketApiImpl
+import net.mythicisland.queue.api.internal.type.QueueTypeApiImpl
 import net.mythicisland.queue.api.match.MatchApi
 import net.mythicisland.queue.api.ticket.TicketApi
+import net.mythicisland.queue.api.type.QueueTypeApi
 import java.util.concurrent.TimeUnit
 
 internal class QueueApiImpl(options: QueueApiOptions) : QueueApi {
@@ -42,6 +45,7 @@ internal class QueueApiImpl(options: QueueApiOptions) : QueueApi {
     private val ticketApi: TicketApi
     private val matchApi: MatchApi
     private val dataApi: QueueDataApi
+    private val queueTypeApi: QueueTypeApi
     private val eventApi: EventApi
 
     init {
@@ -56,6 +60,7 @@ internal class QueueApiImpl(options: QueueApiOptions) : QueueApi {
             options.serverId,
         )
         dataApi = QueueDataApiImpl(QueueDataServiceCoroutineStub(channel).withCallCredentials(credentials), scope)
+        queueTypeApi = QueueTypeApiImpl(QueueTypeServiceCoroutineStub(channel).withCallCredentials(credentials), scope)
     }
 
     override fun ticket(): TicketApi = ticketApi
@@ -63,6 +68,8 @@ internal class QueueApiImpl(options: QueueApiOptions) : QueueApi {
     override fun match(): MatchApi = matchApi
 
     override fun data(): QueueDataApi = dataApi
+
+    override fun queueType(): QueueTypeApi = queueTypeApi
 
     override fun event(): EventApi = eventApi
 
@@ -110,6 +117,7 @@ internal class QueueApiImpl(options: QueueApiOptions) : QueueApi {
                         mapOf("service" to "mythicisland.queue.v1.TicketService"),
                         mapOf("service" to "mythicisland.queue.v1.GameServerService"),
                         mapOf("service" to "mythicisland.queue.v1.QueueDataService"),
+                        mapOf("service" to "mythicisland.queue.v1.QueueTypeService"),
                     ),
                     "retryPolicy" to mapOf(
                         "maxAttempts" to 5.0,

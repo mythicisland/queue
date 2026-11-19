@@ -9,6 +9,7 @@ import net.mythicisland.queue.shared.logger.LoggerFactory
 import net.mythicisland.queue.shared.match.Match
 import net.mythicisland.queue.shared.ticket.Ticket
 import net.mythicisland.queue.shared.ticket.TicketState
+import net.mythicisland.queue.shared.type.QueueType
 import java.util.UUID
 
 class EventPublisher(private val nats: Connection) {
@@ -77,6 +78,24 @@ class EventPublisher(private val nats: Connection) {
             this.match = match.toProto()
             this.reason = reason
         },
+    )
+
+    fun queueTypeCreated(type: QueueType) = publish(
+        Subjects.QUEUE_TYPE_CREATED,
+        queueTypeCreatedEvent { this.queueType = type.toProto() },
+    )
+
+    fun queueTypeUpdated(type: QueueType, previous: QueueType) = publish(
+        Subjects.QUEUE_TYPE_UPDATED,
+        queueTypeUpdatedEvent {
+            this.queueType = type.toProto()
+            this.previous = previous.toProto()
+        },
+    )
+
+    fun queueTypeDeleted(type: QueueType) = publish(
+        Subjects.QUEUE_TYPE_DELETED,
+        queueTypeDeletedEvent { this.queueType = type.toProto() },
     )
 
     private fun publishMatch(match: Match, subject: String, event: Message, previousServerId: String? = null) {

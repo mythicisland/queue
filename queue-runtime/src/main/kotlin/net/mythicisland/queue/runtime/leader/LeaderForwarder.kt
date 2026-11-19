@@ -2,6 +2,7 @@ package net.mythicisland.queue.runtime.leader
 
 import build.buf.gen.mythicisland.queue.v1.GameServerServiceGrpcKt
 import build.buf.gen.mythicisland.queue.v1.QueueDataServiceGrpcKt
+import build.buf.gen.mythicisland.queue.v1.QueueTypeServiceGrpcKt
 import build.buf.gen.mythicisland.queue.v1.TicketServiceGrpcKt
 import io.grpc.CallOptions
 import io.grpc.Context
@@ -32,6 +33,7 @@ class LeaderForwarder(private val leader: StateFlow<Lease?>, private val self: L
         TicketServiceGrpcKt.serviceDescriptor,
         GameServerServiceGrpcKt.serviceDescriptor,
         QueueDataServiceGrpcKt.serviceDescriptor,
+        QueueTypeServiceGrpcKt.serviceDescriptor,
     ).map { forwarding(it) }
 
     fun shutdown() {
@@ -55,7 +57,7 @@ class LeaderForwarder(private val leader: StateFlow<Lease?>, private val self: L
             response.onError(Status.UNAVAILABLE.withDescription("No queue leader is ready").asException())
             return
         }
-        val deadline = Context.current().deadline ?: Deadline.after(FORWARD_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        val deadline = Context.current().deadline ?: Deadline.after(10L, TimeUnit.SECONDS)
         ClientCalls.asyncUnaryCall(channel.newCall(method, CallOptions.DEFAULT.withDeadline(deadline)), request, response)
     }
 
@@ -87,11 +89,7 @@ class LeaderForwarder(private val leader: StateFlow<Lease?>, private val self: L
     }
 
     private class Target(val address: String, val channel: ManagedChannel)
-
-    private companion object {
-        const val FORWARD_TIMEOUT_SECONDS = 10L
-    }
-
+    
     private object BytesMarshaller : MethodDescriptor.Marshaller<ByteArray> {
         override fun stream(value: ByteArray): InputStream = ByteArrayInputStream(value)
 

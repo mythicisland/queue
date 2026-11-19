@@ -38,7 +38,10 @@ class TicketExpirer(
                 if (ticket.state != TicketState.SEARCHING) {
                     continue
                 }
-                if (ticket.isExpired(ticket.queueTypes.mapNotNull { types.get(it) }, now)) {
+                val ticketTypes = ticket.queueTypes.mapNotNull { types.get(it) }
+                if (ticket.isInactive(ticketTypes)) {
+                    service.delete(ticket, TicketDeleteReason.TICKET_DELETE_REASON_QUEUE_TYPE_INACTIVE)
+                } else if (ticket.isExpired(ticketTypes, now)) {
                     service.delete(ticket, TicketDeleteReason.TICKET_DELETE_REASON_EXPIRED)
                 }
             } catch (e: CancellationException) {

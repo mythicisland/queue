@@ -12,19 +12,22 @@ import java.time.Duration
  *
  * A ticket stops searching in this queue type once it waited [maxWait] or had [maxFailures] failed matches in it,
  * `null` means no limit. It is deleted once it doesn't search in any of its queue types anymore.
+ *
+ * When creating or updating a queue type, [maxPlayers] is ignored if there are [teams], and a [PartyConfig.maxSize]
+ * of `0` means the team size, or [maxPlayers] without teams.
  */
 data class MatchConfig(
     val minPlayers: Int,
     val maxPlayers: Int,
     val fillTime: Duration,
     val countdown: Duration,
-    val teams: TeamConfig?,
-    val parties: PartyConfig,
-    val rules: List<MatchRule>,
-    val maxWait: Duration?,
-    val maxFailures: Int?,
-    val filters: List<MatchFilter>,
-    val quality: MatchQuality,
+    val teams: TeamConfig? = null,
+    val parties: PartyConfig = PartyConfig(0),
+    val rules: List<MatchRule> = emptyList(),
+    val maxWait: Duration? = null,
+    val maxFailures: Int? = null,
+    val filters: List<MatchFilter> = emptyList(),
+    val quality: MatchQuality = MatchQuality(),
 )
 
 /**
@@ -36,7 +39,7 @@ data class MatchConfig(
 data class TeamConfig(
     val count: Int,
     val size: Int,
-    val balanceBy: String?,
+    val balanceBy: String? = null,
 )
 
 /**

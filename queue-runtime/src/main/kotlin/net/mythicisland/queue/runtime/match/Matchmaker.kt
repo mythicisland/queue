@@ -32,6 +32,9 @@ class Matchmaker(
             while (isActive) {
                 val started = TimeSource.Monotonic.markNow()
                 for (type in types.all()) {
+                    if (!type.active) {
+                        continue
+                    }
                     try {
                         matchmake(type)
                     } catch (e: CancellationException) {

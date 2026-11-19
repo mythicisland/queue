@@ -68,6 +68,33 @@ class TicketTest {
     }
 
     @Test
+    fun `a ticket is inactive once all its queue types are inactive`() {
+        val types = listOf(type("ffa"), type("teams")).map { it.copy(active = false) }
+
+        assertTrue(ticket().isInactive(types))
+    }
+
+    @Test
+    fun `a ticket with one active queue type left is not inactive`() {
+        val types = listOf(type("ffa").copy(active = false), type("teams"))
+
+        assertFalse(ticket().isInactive(types))
+        assertFalse(ticket().isExpired(types, start))
+    }
+
+    @Test
+    fun `a ticket whose queue types do not exist anymore is not inactive`() {
+        assertFalse(ticket().isInactive(emptyList()))
+    }
+
+    @Test
+    fun `an inactive queue type does not keep a ticket from expiring`() {
+        val types = listOf(type("ffa").copy(active = false), type("teams", maxWait = 60))
+
+        assertTrue(ticket().isExpired(types, start.plusSeconds(60)))
+    }
+
+    @Test
     fun `failures are counted per queue type`() {
         val failed = ticket().failed("ffa").failed("ffa").failed("teams")
 

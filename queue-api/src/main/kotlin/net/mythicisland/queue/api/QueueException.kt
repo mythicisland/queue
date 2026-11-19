@@ -11,12 +11,12 @@ class QueueException(val code: Code, message: String, cause: Throwable? = null) 
     enum class Code {
 
         /**
-         * The ticket or match does not exist.
+         * The ticket, match or queue type does not exist.
          */
         NOT_FOUND,
 
         /**
-         * One of the players already has a ticket.
+         * One of the players already has a ticket, or a queue type with this name exists.
          */
         ALREADY_EXISTS,
 
@@ -26,7 +26,8 @@ class QueueException(val code: Code, message: String, cause: Throwable? = null) 
         INVALID_ARGUMENT,
 
         /**
-         * The match is not in the right state anymore, e.g. an offer that already timed out.
+         * The call is not possible right now, e.g. an offer that already timed out or a queue type that is not
+         * active.
          */
         FAILED_PRECONDITION,
 

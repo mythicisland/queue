@@ -26,8 +26,8 @@ data class ValuesFilter(
  */
 data class NumberFilter(
     override val key: String,
-    val min: Double?,
-    val max: Double?,
+    val min: Double? = null,
+    val max: Double? = null,
 ) : MatchFilter
 
 /**

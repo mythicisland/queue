@@ -44,7 +44,9 @@ data class Ticket(
         return maxFailures == null || (failures[type.name] ?: 0) < maxFailures
     }
 
-    fun isExpired(types: List<QueueType>, now: Instant): Boolean = types.none { isSearchingIn(it, now) }
+    fun isExpired(types: List<QueueType>, now: Instant): Boolean = types.none { it.active && isSearchingIn(it, now) }
+
+    fun isInactive(types: List<QueueType>): Boolean = types.isNotEmpty() && types.none { it.active }
 
     private fun fits(type: QueueType): Boolean =
         getPlayerCount() <= type.match.effectivePartySize &&
