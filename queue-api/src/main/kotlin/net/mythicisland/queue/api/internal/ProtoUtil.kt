@@ -15,19 +15,28 @@ import net.mythicisland.queue.api.ticket.TicketDeleteReason
 import net.mythicisland.queue.api.ticket.TicketState
 import net.mythicisland.queue.api.type.EqualRule
 import net.mythicisland.queue.api.type.MatchConfig
+import net.mythicisland.queue.api.type.MatchFilter
+import net.mythicisland.queue.api.type.MatchQuality
 import net.mythicisland.queue.api.type.MatchRule
+import net.mythicisland.queue.api.type.NumberFilter
 import net.mythicisland.queue.api.type.PartyConfig
+import net.mythicisland.queue.api.type.PresenceFilter
 import net.mythicisland.queue.api.type.QueueType
 import net.mythicisland.queue.api.type.RangeRule
 import net.mythicisland.queue.api.type.ServerConfig
 import net.mythicisland.queue.api.type.SharedMode
+import net.mythicisland.queue.api.type.SpreadLimit
 import net.mythicisland.queue.api.type.TeamConfig
+import net.mythicisland.queue.api.type.ValuesFilter
+import net.mythicisland.queue.api.type.Window
 import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 import build.buf.gen.mythicisland.queue.v1.Assignment as ProtoAssignment
 import build.buf.gen.mythicisland.queue.v1.Match as ProtoMatch
 import build.buf.gen.mythicisland.queue.v1.MatchConfig as ProtoMatchConfig
+import build.buf.gen.mythicisland.queue.v1.MatchFilter as ProtoMatchFilter
+import build.buf.gen.mythicisland.queue.v1.MatchQuality as ProtoMatchQuality
 import build.buf.gen.mythicisland.queue.v1.MatchRule as ProtoMatchRule
 import build.buf.gen.mythicisland.queue.v1.MatchReleaseReason as ProtoMatchReleaseReason
 import build.buf.gen.mythicisland.queue.v1.MatchState as ProtoMatchState
@@ -40,6 +49,7 @@ import build.buf.gen.mythicisland.queue.v1.TeamConfig as ProtoTeamConfig
 import build.buf.gen.mythicisland.queue.v1.Ticket as ProtoTicket
 import build.buf.gen.mythicisland.queue.v1.TicketDeleteReason as ProtoTicketDeleteReason
 import build.buf.gen.mythicisland.queue.v1.TicketState as ProtoTicketState
+import build.buf.gen.mythicisland.queue.v1.Window as ProtoWindow
 import com.google.protobuf.Duration as ProtoDuration
 
 internal object ProtoUtil {
@@ -132,6 +142,31 @@ internal object ProtoUtil {
         rules = proto.rulesList.mapNotNull(::toMatchRule),
         maxWait = if (proto.hasMaxWait()) toDuration(proto.maxWait) else null,
         maxFailures = if (proto.hasMaxFailures()) proto.maxFailures else null,
+        filters = proto.filtersList.mapNotNull(::toMatchFilter),
+        quality = toMatchQuality(proto.quality),
+    )
+
+    fun toMatchFilter(proto: ProtoMatchFilter): MatchFilter? = when (proto.conditionCase) {
+        ProtoMatchFilter.ConditionCase.VALUES -> ValuesFilter(proto.key, proto.values.valuesList.toList())
+        ProtoMatchFilter.ConditionCase.NUMBER -> NumberFilter(
+            key = proto.key,
+            min = if (proto.number.hasMin()) proto.number.min else null,
+            max = if (proto.number.hasMax()) proto.number.max else null,
+        )
+        ProtoMatchFilter.ConditionCase.PRESENCE -> PresenceFilter(proto.key, proto.presence.present)
+        else -> null
+    }
+
+    fun toMatchQuality(proto: ProtoMatchQuality): MatchQuality = MatchQuality(
+        spread = proto.spreadList.map { SpreadLimit(it.key, toWindow(it.window)) },
+        teamBalance = if (proto.hasTeamBalance()) toWindow(proto.teamBalance) else null,
+    )
+
+    fun toWindow(proto: ProtoWindow): Window = Window(
+        start = proto.start,
+        widen = proto.widen,
+        every = if (proto.hasEvery()) toDuration(proto.every) else null,
+        max = if (proto.hasMax()) proto.max else null,
     )
 
     fun toTeamConfig(proto: ProtoTeamConfig): TeamConfig = TeamConfig(
