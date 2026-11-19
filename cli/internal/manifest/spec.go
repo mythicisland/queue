@@ -11,11 +11,6 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
-const (
-	allocationTimeout = 60 * time.Second
-	acceptTimeout     = 10 * time.Second
-)
-
 var (
 	errPlayers = errors.New("players must look like 2-16 or 8")
 	errTeams   = errors.New("teams must look like 2x4")
@@ -33,12 +28,9 @@ type Spec struct {
 }
 
 func (s Spec) QueueType() *queuev1.QueueType {
-	server := queuev1.ServerConfig_builder{
-		Group:             s.Group,
-		AllocationTimeout: durationpb.New(allocationTimeout),
-	}
+	server := queuev1.ServerConfig_builder{Group: s.Group}
 	if s.Shared {
-		server.Shared = queuev1.SharedMode_builder{AcceptTimeout: durationpb.New(acceptTimeout)}.Build()
+		server.Shared = queuev1.SharedMode_builder{}.Build()
 	} else {
 		server.Exclusive = queuev1.ExclusiveMode_builder{}.Build()
 	}
