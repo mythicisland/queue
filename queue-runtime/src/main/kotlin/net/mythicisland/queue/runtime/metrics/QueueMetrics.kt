@@ -4,6 +4,8 @@ import build.buf.gen.mythicisland.queue.v1.MatchReleaseReason
 import build.buf.gen.mythicisland.queue.v1.TicketDeleteReason
 import io.opentelemetry.api.common.Attributes
 import io.opentelemetry.api.metrics.Meter
+import net.mythicisland.queue.runtime.match.MatchQualityCheck
+import net.mythicisland.queue.runtime.metrics.MetricAttributes.KEY
 import net.mythicisland.queue.runtime.metrics.MetricAttributes.QUEUE_TYPE
 import net.mythicisland.queue.runtime.metrics.MetricAttributes.REASON
 import net.mythicisland.queue.runtime.metrics.MetricAttributes.RESULT
@@ -11,6 +13,8 @@ import net.mythicisland.queue.runtime.metrics.MetricAttributes.STATE
 import net.mythicisland.queue.shared.match.Match
 import net.mythicisland.queue.shared.match.MatchState
 import net.mythicisland.queue.shared.ticket.Ticket
+import net.mythicisland.queue.shared.type.MatchRuleType
+import net.mythicisland.queue.shared.type.QueueType
 import java.time.Instant
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
@@ -60,6 +64,14 @@ class QueueMetrics(meter: Meter) {
         .setUnit("{player}")
         .ofLongs()
         .setExplicitBucketBoundariesAdvice(PLAYER_BUCKETS)
+        .build()
+
+    private val matchSpread = meter.histogramBuilder("queue.match.spread")
+        .setDescription("Highest minus lowest value of a range or spread limited property in created matches")
+        .build()
+
+    private val teamDifference = meter.histogramBuilder("queue.match.team_difference")
+        .setDescription("Difference between the team averages of balance by in created matches")
         .build()
 
     private val allocationDuration = meter.histogramBuilder("queue.match.allocation.duration")
@@ -124,6 +136,18 @@ class QueueMetrics(meter: Meter) {
         for (ticket in match.tickets) {
             waitTime.record(secondsBetween(ticket.createdAt, match.createdAt), attributes)
         }
+    }
+
+    fun recordMatchQuality(type: QueueType, match: Match) {
+        val rangeKeys = type.match.rules.filter { it.type == MatchRuleType.RANGE }.map { it.key }
+        for (key in (rangeKeys + type.match.quality.spread.map { it.key }).toSet()) {
+            val spread = MatchQualityCheck.spread(key, match.tickets) ?: continue
+            matchSpread.record(spread, Attributes.of(QUEUE_TYPE, match.queueType, KEY, key))
+        }
+
+        val balanceBy = type.match.teams?.balanceBy ?: return
+        val difference = MatchQualityCheck.teamDifference(match.teams, match.tickets, balanceBy) ?: return
+        teamDifference.record(difference, Attributes.of(QUEUE_TYPE, match.queueType))
     }
 
     fun recordMatchTransition(match: Match) {
