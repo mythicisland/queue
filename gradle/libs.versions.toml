@@ -24,7 +24,7 @@ clikt = "5.2.1"
 protobuf = "4.36.2"
 grpc = "1.85.1"
 grpc-kotlin = "1.5.0"
-queue-protos = "1.5.0.4.00000000000000.b17e606c8f4a"
+queue-protos = "1.5.0.4.20261119194250.946ceb964546"
 
 # Infrastructure
 jnats = "2.27.0"
