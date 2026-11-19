@@ -8,7 +8,7 @@ A lightweight and extensible matchmaking queue for Minecraft networks running on
 
 ## Features
 
-- [x] **Queue types**: Configure each gamemode in YAML.
+- [x] **Queue types**: Configure each gamemode in YAML for GitOps, or manage them through gRPC. Deactivate them without deleting them.
 - [x] **Matchmaking**: Match players with similar values like rating and widen the search the longer they wait.
 - [x] **Teams**: Split every match into balanced teams.
 - [x] **Multiple players per ticket**: Queue several players together and search in multiple queue types at once.
