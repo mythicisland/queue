@@ -2,13 +2,13 @@ package types
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	queuev1 "buf.build/gen/go/mythicisland/queue/protocolbuffers/go/mythicisland/queue/v1"
 	"charm.land/huh/v2"
 	"github.com/mythicisland/queue/cli/internal/client"
 	"github.com/mythicisland/queue/cli/internal/manifest"
+	"github.com/mythicisland/queue/cli/internal/output"
 	"github.com/mythicisland/queue/cli/internal/wizard"
 	"github.com/spf13/cobra"
 )
@@ -58,11 +58,17 @@ Flags cover the basics. For rules, filters and match quality, use a file or edit
 				return err
 			}
 
+			w := cmd.OutOrStdout()
+			name := res.GetQueueType().GetName()
 			if flags.dryRun {
-				fmt.Fprintf(cmd.OutOrStdout(), "Queue type %s is valid\n", res.GetQueueType().GetName())
-			} else {
-				fmt.Fprintf(cmd.OutOrStdout(), "Created queue type %s\n", res.GetQueueType().GetName())
+				output.Success(w, "Queue type %s is valid", name)
+				return nil
 			}
+			output.Success(w, "Created queue type %s", name)
+			output.Next(w,
+				output.Step{Command: "queue types get " + name, Description: "Show the full config with all defaults"},
+				output.Step{Command: "queue types edit " + name, Description: "Add rules, filters or match quality"},
+			)
 			return nil
 		},
 	}

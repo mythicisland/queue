@@ -7,6 +7,8 @@ import (
 	queuev1 "buf.build/gen/go/mythicisland/queue/protocolbuffers/go/mythicisland/queue/v1"
 	"charm.land/huh/v2"
 	"github.com/mythicisland/queue/cli/internal/client"
+	"github.com/mythicisland/queue/cli/internal/output"
+	"github.com/mythicisland/queue/cli/internal/prompt"
 	"github.com/spf13/cobra"
 )
 
@@ -25,19 +27,12 @@ To stop a queue type only for a while, deactivate it instead.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
 			if !yes {
-				confirmed := false
-				err := huh.NewConfirm().
-					Title(fmt.Sprintf("Delete queue type %s?", name)).
-					Description("Tickets without any other queue type are deleted.").
-					Affirmative("Delete").
-					Negative("Cancel").
-					Value(&confirmed).
-					Run()
-				if err != nil && !errors.Is(err, huh.ErrUserAborted) {
-					return err
-				}
-				if !confirmed {
+				confirmed, err := prompt.Confirm(fmt.Sprintf("Delete queue type %s?", name), "Delete")
+				if errors.Is(err, huh.ErrUserAborted) || err == nil && !confirmed {
 					return nil
+				}
+				if err != nil {
+					return err
 				}
 			}
 
@@ -50,7 +45,7 @@ To stop a queue type only for a while, deactivate it instead.`,
 			if _, err := c.Types.DeleteQueueType(cmd.Context(), queuev1.DeleteQueueTypeRequest_builder{Name: name}.Build()); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Deleted queue type %s\n", name)
+			output.Success(cmd.OutOrStdout(), "Deleted queue type %s", name)
 			return nil
 		},
 	}

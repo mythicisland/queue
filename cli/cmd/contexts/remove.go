@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/mythicisland/queue/cli/internal/config"
+	"github.com/mythicisland/queue/cli/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -32,7 +33,7 @@ func newRemoveCommand() *cobra.Command {
 				return err
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "Removed context %s\n", name)
+			output.Success(cmd.OutOrStdout(), "Removed context %s", name)
 			return nil
 		},
 	}

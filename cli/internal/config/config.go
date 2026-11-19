@@ -11,6 +11,7 @@ import (
 )
 
 type Context struct {
+	Name   string `json:"-"`
 	URL    string `json:"url"`
 	Secret string `json:"secret"`
 	TLS    bool   `json:"tls,omitempty"`

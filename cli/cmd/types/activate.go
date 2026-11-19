@@ -1,10 +1,9 @@
 package types
 
 import (
-	"fmt"
-
 	queuev1 "buf.build/gen/go/mythicisland/queue/protocolbuffers/go/mythicisland/queue/v1"
 	"github.com/mythicisland/queue/cli/internal/client"
+	"github.com/mythicisland/queue/cli/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -37,7 +36,7 @@ func newSetActiveCommand(use, short, done string, active bool) *cobra.Command {
 			if _, err := c.Types.SetQueueTypeActive(cmd.Context(), req); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "%s queue type %s\n", done, args[0])
+			output.Success(cmd.OutOrStdout(), "%s queue type %s", done, args[0])
 			return nil
 		},
 	}

@@ -1,7 +1,6 @@
 package types
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 
@@ -48,11 +47,20 @@ func newListCommand() *cobra.Command {
 				return err
 			}
 
+			w := cmd.OutOrStdout()
 			if len(queueTypes) == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "No queue types yet, create one with `queue types create`")
+				output.Info(w, "No queue types yet")
+				output.Next(w, output.Step{Command: "queue types create", Description: "Create one step by step"})
 				return nil
 			}
-			return printTable(cmd, c, queueTypes)
+			if err := printTable(cmd, c, queueTypes); err != nil {
+				return err
+			}
+			output.Next(w,
+				output.Step{Command: "queue types get <name>", Description: "Show the full config"},
+				output.Step{Command: "queue types edit <name>", Description: "Change it in your editor"},
+			)
+			return nil
 		},
 	}
 }

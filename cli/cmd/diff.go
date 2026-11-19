@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"strings"
 
 	queuev1 "buf.build/gen/go/mythicisland/queue/protocolbuffers/go/mythicisland/queue/v1"
@@ -9,14 +8,9 @@ import (
 	"github.com/aymanbagabas/go-udiff"
 	"github.com/mythicisland/queue/cli/internal/client"
 	"github.com/mythicisland/queue/cli/internal/manifest"
+	"github.com/mythicisland/queue/cli/internal/output"
 	"github.com/mythicisland/queue/cli/internal/plan"
 	"github.com/spf13/cobra"
-)
-
-var (
-	addedLine   = lipgloss.NewStyle().Foreground(lipgloss.Green)
-	removedLine = lipgloss.NewStyle().Foreground(lipgloss.Red)
-	hunkLine    = lipgloss.NewStyle().Foreground(lipgloss.Cyan)
 )
 
 func newDiffCommand() *cobra.Command {
@@ -56,11 +50,12 @@ func newDiffCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				lipgloss.Fprintln(cmd.OutOrStdout(), actionStyles[change.Action].Bold(true).Render(fmt.Sprintf("%s %s", change.Action, change.Name())))
+				style := actionStyles[change.Action]
+				lipgloss.Fprintln(cmd.OutOrStdout(), style.Render(actionSymbols[change.Action])+" "+style.Bold(true).Render(change.Name()))
 				lipgloss.Fprintln(cmd.OutOrStdout(), colorize(diff))
 			}
 			if !changed {
-				fmt.Fprintln(cmd.OutOrStdout(), "No changes")
+				output.Info(cmd.OutOrStdout(), "No changes")
 			}
 			return nil
 		},
@@ -96,13 +91,13 @@ func colorize(diff string) string {
 	for i, line := range lines {
 		switch {
 		case strings.HasPrefix(line, "+++"), strings.HasPrefix(line, "---"):
-			lines[i] = lipgloss.NewStyle().Faint(true).Render(line)
+			lines[i] = output.Faint.Render(line)
 		case strings.HasPrefix(line, "+"):
-			lines[i] = addedLine.Render(line)
+			lines[i] = output.Green.Render(line)
 		case strings.HasPrefix(line, "-"):
-			lines[i] = removedLine.Render(line)
+			lines[i] = output.Red.Render(line)
 		case strings.HasPrefix(line, "@@"):
-			lines[i] = hunkLine.Render(line)
+			lines[i] = output.Accent.Render(line)
 		}
 	}
 	return strings.Join(lines, "\n")

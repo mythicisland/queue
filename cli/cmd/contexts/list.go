@@ -1,9 +1,6 @@
 package contexts
 
 import (
-	"fmt"
-	"strconv"
-
 	"github.com/mythicisland/queue/cli/internal/config"
 	"github.com/mythicisland/queue/cli/internal/output"
 	"github.com/spf13/cobra"
@@ -20,8 +17,11 @@ func newListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			w := cmd.OutOrStdout()
 			if len(cfg.Contexts) == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "No contexts yet, add one with `queue context add`")
+				output.Info(w, "No contexts yet")
+				output.Next(w, output.Step{Command: "queue context add <name> --url <address>", Description: "Add the queue you want to manage"})
 				return nil
 			}
 
@@ -30,11 +30,16 @@ func newListCommand() *cobra.Command {
 				ctx := cfg.Contexts[name]
 				current := ""
 				if name == cfg.Current {
-					current = "*"
+					current = output.Accent.Render("●")
 				}
-				rows = append(rows, []string{current, name, ctx.URL, strconv.FormatBool(ctx.TLS)})
+				tls := output.Faint.Render("no")
+				if ctx.TLS {
+					tls = "yes"
+				}
+				rows = append(rows, []string{current, name, ctx.URL, tls})
 			}
-			output.Table([]string{"", "NAME", "URL", "TLS"}, rows)
+			output.Table(w, []string{"", "NAME", "URL", "TLS"}, rows)
+			output.Footer(w, output.Count(len(cfg.Contexts), "context"))
 			return nil
 		},
 	}

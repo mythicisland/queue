@@ -1,25 +1,43 @@
 package cmd
 
 import (
+	"fmt"
+	"strings"
+
 	"charm.land/lipgloss/v2"
 	"github.com/mythicisland/queue/cli/internal/client"
 	"github.com/mythicisland/queue/cli/internal/manifest"
+	"github.com/mythicisland/queue/cli/internal/output"
 	"github.com/mythicisland/queue/cli/internal/plan"
 	"github.com/spf13/cobra"
 )
 
 var actionStyles = map[plan.Action]lipgloss.Style{
-	plan.Create:    lipgloss.NewStyle().Foreground(lipgloss.Green),
-	plan.Update:    lipgloss.NewStyle().Foreground(lipgloss.Yellow),
-	plan.Delete:    lipgloss.NewStyle().Foreground(lipgloss.Red),
-	plan.Unchanged: lipgloss.NewStyle().Faint(true),
+	plan.Create:    output.Green,
+	plan.Update:    output.Yellow,
+	plan.Delete:    output.Red,
+	plan.Unchanged: output.Faint,
+}
+
+var actionSymbols = map[plan.Action]string{
+	plan.Create:    "+",
+	plan.Update:    "~",
+	plan.Delete:    "-",
+	plan.Unchanged: "=",
 }
 
 var pastTense = map[plan.Action]string{
-	plan.Create:    "created",
-	plan.Update:    "updated",
-	plan.Delete:    "deleted",
-	plan.Unchanged: "unchanged",
+	plan.Create:    "Created",
+	plan.Update:    "Updated",
+	plan.Delete:    "Deleted",
+	plan.Unchanged: "Unchanged",
+}
+
+var futureTense = map[plan.Action]string{
+	plan.Create:    "Would create",
+	plan.Update:    "Would update",
+	plan.Delete:    "Would delete",
+	plan.Unchanged: "Unchanged",
 }
 
 func newApplyCommand() *cobra.Command {
@@ -53,19 +71,34 @@ With --prune, queue types without a file are deleted, so the files are the only 
 				return err
 			}
 
-			suffix := ""
+			w := cmd.OutOrStdout()
+			verbs := pastTense
 			if dryRun {
-				suffix = " (dry run)"
+				verbs = futureTense
 			}
+			counts := map[plan.Action]int{}
 			for _, change := range changes {
 				if !dryRun {
 					if err := plan.Apply(cmd.Context(), c, change); err != nil {
 						return err
 					}
 				}
-				result := actionStyles[change.Action].Render(pastTense[change.Action])
-				lipgloss.Fprintln(cmd.OutOrStdout(), "queue type "+change.Name()+" "+result+suffix)
+				counts[change.Action]++
+				style := actionStyles[change.Action]
+				lipgloss.Fprintln(w, style.Render(actionSymbols[change.Action])+" "+verbs[change.Action]+" queue type "+style.Render(change.Name()))
 			}
+
+			var summary []string
+			for _, action := range []plan.Action{plan.Create, plan.Update, plan.Delete, plan.Unchanged} {
+				if counts[action] > 0 {
+					summary = append(summary, fmt.Sprintf("%d %s", counts[action], strings.ToLower(pastTense[action])))
+				}
+			}
+			if len(summary) == 0 {
+				output.Info(w, "No queue types in %s", file)
+				return nil
+			}
+			output.Footer(w, summary...)
 			return nil
 		},
 	}

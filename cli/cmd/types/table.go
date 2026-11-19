@@ -15,23 +15,33 @@ func printTable(cmd *cobra.Command, c *client.Client, queueTypes []*queuev1.Queu
 	if err != nil {
 		return err
 	}
-	searching := make(map[string]uint32, len(res.GetStats()))
-	for _, stats := range res.GetStats() {
-		searching[stats.GetQueueType()] = stats.GetSearchingPlayers()
+	stats := make(map[string]*queuev1.QueueStats, len(res.GetStats()))
+	for _, s := range res.GetStats() {
+		stats[s.GetQueueType()] = s
 	}
 
+	active, searching := 0, uint32(0)
 	rows := make([][]string, 0, len(queueTypes))
 	for _, queueType := range queueTypes {
+		s := stats[queueType.GetName()]
+		if isActive(queueType) {
+			active++
+		}
+		searching += s.GetSearchingPlayers()
 		rows = append(rows, []string{
 			queueType.GetName(),
+			output.Active(isActive(queueType)),
 			queueType.GetServer().GetGroup(),
 			mode(queueType),
 			players(queueType),
-			strconv.FormatUint(uint64(searching[queueType.GetName()]), 10),
-			strconv.FormatBool(isActive(queueType)),
+			strconv.FormatUint(uint64(s.GetSearchingPlayers()), 10),
+			strconv.FormatUint(uint64(s.GetActiveMatches()), 10),
 		})
 	}
-	output.Table([]string{"NAME", "GROUP", "MODE", "PLAYERS", "SEARCHING", "ACTIVE"}, rows)
+
+	w := cmd.OutOrStdout()
+	output.Table(w, []string{"NAME", "STATE", "GROUP", "MODE", "PLAYERS", "SEARCHING", "MATCHES"}, rows)
+	output.Footer(w, output.Count(len(queueTypes), "queue type"), fmt.Sprintf("%d active", active), fmt.Sprintf("%d searching", searching))
 	return nil
 }
 

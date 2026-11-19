@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/mythicisland/queue/cli/internal/config"
+	"github.com/mythicisland/queue/cli/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +29,7 @@ func newUseCommand() *cobra.Command {
 				return err
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "Switched to context %s\n", name)
+			output.Success(cmd.OutOrStdout(), "Switched to context %s", name)
 			return nil
 		},
 	}

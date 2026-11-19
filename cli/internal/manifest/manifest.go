@@ -10,6 +10,7 @@ import (
 	queuev1 "buf.build/gen/go/mythicisland/queue/protocolbuffers/go/mythicisland/queue/v1"
 	"github.com/goccy/go-yaml"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -39,8 +40,8 @@ func Decode(data []byte) (*queuev1.QueueType, error) {
 	return queueType, nil
 }
 
-func Encode(queueType *queuev1.QueueType, format string) ([]byte, error) {
-	jsonData, err := marshalOptions.Marshal(queueType)
+func Encode(message proto.Message, format string) ([]byte, error) {
+	jsonData, err := marshalOptions.Marshal(message)
 	if err != nil {
 		return nil, err
 	}
@@ -50,14 +51,14 @@ func Encode(queueType *queuev1.QueueType, format string) ([]byte, error) {
 	return indent(jsonData)
 }
 
-func EncodeList(queueTypes []*queuev1.QueueType, format string) ([]byte, error) {
+func EncodeList[T proto.Message](messages []T, format string) ([]byte, error) {
 	var out bytes.Buffer
 	if format == YAML {
-		for i, queueType := range queueTypes {
+		for i, message := range messages {
 			if i > 0 {
 				out.WriteString("---\n")
 			}
-			data, err := Encode(queueType, YAML)
+			data, err := Encode(message, YAML)
 			if err != nil {
 				return nil, err
 			}
@@ -66,9 +67,9 @@ func EncodeList(queueTypes []*queuev1.QueueType, format string) ([]byte, error) 
 		return out.Bytes(), nil
 	}
 
-	items := make([]json.RawMessage, 0, len(queueTypes))
-	for _, queueType := range queueTypes {
-		data, err := marshalOptions.Marshal(queueType)
+	items := make([]json.RawMessage, 0, len(messages))
+	for _, message := range messages {
+		data, err := marshalOptions.Marshal(message)
 		if err != nil {
 			return nil, err
 		}

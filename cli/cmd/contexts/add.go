@@ -6,6 +6,8 @@ import (
 
 	"charm.land/huh/v2"
 	"github.com/mythicisland/queue/cli/internal/config"
+	"github.com/mythicisland/queue/cli/internal/output"
+	"github.com/mythicisland/queue/cli/internal/prompt"
 	"github.com/spf13/cobra"
 )
 
@@ -29,18 +31,14 @@ func newAddCommand() *cobra.Command {
 			}
 
 			if ctx.Secret == "" {
-				err := huh.NewInput().
-					Title("Auth secret").
-					EchoMode(huh.EchoModePassword).
-					Validate(required).
-					Value(&ctx.Secret).
-					Run()
+				secret, err := prompt.Password("Auth secret")
 				if errors.Is(err, huh.ErrUserAborted) {
 					return nil
 				}
 				if err != nil {
 					return err
 				}
+				ctx.Secret = secret
 			}
 
 			cfg.Contexts[name] = ctx
@@ -51,7 +49,13 @@ func newAddCommand() *cobra.Command {
 				return err
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "Added context %s\n", name)
+			w := cmd.OutOrStdout()
+			output.Success(w, "Added context %s", name)
+			if cfg.Current == name {
+				output.Next(w, output.Step{Command: "queue status", Description: "Check that the queue is reachable"})
+			} else {
+				output.Next(w, output.Step{Command: "queue context use " + name, Description: "Switch to it"})
+			}
 			return nil
 		},
 	}
@@ -60,11 +64,4 @@ func newAddCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&ctx.TLS, "tls", false, "connect with TLS")
 	_ = cmd.MarkFlagRequired("url")
 	return cmd
-}
-
-func required(value string) error {
-	if value == "" {
-		return errors.New("required")
-	}
-	return nil
 }

@@ -6,73 +6,59 @@ import (
 
 	"charm.land/huh/v2"
 	"github.com/mythicisland/queue/cli/internal/manifest"
+	"github.com/mythicisland/queue/cli/internal/prompt"
 )
 
 func QueueType() (manifest.Spec, error) {
 	var spec manifest.Spec
-	var withTeams bool
-	var players, teams, maxWait string
+	var err error
 
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Name").
-				Placeholder("bedwars-4x4").
-				Validate(required).
-				Value(&spec.Name),
-			huh.NewInput().
-				Title("Server group").
-				Description("The SimpleCloud group the matches run on").
-				Validate(required).
-				Value(&spec.Group),
-			huh.NewSelect[bool]().
-				Title("Servers").
-				Options(
-					huh.NewOption("Exclusive, one match per server", false),
-					huh.NewOption("Shared, several matches per server", true),
-				).
-				Value(&spec.Shared),
-			huh.NewSelect[bool]().
-				Title("Teams").
-				Options(
-					huh.NewOption("Everyone for themselves", false),
-					huh.NewOption("Teams", true),
-				).
-				Value(&withTeams),
-		),
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Players").
-				Description("Minimum and maximum players per match").
-				Placeholder("2-16").
-				Validate(validPlayers).
-				Value(&players),
-		).WithHideFunc(func() bool { return withTeams }),
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Teams").
-				Description("Number of teams x players per team").
-				Placeholder("2x4").
-				Validate(validTeams).
-				Value(&teams),
-		).WithHideFunc(func() bool { return !withTeams }),
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Max wait").
-				Description("How long a ticket searches before it is removed, empty to search forever").
-				Placeholder("5m").
-				Validate(validDuration).
-				Value(&maxWait),
-		),
+	spec.Name, err = prompt.Input("Name", "bedwars-4x4", required)
+	if err != nil {
+		return spec, err
+	}
+
+	spec.Group, err = prompt.Input("Server group", spec.Name, nil)
+	if err != nil {
+		return spec, err
+	}
+	if spec.Group == "" {
+		spec.Group = spec.Name
+	}
+
+	spec.Shared, err = prompt.Select("Servers",
+		huh.NewOption("Exclusive, one match per server", false),
+		huh.NewOption("Shared, several matches per server", true),
 	)
-	if err := form.Run(); err != nil {
+	if err != nil {
+		return spec, err
+	}
+
+	withTeams, err := prompt.Select("Teams",
+		huh.NewOption("Everyone for themselves", false),
+		huh.NewOption("Teams", true),
+	)
+	if err != nil {
 		return spec, err
 	}
 
 	if withTeams {
+		teams, err := prompt.Input("Teams", "2x4", validTeams)
+		if err != nil {
+			return spec, err
+		}
 		spec.TeamCount, spec.TeamSize, _ = manifest.ParseTeams(teams)
 	} else {
+		players, err := prompt.Input("Players", "2-16", validPlayers)
+		if err != nil {
+			return spec, err
+		}
 		spec.MinPlayers, spec.MaxPlayers, _ = manifest.ParsePlayers(players)
+	}
+
+	maxWait, err := prompt.Input("Max wait", "5m, empty to search forever", validDuration)
+	if err != nil {
+		return spec, err
 	}
 	if maxWait != "" {
 		spec.MaxWait, _ = time.ParseDuration(maxWait)

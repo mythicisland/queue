@@ -1,20 +1,26 @@
 package output
 
 import (
+	"io"
+
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
 )
 
 var (
-	header = lipgloss.NewStyle().Bold(true).Padding(0, 1)
-	cell   = lipgloss.NewStyle().Padding(0, 1)
-	border = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+	header = Faint.PaddingRight(3)
+	cell   = lipgloss.NewStyle().PaddingRight(3)
 )
 
-func Table(headers []string, rows [][]string) {
+func Table(w io.Writer, headers []string, rows [][]string) {
 	t := table.New().
-		Border(lipgloss.RoundedBorder()).
-		BorderStyle(border).
+		BorderTop(false).
+		BorderBottom(false).
+		BorderLeft(false).
+		BorderRight(false).
+		BorderHeader(false).
+		BorderColumn(false).
+		BorderRow(false).
 		Headers(headers...).
 		Rows(rows...).
 		StyleFunc(func(row, _ int) lipgloss.Style {
@@ -23,5 +29,5 @@ func Table(headers []string, rows [][]string) {
 			}
 			return cell
 		})
-	lipgloss.Println(t)
+	lipgloss.Fprintln(w, t)
 }

@@ -2,9 +2,12 @@ package cmd
 
 import (
 	"context"
+	"os"
+	"os/signal"
 
-	"charm.land/fang/v2"
 	"github.com/mythicisland/queue/cli/cmd/contexts"
+	"github.com/mythicisland/queue/cli/cmd/matches"
+	"github.com/mythicisland/queue/cli/cmd/tickets"
 	"github.com/mythicisland/queue/cli/cmd/types"
 	"github.com/spf13/cobra"
 )
@@ -14,16 +17,41 @@ var version = "dev"
 
 func Execute() error {
 	root := &cobra.Command{
-		Use:   "queue",
-		Short: "Manage your queue from the terminal",
+		Use:           "queue",
+		Short:         "Manage your queue from the terminal",
+		Version:       version,
+		SilenceUsage:  true,
+		SilenceErrors: true,
 	}
+	root.SetVersionTemplate("queue {{.Version}}\n")
+	root.SetHelpFunc(help)
+
 	flags := root.PersistentFlags()
 	flags.String("context", "", "context to use instead of the current one")
 	flags.String("url", "", "queue address, overrides the context")
 	flags.String("secret", "", "auth secret, overrides the context")
 	flags.StringP("output", "o", "", "output format: table, yaml or json")
 
-	root.AddCommand(contexts.NewCommand(), types.NewCommand(), newApplyCommand(), newDiffCommand())
+	root.AddGroup(
+		&cobra.Group{ID: "start", Title: "Get started"},
+		&cobra.Group{ID: "types", Title: "Queue types"},
+		&cobra.Group{ID: "debug", Title: "Debugging"},
+		&cobra.Group{ID: "cli", Title: "CLI"},
+	)
+	addToGroup(root, "start", contexts.NewCommand(), newStatusCommand())
+	addToGroup(root, "types", types.NewCommand(), newApplyCommand(), newDiffCommand())
+	addToGroup(root, "debug", tickets.NewCommand(), matches.NewCommand())
+	root.SetHelpCommandGroupID("cli")
+	root.SetCompletionCommandGroupID("cli")
 
-	return fang.Execute(context.Background(), root, fang.WithVersion(version))
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+	return root.ExecuteContext(ctx)
+}
+
+func addToGroup(root *cobra.Command, group string, commands ...*cobra.Command) {
+	for _, command := range commands {
+		command.GroupID = group
+		root.AddCommand(command)
+	}
 }

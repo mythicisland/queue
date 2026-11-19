@@ -23,6 +23,7 @@ func (c *Config) Resolve(o Overrides) (Context, error) {
 			return Context{}, fmt.Errorf("context %q does not exist", name)
 		}
 		ctx = found
+		ctx.Name = name
 	}
 
 	ctx.URL = firstSet(o.URL, os.Getenv("QUEUE_URL"), ctx.URL)

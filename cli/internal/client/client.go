@@ -16,9 +16,11 @@ import (
 const timeout = 10 * time.Second
 
 type Client struct {
-	conn  *grpc.ClientConn
-	Types queuev1grpc.QueueTypeServiceClient
-	Data  queuev1grpc.QueueDataServiceClient
+	conn    *grpc.ClientConn
+	Context config.Context
+	Types   queuev1grpc.QueueTypeServiceClient
+	Data    queuev1grpc.QueueDataServiceClient
+	Tickets queuev1grpc.TicketServiceClient
 }
 
 func Connect(cmd *cobra.Command) (*Client, error) {
@@ -57,9 +59,11 @@ func New(ctx config.Context) (*Client, error) {
 	}
 
 	return &Client{
-		conn:  conn,
-		Types: queuev1grpc.NewQueueTypeServiceClient(conn),
-		Data:  queuev1grpc.NewQueueDataServiceClient(conn),
+		conn:    conn,
+		Context: ctx,
+		Types:   queuev1grpc.NewQueueTypeServiceClient(conn),
+		Data:    queuev1grpc.NewQueueDataServiceClient(conn),
+		Tickets: queuev1grpc.NewTicketServiceClient(conn),
 	}, nil
 }
 

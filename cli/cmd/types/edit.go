@@ -9,6 +9,7 @@ import (
 	"github.com/mythicisland/queue/cli/internal/client"
 	"github.com/mythicisland/queue/cli/internal/editor"
 	"github.com/mythicisland/queue/cli/internal/manifest"
+	"github.com/mythicisland/queue/cli/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -44,7 +45,7 @@ Running matches keep going with the old config.`,
 			}
 			if bytes.Equal(edited, original) {
 				os.Remove(path)
-				fmt.Fprintln(cmd.OutOrStdout(), "No changes")
+				output.Info(cmd.OutOrStdout(), "No changes")
 				return nil
 			}
 
@@ -62,7 +63,7 @@ Running matches keep going with the old config.`,
 			}
 
 			os.Remove(path)
-			fmt.Fprintf(cmd.OutOrStdout(), "Updated queue type %s\n", name)
+			output.Success(cmd.OutOrStdout(), "Updated queue type %s", name)
 			return nil
 		},
 	}
