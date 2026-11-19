@@ -64,6 +64,8 @@ message QueueType {
   ServerConfig server = 2;
   MatchConfig match = 3;
   map<string, string> properties = 4;
+  // Inactive queue types take no new tickets and start no new matches. Not set means active.
+  optional bool active = 5;
 }
 
 message ServerConfig {
@@ -168,6 +170,7 @@ message TeamConfig {
 }
 
 message PartyConfig {
+  // 0 means the team size, or max_players without teams.
   uint32 max_size = 1;
 }
 
