@@ -76,20 +76,7 @@ object TicketSelector {
     private fun isInRange(rule: MatchRule, anchor: Ticket, candidate: Ticket, waited: Duration): Boolean {
         val anchorValue = anchor.properties[rule.key]?.toDoubleOrNull() ?: return false
         val candidateValue = candidate.properties[rule.key]?.toDoubleOrNull() ?: return false
-        return abs(anchorValue - candidateValue) <= window(rule, waited)
-    }
-
-    private fun window(rule: MatchRule, waited: Duration): Double {
-        val start = rule.start ?: 0.0
-        val widen = rule.widen ?: 0.0
-        val every = rule.every
-        if (every == null || !every.isPositive || widen == 0.0 || waited.isNegative) {
-            return start
-        }
-
-        val grown = start + widen * waited.dividedBy(every)
-        val max = rule.max ?: return grown
-        return minOf(grown, max)
+        return abs(anchorValue - candidateValue) <= rule.window.at(waited)
     }
 
     private fun players(tickets: List<Ticket>): Int = tickets.sumOf { it.getPlayerCount() }

@@ -3,6 +3,7 @@ package net.mythicisland.queue.runtime.type
 import net.mythicisland.queue.shared.type.MatchRule
 import net.mythicisland.queue.shared.type.MatchRuleType
 import net.mythicisland.queue.shared.type.QueueType
+import net.mythicisland.queue.shared.type.Window
 
 object QueueTypeValidator {
 
@@ -113,9 +114,18 @@ object QueueTypeValidator {
             }
             return problems
         }
+        return problems + validateWindow(path, rule.window)
+    }
+
+    private fun validateWindow(path: String, window: Window): List<String> {
+        val start = window.start
+        val widen = window.widen
+        val every = window.every
+        val max = window.max
+        val problems = mutableListOf<String>()
 
         if (start == null) {
-            problems += "$path.start must be set for range rules"
+            problems += "$path.start must be set"
         }
         if (start != null && (start < 0 || !start.isFinite())) {
             problems += "$path.start must be a number that is not negative"

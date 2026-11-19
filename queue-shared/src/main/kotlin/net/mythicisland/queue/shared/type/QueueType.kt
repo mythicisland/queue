@@ -170,6 +170,9 @@ data class MatchRule(
     val max: Double? = null,
 ) {
 
+    val window: Window
+        get() = Window(start, widen, every, max)
+
     fun toProto(): MatchRuleProto = matchRule {
         key = this@MatchRule.key
         if (this@MatchRule.type == MatchRuleType.EQUAL) {
@@ -214,6 +217,30 @@ data class MatchRule(
             )
             else -> MatchRule(key = proto.key)
         }
+    }
+
+}
+
+@ConfigSerializable
+data class Window(
+    val start: Double? = null,
+    val widen: Double? = null,
+    val every: Duration? = null,
+    val max: Double? = null,
+) {
+
+    fun at(waited: Duration): Double {
+        val base = start ?: 0.0
+        val step = widen ?: 0.0
+        if (every == null || !every.isPositive || step == 0.0 || waited.isNegative) {
+            return base
+        }
+
+        val grown = base + step * waited.dividedBy(every)
+        if (max == null) {
+            return grown
+        }
+        return minOf(grown, max)
     }
 
 }
