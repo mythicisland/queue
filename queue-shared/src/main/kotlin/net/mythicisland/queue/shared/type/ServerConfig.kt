@@ -11,7 +11,7 @@ import build.buf.gen.mythicisland.queue.v1.SharedMode as SharedModeProto
 
 data class ServerConfig(
     val group: String = "",
-    val allocationTimeout: Duration = Duration.ofSeconds(60),
+    val allocationTimeout: Duration = DEFAULT_ALLOCATION_TIMEOUT,
     val shared: SharedMode? = null,
 ) {
 
@@ -26,9 +26,11 @@ data class ServerConfig(
     }
 
     companion object {
+        private val DEFAULT_ALLOCATION_TIMEOUT: Duration = Duration.ofSeconds(60)
+
         fun fromProto(proto: ServerConfigProto): ServerConfig = ServerConfig(
             group = proto.group,
-            allocationTimeout = proto.allocationTimeout.toJavaDuration(),
+            allocationTimeout = if (proto.hasAllocationTimeout()) proto.allocationTimeout.toJavaDuration() else DEFAULT_ALLOCATION_TIMEOUT,
             shared = if (proto.hasShared()) SharedMode.fromProto(proto.shared) else null,
         )
     }
@@ -36,7 +38,7 @@ data class ServerConfig(
 }
 
 data class SharedMode(
-    val acceptTimeout: Duration = Duration.ofSeconds(10),
+    val acceptTimeout: Duration = DEFAULT_ACCEPT_TIMEOUT,
     val capacity: Int? = null,
 ) {
 
@@ -48,8 +50,10 @@ data class SharedMode(
     }
 
     companion object {
+        private val DEFAULT_ACCEPT_TIMEOUT: Duration = Duration.ofSeconds(10)
+
         fun fromProto(proto: SharedModeProto): SharedMode = SharedMode(
-            acceptTimeout = proto.acceptTimeout.toJavaDuration(),
+            acceptTimeout = if (proto.hasAcceptTimeout()) proto.acceptTimeout.toJavaDuration() else DEFAULT_ACCEPT_TIMEOUT,
             capacity = if (proto.hasCapacity()) proto.capacity else null,
         )
     }
