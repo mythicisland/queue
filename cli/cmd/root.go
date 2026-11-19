@@ -23,7 +23,7 @@ func Execute() error {
 	flags.String("secret", "", "auth secret, overrides the context")
 	flags.StringP("output", "o", "", "output format: table, yaml or json")
 
-	root.AddCommand(contexts.NewCommand(), types.NewCommand())
+	root.AddCommand(contexts.NewCommand(), types.NewCommand(), newApplyCommand())
 
 	return fang.Execute(context.Background(), root, fang.WithVersion(version))
 }
