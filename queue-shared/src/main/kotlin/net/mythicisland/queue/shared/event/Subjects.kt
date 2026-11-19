@@ -12,9 +12,9 @@ object Subjects {
     const val MATCH_TRANSFERRED = "queue.v1.match.transferred"
     const val MATCH_RELEASED = "queue.v1.match.released"
 
-    const val QUEUE_TYPE_CREATED = "queue.v1.queue_type.created"
-    const val QUEUE_TYPE_UPDATED = "queue.v1.queue_type.updated"
-    const val QUEUE_TYPE_DELETED = "queue.v1.queue_type.deleted"
+    const val QUEUE_TYPE_CREATED = "queue.v1.type.created"
+    const val QUEUE_TYPE_UPDATED = "queue.v1.type.updated"
+    const val QUEUE_TYPE_DELETED = "queue.v1.type.deleted"
 
     fun server(serverId: String, matchSubject: String): String =
         "queue.v1.server.$serverId.${matchSubject.removePrefix("queue.v1.")}"
