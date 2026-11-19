@@ -8,9 +8,7 @@ import net.mythicisland.queue.api.ticket.TicketApi
 import net.mythicisland.queue.api.type.QueueTypeApi
 
 /**
- * Entrypoint for talking to the queue.
- *
- * Every call to the queue throws a [QueueException] when it fails.
+ * Entrypoint to interacting with queue.
  */
 interface QueueApi : AutoCloseable {
 
@@ -45,7 +43,6 @@ interface QueueApi : AutoCloseable {
     override fun close()
 
     companion object {
-
         /**
          * Creates a [QueueApi], [options] default to environment variables.
          */

@@ -12,3 +12,28 @@ sealed interface MatchFilter {
     val key: String
 
 }
+
+/**
+ * The value of [key] must be one of [values].
+ */
+data class ValuesFilter(
+    override val key: String,
+    val values: List<String>,
+) : MatchFilter
+
+/**
+ * The value of [key] must be a number from [min] to [max], both inclusive. A bound that is `null` doesn't apply.
+ */
+data class NumberFilter(
+    override val key: String,
+    val min: Double? = null,
+    val max: Double? = null,
+) : MatchFilter
+
+/**
+ * [key] must be set if [present] is `true`, or must not be set if it is `false`.
+ */
+data class PresenceFilter(
+    override val key: String,
+    val present: Boolean,
+) : MatchFilter

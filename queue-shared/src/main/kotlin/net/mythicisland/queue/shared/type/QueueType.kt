@@ -1,10 +1,8 @@
 package net.mythicisland.queue.shared.type
 
 import build.buf.gen.mythicisland.queue.v1.queueType
-import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import build.buf.gen.mythicisland.queue.v1.QueueType as QueueTypeProto
 
-@ConfigSerializable
 data class QueueType(
     val name: String = "",
     val server: ServerConfig = ServerConfig(),

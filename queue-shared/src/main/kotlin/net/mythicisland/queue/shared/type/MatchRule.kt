@@ -3,13 +3,13 @@ package net.mythicisland.queue.shared.type
 import build.buf.gen.mythicisland.queue.v1.equalRule
 import build.buf.gen.mythicisland.queue.v1.matchRule
 import build.buf.gen.mythicisland.queue.v1.rangeRule
-import org.spongepowered.configurate.objectmapping.ConfigSerializable
+import net.mythicisland.queue.shared.toJavaDuration
+import net.mythicisland.queue.shared.toProto
 import java.time.Duration
 import build.buf.gen.mythicisland.queue.v1.EqualRule as EqualRuleProto
 import build.buf.gen.mythicisland.queue.v1.MatchRule as MatchRuleProto
 import build.buf.gen.mythicisland.queue.v1.RangeRule as RangeRuleProto
 
-@ConfigSerializable
 data class MatchRule(
     val type: MatchRuleType? = null,
     val key: String = "",
@@ -69,4 +69,9 @@ data class MatchRule(
         }
     }
 
+}
+
+enum class MatchRuleType {
+    EQUAL,
+    RANGE,
 }

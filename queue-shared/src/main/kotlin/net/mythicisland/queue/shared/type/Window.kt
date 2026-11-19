@@ -1,11 +1,11 @@
 package net.mythicisland.queue.shared.type
 
 import build.buf.gen.mythicisland.queue.v1.window
-import org.spongepowered.configurate.objectmapping.ConfigSerializable
+import net.mythicisland.queue.shared.toJavaDuration
+import net.mythicisland.queue.shared.toProto
 import java.time.Duration
 import build.buf.gen.mythicisland.queue.v1.Window as WindowProto
 
-@ConfigSerializable
 data class Window(
     val start: Double? = null,
     val widen: Double? = null,

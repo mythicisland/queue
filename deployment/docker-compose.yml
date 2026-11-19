@@ -7,15 +7,12 @@ services:
       NATS_URL: nats://nats:4222
       NATS_USER: admin
       NATS_SECRET: sup3rS3cr3t
-      TYPE_PATH: /types
       NETWORK_ID: default
       NETWORK_SECRET: sup3rS3cr3t
       CONTROLLER_URL: https://controller.simplecloud.app
       CONTROLLER_NATS_URL: wss://nats.simplecloud.app:443
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       OTEL_METRIC_EXPORT_INTERVAL: 15000
-    volumes:
-      - ./types:/types:ro
     depends_on:
       - nats
     restart: unless-stopped

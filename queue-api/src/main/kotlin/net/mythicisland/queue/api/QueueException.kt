@@ -26,8 +26,8 @@ class QueueException(val code: Code, message: String, cause: Throwable? = null) 
         INVALID_ARGUMENT,
 
         /**
-         * The call is not possible right now, e.g. an offer that already timed out, a queue type that is not
-         * active, or queue types that are managed by files.
+         * The call is not possible right now, e.g. an offer that already timed out or a queue type that is not
+         * active.
          */
         FAILED_PRECONDITION,
 

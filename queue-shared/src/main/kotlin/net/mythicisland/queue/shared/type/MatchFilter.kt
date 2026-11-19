@@ -4,11 +4,9 @@ import build.buf.gen.mythicisland.queue.v1.matchFilter
 import build.buf.gen.mythicisland.queue.v1.numberFilter
 import build.buf.gen.mythicisland.queue.v1.presenceFilter
 import build.buf.gen.mythicisland.queue.v1.valuesFilter
-import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import build.buf.gen.mythicisland.queue.v1.MatchFilter as MatchFilterProto
 import build.buf.gen.mythicisland.queue.v1.NumberFilter as NumberFilterProto
 
-@ConfigSerializable
 data class MatchFilter(
     val key: String = "",
     val values: List<String>? = null,

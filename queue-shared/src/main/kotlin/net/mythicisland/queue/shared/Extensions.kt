@@ -1,4 +1,4 @@
-package net.mythicisland.queue.shared.type
+package net.mythicisland.queue.shared
 
 import com.google.protobuf.duration
 import java.time.Duration

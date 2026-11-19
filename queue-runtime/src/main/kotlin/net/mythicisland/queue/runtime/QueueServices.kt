@@ -25,10 +25,8 @@ import net.mythicisland.queue.runtime.type.QueueTypeManager
 import net.mythicisland.queue.runtime.type.QueueTypeRegistry
 import net.mythicisland.queue.runtime.type.QueueTypeService
 import net.mythicisland.queue.runtime.type.QueueTypeStore
-import net.mythicisland.queue.runtime.type.QueueTypeWatcher
 import net.mythicisland.queue.shared.logger.Field
 import net.mythicisland.queue.shared.logger.LoggerFactory
-import java.nio.file.Path
 
 class QueueServices(
     private val args: QueueStartCommand,
@@ -59,8 +57,6 @@ class QueueServices(
     )
     private val ticketService = TicketService(types, ticketStore, reconciler, events, metrics)
     private val typeManager = QueueTypeManager(types, QueueTypeStore.init(nats, args.typesBucket), registry, ticketService, events)
-    private val typesPath: Path? = args.typesPath
-    private val typeWatcher = if (typesPath == null) null else QueueTypeWatcher(typesPath, typeManager)
 
     private val serverListener = ServerListener(api, registry, reconciler)
     private val playerListener = PlayerListener(api, ticketStore, ticketService)
@@ -72,14 +68,13 @@ class QueueServices(
         ticketService,
         GameServerService(matchStore, allocator, reconciler),
         QueueDataService(types, ticketStore, matchStore),
-        QueueTypeService(typeManager, typeWatcher != null),
+        QueueTypeService(typeManager),
     )
 
     suspend fun start() {
         ticketStore.load()
         matchStore.load()
         typeManager.load()
-        typeWatcher?.sync()
         logger.info(
             "Loaded state",
             Field("tickets", ticketStore.all().size),
@@ -95,11 +90,9 @@ class QueueServices(
         matchmaker.start()
         ticketExpirer.start()
         reconciler.start()
-        typeWatcher?.start()
     }
 
     suspend fun shutdown() {
-        typeWatcher?.shutdown()
         serverListener.shutdown()
         playerListener.shutdown()
         matchmaker.shutdown()

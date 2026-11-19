@@ -196,15 +196,12 @@ message ListQueueStatsResponse {
   repeated QueueStats stats = 1;
 }
 
-// Managing queue types. When the queue loads its queue types from files, the files are the only source
-// and every call that changes something fails with FAILED_PRECONDITION, unless validate_only is set.
 service QueueTypeService {
   // Creates a queue type and returns it.
   //
   // Errors:
   // - INVALID_ARGUMENT: the name is invalid or the config has problems, all of them are in the description.
   // - ALREADY_EXISTS: there is already a queue type with this name.
-  // - FAILED_PRECONDITION: the queue types are managed by files.
   // - UNAVAILABLE: the queue type could not be stored.
   rpc CreateQueueType(CreateQueueTypeRequest) returns (CreateQueueTypeResponse);
   // Replaces the whole config of a queue type and returns it.
@@ -213,14 +210,12 @@ service QueueTypeService {
   // Errors:
   // - INVALID_ARGUMENT: the config has problems, all of them are in the description.
   // - NOT_FOUND: the queue type does not exist.
-  // - FAILED_PRECONDITION: the queue types are managed by files.
   // - UNAVAILABLE: the queue type could not be stored.
   rpc UpdateQueueType(UpdateQueueTypeRequest) returns (UpdateQueueTypeResponse);
   // Deletes a queue type. Tickets without any queue type left are deleted, running matches keep going.
   //
   // Errors:
   // - NOT_FOUND: the queue type does not exist.
-  // - FAILED_PRECONDITION: the queue types are managed by files.
   // - UNAVAILABLE: the queue type could not be deleted.
   rpc DeleteQueueType(DeleteQueueTypeRequest) returns (DeleteQueueTypeResponse);
   // Activates or deactivates a queue type and returns it. Searching tickets without any active queue type
@@ -228,14 +223,12 @@ service QueueTypeService {
   //
   // Errors:
   // - NOT_FOUND: the queue type does not exist.
-  // - FAILED_PRECONDITION: the queue types are managed by files.
   // - UNAVAILABLE: the queue type could not be stored.
   rpc SetQueueTypeActive(SetQueueTypeActiveRequest) returns (SetQueueTypeActiveResponse);
 }
 
 message CreateQueueTypeRequest {
   QueueType queue_type = 1;
-  // Only checks the queue type without creating it.
   bool validate_only = 2;
 }
 
@@ -245,7 +238,6 @@ message CreateQueueTypeResponse {
 
 message UpdateQueueTypeRequest {
   QueueType queue_type = 1;
-  // Only checks the queue type without updating it.
   bool validate_only = 2;
 }
 

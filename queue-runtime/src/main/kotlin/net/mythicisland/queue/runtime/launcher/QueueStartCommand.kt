@@ -13,7 +13,6 @@ import com.github.ajalt.clikt.sources.ValueSource
 import net.mythicisland.queue.runtime.QueueRuntime
 import java.io.File
 import java.net.InetAddress
-import java.nio.file.Path
 
 object QueueStartCommand : SuspendingCliktCommand() {
 
@@ -61,11 +60,6 @@ object QueueStartCommand : SuspendingCliktCommand() {
 
     val advertiseAddress: String by option(help = "Address other instances use to reach this gRPC server (default: <ip>:<grpc-port>)", envvar = "ADVERTISE_ADDRESS")
         .defaultLazy { "${InetAddress.getLocalHost().hostAddress}:$grpcPort" }
-
-    val typesPath: Path? by option(
-        help = "Directory with queue type files. If set, the files are the only source of queue types and the API can't change them (default: none)",
-        envvar = "TYPE_PATH",
-    ).path()
 
     val networkId: String by option(help = "Your SimpleCloud Network ID (default: default)", envvar = "NETWORK_ID")
         .default("default")

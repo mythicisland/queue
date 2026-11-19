@@ -2,11 +2,13 @@ package net.mythicisland.queue.shared.type
 
 import build.buf.gen.mythicisland.queue.v1.matchConfig
 import build.buf.gen.mythicisland.queue.v1.partyConfig
-import org.spongepowered.configurate.objectmapping.ConfigSerializable
+import build.buf.gen.mythicisland.queue.v1.teamConfig
+import net.mythicisland.queue.shared.toJavaDuration
+import net.mythicisland.queue.shared.toProto
 import java.time.Duration
 import build.buf.gen.mythicisland.queue.v1.MatchConfig as MatchConfigProto
+import build.buf.gen.mythicisland.queue.v1.TeamConfig as TeamConfigProto
 
-@ConfigSerializable
 data class MatchConfig(
     val minPlayers: Int = 0,
     val maxPlayers: Int? = null,
@@ -69,3 +71,31 @@ data class MatchConfig(
     }
 
 }
+
+data class TeamConfig(
+    val count: Int = 0,
+    val size: Int = 0,
+    val balanceBy: String? = null,
+) {
+
+    fun toProto(): TeamConfigProto = teamConfig {
+        count = this@TeamConfig.count
+        size = this@TeamConfig.size
+        if (this@TeamConfig.balanceBy != null) {
+            balanceBy = this@TeamConfig.balanceBy
+        }
+    }
+
+    companion object {
+        fun fromProto(proto: TeamConfigProto): TeamConfig = TeamConfig(
+            count = proto.count,
+            size = proto.size,
+            balanceBy = if (proto.hasBalanceBy()) proto.balanceBy else null,
+        )
+    }
+
+}
+
+data class PartyConfig(
+    val maxSize: Int? = null,
+)

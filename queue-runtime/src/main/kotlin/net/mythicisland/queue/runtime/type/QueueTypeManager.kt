@@ -33,26 +33,6 @@ class QueueTypeManager(
         }
     }
 
-    suspend fun sync(files: Collection<QueueType>) = mutex.withLock {
-        val problems = files.flatMap { type -> QueueTypeValidator.validate(type).map { "${type.name}: $it" } } +
-            QueueTypeValidator.validateGroups(files)
-        if (problems.isNotEmpty()) {
-            for (problem in problems) {
-                logger.error("Invalid queue type file", Field("problem", problem))
-            }
-            throw IllegalStateException("Found ${problems.size} problems in the queue type files")
-        }
-
-        val changes = QueueTypeChanges.between(types.all(), files)
-        for (type in changes.removed) {
-            erase(type)
-        }
-        for (type in changes.changed) {
-            write(type)
-        }
-        logger.info("Synced queue types from files", Field("changed", changes.changed.size), Field("removed", changes.removed.size))
-    }
-
     suspend fun create(type: QueueType, validateOnly: Boolean): QueueType {
         mutex.withLock {
             if (types.get(type.name) != null) {
@@ -104,32 +84,6 @@ class QueueTypeManager(
         }
         tickets.recover()
         return removed
-    }
-
-    suspend fun apply(type: QueueType): Boolean {
-        val previous = mutex.withLock {
-            val problems = problems(type)
-            if (problems.isNotEmpty()) {
-                logProblems(type.name, problems)
-                return false
-            }
-            val current = types.get(type.name)
-            if (current?.toProto() == type.toProto()) {
-                return true
-            }
-            write(type)
-            current
-        }
-        applied(previous, type)
-        return true
-    }
-
-    suspend fun remove(name: String) {
-        mutex.withLock {
-            val current = types.get(name) ?: return
-            erase(current)
-        }
-        tickets.recover()
     }
 
     private suspend fun applied(previous: QueueType?, current: QueueType) {

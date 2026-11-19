@@ -64,7 +64,6 @@ message QueueType {
   ServerConfig server = 2;
   MatchConfig match = 3;
   map<string, string> properties = 4;
-  // Inactive queue types take no new tickets and start no new matches. Not set means active.
   optional bool active = 5;
 }
 
@@ -98,7 +97,6 @@ message MatchConfig {
   optional MatchQuality quality = 11;
 }
 
-// A fixed condition every ticket must pass to search in a queue type, it never relaxes.
 message MatchFilter {
   string key = 1;
   oneof condition {
@@ -108,35 +106,29 @@ message MatchFilter {
   }
 }
 
-// The property must be one of the values.
 message ValuesFilter {
   repeated string values = 1;
 }
 
-// The property must be a number between min and max, both inclusive and optional.
 message NumberFilter {
   optional double min = 1;
   optional double max = 2;
 }
 
-// The property must be set, or must not be set if present is false.
 message PresenceFilter {
   bool present = 1;
 }
 
-// Limits for the whole match that grow with the wait time of the oldest ticket.
 message MatchQuality {
   repeated SpreadLimit spread = 1;
   optional Window team_balance = 2;
 }
 
-// Highest minus lowest value of a number property in the match.
 message SpreadLimit {
   string key = 1;
   Window window = 2;
 }
 
-// A limit that starts at start and grows by widen every every, up to max if it is set.
 message Window {
   double start = 1;
   double widen = 2;
@@ -170,7 +162,6 @@ message TeamConfig {
 }
 
 message PartyConfig {
-  // 0 means the team size, or max_players without teams.
   uint32 max_size = 1;
 }
 
