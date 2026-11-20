@@ -79,7 +79,7 @@ class ServerAllocator(
 
     suspend fun provision(group: String, waitingMatches: Int) {
         val cloudGroup = api.group().findGroupByName(group).await().getOrNull() ?: return
-        if (cloudGroup.isActive() == false) {
+        if (cloudGroup.isActive == false) {
             return
         }
 
@@ -123,13 +123,11 @@ class ServerAllocator(
     }
 
     companion object {
-        private val SHARED_STATES = setOf(ServerState.AVAILABLE, ServerState.INGAME)
-
         fun chooseExclusive(servers: List<GameServer>, busy: Set<String>): GameServer? =
             servers.firstOrNull { it.state == ServerState.AVAILABLE && it.id !in busy }
 
         fun chooseShared(servers: List<GameServer>, excluded: Set<String>): GameServer? =
-            servers.filter { it.state in SHARED_STATES && it.freeCapacity > 0 && it.id !in excluded }
+            servers.filter { it.state in setOf(ServerState.AVAILABLE, ServerState.INGAME) && it.freeCapacity > 0 && it.id !in excluded }
                 .maxByOrNull { it.matches.size }
 
         fun serversNeeded(waitingMatches: Int, matchesPerServer: Int?): Int {

@@ -23,7 +23,6 @@ class ServerRegistry(private val api: CloudApi, private val types: QueueTypeRegi
     private val groupNames = ConcurrentHashMap<String, String>()
     private val servers = ConcurrentHashMap<String, GameServer>()
     private val stopped = ConcurrentHashMap<String, Instant>()
-    // https://youtrack.jetbrains.com/issue/KT-18053
     private val missing = ConcurrentHashMap.newKeySet<String>()
 
     suspend fun load(groups: Set<String>) {
@@ -50,7 +49,7 @@ class ServerRegistry(private val api: CloudApi, private val types: QueueTypeRegi
     suspend fun sync(): List<GameServer> {
         load(types.groups() - groupNames.values.toSet())
 
-        val forgetBefore = Instant.now().minus(STOPPED_RETENTION)
+        val forgetBefore = Instant.now().minus(Duration.ofMinutes(5))
         stopped.values.removeIf { it.isBefore(forgetBefore) }
 
         val removed = mutableListOf<GameServer>()
@@ -187,7 +186,6 @@ class ServerRegistry(private val api: CloudApi, private val types: QueueTypeRegi
     companion object {
         val STOPPED_STATES = setOf(ServerState.STOPPING, ServerState.CLEANUP, ServerState.STOPPED)
         val STARTING_STATES = setOf(ServerState.QUEUED, ServerState.PREPARING, ServerState.STARTING)
-        private val STOPPED_RETENTION = Duration.ofMinutes(5)
 
         fun stateOf(server: Server): ServerState? = try {
             server.state

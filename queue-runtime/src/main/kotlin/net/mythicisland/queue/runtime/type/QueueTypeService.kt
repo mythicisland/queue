@@ -14,8 +14,7 @@ import build.buf.gen.mythicisland.queue.v1.setQueueTypeActiveResponse
 import build.buf.gen.mythicisland.queue.v1.updateQueueTypeResponse
 import net.mythicisland.queue.shared.type.QueueType
 
-class QueueTypeService(private val manager: QueueTypeManager) :
-    QueueTypeServiceGrpcKt.QueueTypeServiceCoroutineImplBase() {
+class QueueTypeService(private val manager: QueueTypeManager) : QueueTypeServiceGrpcKt.QueueTypeServiceCoroutineImplBase() {
 
     override suspend fun createQueueType(request: CreateQueueTypeRequest): CreateQueueTypeResponse {
         val created = manager.create(QueueType.fromProto(request.queueType), request.validateOnly)

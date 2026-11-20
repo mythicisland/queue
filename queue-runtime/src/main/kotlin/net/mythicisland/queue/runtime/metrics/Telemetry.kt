@@ -45,7 +45,7 @@ class Telemetry(
                 .build()
                 .openTelemetrySdk
 
-            logger.info("OpenTelemetry enabled", Field("endpoint", endpoint))
+            logger.info("Initialized OpenTelemetry", Field("endpoint", endpoint))
             return Telemetry(sdk, sdk, RuntimeTelemetry.create(sdk))
         }
 

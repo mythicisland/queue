@@ -14,8 +14,8 @@ import net.mythicisland.queue.shared.type.QueueType
 class QueueTypeManager(
     private val types: QueueTypeRegistry,
     private val store: QueueTypeStore,
-    private val servers: ServerRegistry,
-    private val tickets: TicketService,
+    private val registry: ServerRegistry,
+    private val service: TicketService,
     private val events: EventPublisher,
 ) {
 
@@ -26,7 +26,9 @@ class QueueTypeManager(
         for (type in store.load()) {
             val problems = QueueTypeValidator.validate(type)
             if (problems.isNotEmpty()) {
-                logProblems(type.name, problems)
+                for (problem in problems) {
+                    logger.error("Invalid queue type", Field("queueType", type.name), Field("problem", problem))
+                }
                 continue
             }
             types.put(type)
@@ -79,20 +81,20 @@ class QueueTypeManager(
     suspend fun delete(name: String): QueueType {
         val removed = mutex.withLock {
             val current = types.get(name) ?: throw notFound(name)
-            erase(current)
+            deleteFromStore(current)
             current
         }
-        tickets.recover()
+        service.recover()
         return removed
     }
 
     private suspend fun applied(previous: QueueType?, current: QueueType) {
         val group = current.server.group
         if (previous?.server?.group != group && types.byGroup(group).all { it.name == current.name }) {
-            servers.load(setOf(group))
+            registry.load(setOf(group))
         }
         if (previous != null) {
-            tickets.recover()
+            service.recover()
         }
     }
 
@@ -113,7 +115,7 @@ class QueueTypeManager(
         }
     }
 
-    private fun erase(type: QueueType) {
+    private fun deleteFromStore(type: QueueType) {
         try {
             store.delete(type.name)
         } catch (e: Exception) {
@@ -133,14 +135,7 @@ class QueueTypeManager(
     }
 
     private fun problems(type: QueueType): List<String> =
-        QueueTypeValidator.validate(type) +
-            QueueTypeValidator.validateGroups(types.all().filter { it.name != type.name } + type)
-
-    private fun logProblems(name: String, problems: List<String>) {
-        for (problem in problems) {
-            logger.error("Invalid queue type", Field("queueType", name), Field("problem", problem))
-        }
-    }
+        QueueTypeValidator.validate(type) + QueueTypeValidator.validateGroups(types.all().filter { it.name != type.name } + type)
 
     private fun notFound(name: String): StatusException =
         Status.NOT_FOUND.withDescription("Queue type $name does not exist").asException()

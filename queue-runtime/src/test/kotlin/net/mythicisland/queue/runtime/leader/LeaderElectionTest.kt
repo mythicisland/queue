@@ -53,6 +53,16 @@ class LeaderElectionTest {
         assertTrue(LeaderElection.isExpiring(5.seconds, 10.seconds))
     }
 
+    @Test
+    fun `a follower keeps the leader while the lease was read within the ttl`() {
+        assertFalse(LeaderElection.isStale(9.seconds, 10.seconds))
+    }
+
+    @Test
+    fun `a follower forgets the leader once the lease could not be read for a whole ttl`() {
+        assertTrue(LeaderElection.isStale(10.seconds, 10.seconds))
+    }
+
     private fun decide(lease: Lease?, leading: Boolean = false, adopting: Boolean = false): LeaseAction =
         LeaderElection.decide(lease, "self", leading, adopting)
 

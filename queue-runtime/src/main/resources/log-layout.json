@@ -12,7 +12,8 @@
   },
   "caller": {
     "$resolver": "pattern",
-    "pattern": "%C{1}:%L"
+    "pattern": "%C{1}:%L",
+    "stackTraceEnabled": false
   },
   "msg": {
     "$resolver": "message",

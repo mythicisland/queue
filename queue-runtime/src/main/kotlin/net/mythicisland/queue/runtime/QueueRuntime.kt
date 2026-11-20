@@ -2,20 +2,16 @@ package net.mythicisland.queue.runtime
 
 import app.simplecloud.api.CloudApi
 import app.simplecloud.api.CloudApiOptions
-import io.nats.client.Connection
-import io.nats.client.Nats
-import io.nats.client.Options
 import kotlinx.coroutines.*
 import net.mythicisland.queue.runtime.launcher.QueueStartCommand
 import net.mythicisland.queue.runtime.metrics.Telemetry
+import net.mythicisland.queue.runtime.nats.NatsClient
 import net.mythicisland.queue.shared.logger.Field
 import net.mythicisland.queue.shared.logger.LoggerFactory
 import org.apache.logging.log4j.LogManager
-import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
-import kotlin.time.Duration.Companion.seconds
 
 class QueueRuntime(private val args: QueueStartCommand) {
 
@@ -25,21 +21,21 @@ class QueueRuntime(private val args: QueueStartCommand) {
         logger.info("Starting queue runtime")
 
         val telemetry = Telemetry.create(args.instanceId)
-        val nc = connectToNats()
+        val nats = NatsClient.init(args.natsUrl, args.natsUser, args.natsSecret)
         val api = connectToController()
-        val node = QueueNode(args, nc, api, telemetry.otel)
+        val node = QueueNode(args, nats, api, telemetry.otel)
 
         try {
             node.start()
         } catch (e: Exception) {
             logger.error("Failed to start queue runtime", Field.error(e))
-            stop(node, api, nc, telemetry)
+            stop(node, api, nats, telemetry)
             throw e
         }
 
         val stopped = CountDownLatch(1)
         awaitShutdown(stopped)
-        stop(node, api, nc, telemetry)
+        stop(node, api, nats, telemetry)
         stopped.countDown()
     }
 
@@ -54,34 +50,16 @@ class QueueRuntime(private val args: QueueStartCommand) {
         stopped.await(30L, TimeUnit.SECONDS)
     }
 
-    private suspend fun stop(node: QueueNode, api: CloudApi, nc: Connection, telemetry: Telemetry) {
+    private suspend fun stop(node: QueueNode, api: CloudApi, nats: NatsClient, telemetry: Telemetry) {
         logger.info("Shutting down queue runtime")
 
         node.shutdown()
         api.close()
-        nc.close()
+        nats.close()
         telemetry.shutdown()
 
         logger.info("Queue runtime stopped")
         LogManager.shutdown()
-    }
-
-    private suspend fun connectToNats(): Connection {
-        val options = Options.builder()
-            .server(args.natsUrl)
-            .userInfo(args.natsUser, args.natsSecret)
-            .maxReconnects(-1)
-            .build()
-
-        logger.info("Connecting to NATS", Field("url", args.natsUrl))
-        while (true) {
-            try {
-                return Nats.connect(options)
-            } catch (e: IOException) {
-                logger.warn("NATS is not reachable, retrying", Field("url", args.natsUrl), Field.error(e))
-                delay(2.seconds)
-            }
-        }
     }
 
     private fun connectToController(): CloudApi {

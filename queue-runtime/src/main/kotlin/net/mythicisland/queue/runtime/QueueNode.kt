@@ -5,12 +5,12 @@ import io.grpc.Server
 import io.grpc.ServerBuilder
 import io.grpc.health.v1.HealthCheckResponse.ServingStatus
 import io.grpc.protobuf.services.HealthStatusManager
-import io.nats.client.Connection
 import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.instrumentation.grpc.v1_6.GrpcTelemetry
 import kotlinx.coroutines.*
 import net.mythicisland.queue.runtime.launcher.QueueStartCommand
 import net.mythicisland.queue.runtime.metrics.QueueGauges
+import net.mythicisland.queue.runtime.nats.NatsClient
 import net.mythicisland.queue.runtime.metrics.QueueMetrics
 import net.mythicisland.queue.runtime.leader.LeaderElection
 import net.mythicisland.queue.runtime.leader.LeaderForwarder
@@ -25,13 +25,13 @@ import kotlin.time.Duration.Companion.seconds
 
 class QueueNode(
     private val args: QueueStartCommand,
-    private val nats: Connection,
+    private val nats: NatsClient,
     private val api: CloudApi,
-    openTelemetry: OpenTelemetry,
+    otel: OpenTelemetry,
 ) {
 
     private val logger = LoggerFactory.getLogger(QueueNode::class)
-    private val meter = openTelemetry.getMeter("net.mythicisland.queue")
+    private val meter = otel.getMeter("net.mythicisland.queue")
     private val metrics = QueueMetrics(meter)
     private val gauges = QueueGauges(meter)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -45,7 +45,7 @@ class QueueNode(
     private val server: Server = ServerBuilder.forPort(args.grpcPort)
         .addService(health.healthService)
         .fallbackHandlerRegistry(registry)
-        .intercept(GrpcTelemetry.create(openTelemetry).createServerInterceptor())
+        .intercept(GrpcTelemetry.create(otel).createServerInterceptor())
         .build()
 
     fun start() {
@@ -64,6 +64,12 @@ class QueueNode(
         scope.launch {
             election.leader.collect { leader ->
                 health.setStatus("ready", if (leader == null) ServingStatus.NOT_SERVING else ServingStatus.SERVING)
+            }
+        }
+        scope.launch {
+            election.healthy.collect { healthy ->
+                val status = if (healthy) ServingStatus.SERVING else ServingStatus.NOT_SERVING
+                health.setStatus(HealthStatusManager.SERVICE_NAME_ALL_SERVICES, status)
             }
         }
         election.start()

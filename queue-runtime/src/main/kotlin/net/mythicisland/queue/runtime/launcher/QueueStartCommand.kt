@@ -6,7 +6,6 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.defaultLazy
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
-import com.github.ajalt.clikt.parameters.types.path
 import com.github.ajalt.clikt.parameters.types.restrictTo
 import com.github.ajalt.clikt.sources.PropertiesValueSource
 import com.github.ajalt.clikt.sources.ValueSource

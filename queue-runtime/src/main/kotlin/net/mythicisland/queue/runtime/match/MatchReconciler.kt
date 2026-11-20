@@ -243,7 +243,7 @@ class MatchReconciler(
         val now = Instant.now()
         for (match in matchStore.all().sortedBy { it.createdAt }) {
             try {
-                reconcile(match, now)
+                reconcileMatch(match, now)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -255,7 +255,7 @@ class MatchReconciler(
         metrics.recordReconcilerRun(started.elapsedNow())
     }
 
-    private suspend fun reconcile(match: Match, now: Instant) {
+    private suspend fun reconcileMatch(match: Match, now: Instant) {
         val type = types.get(match.queueType)
         if (type == null) {
             if (match.state.isBeforeTransfer()) {
@@ -457,7 +457,7 @@ class MatchReconciler(
             if (now.isBefore(nextProvisions[group] ?: now)) {
                 continue
             }
-            nextProvisions[group] = now.plus(PROVISION_INTERVAL)
+            nextProvisions[group] = now.plus(Duration.ofSeconds(2))
             try {
                 allocator.provision(group, waitingTypes.size)
             } catch (e: CancellationException) {
@@ -517,7 +517,6 @@ class MatchReconciler(
 
     private companion object {
         const val ACCEPT_TIMEOUT = "accept timeout"
-        val PROVISION_INTERVAL: Duration = Duration.ofSeconds(2)
     }
 
 }

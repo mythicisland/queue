@@ -9,7 +9,7 @@ import net.mythicisland.queue.shared.type.Window
 
 object QueueTypeValidator {
 
-    private val NAME = Regex("[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
+    private val regex = Regex("[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
 
     fun validate(type: QueueType): List<String> {
         val server = type.server
@@ -23,7 +23,7 @@ object QueueTypeValidator {
         val maxFailures = match.maxFailures
         val problems = mutableListOf<String>()
 
-        if (!NAME.matches(type.name)) {
+        if (!regex.matches(type.name)) {
             problems += "name must be 1 to 64 letters, digits, - or _ and start with a letter or digit"
         }
         if (server.group.isBlank()) {

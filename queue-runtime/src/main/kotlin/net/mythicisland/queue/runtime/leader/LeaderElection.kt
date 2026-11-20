@@ -1,10 +1,7 @@
 package net.mythicisland.queue.runtime.leader
 
-import io.nats.client.Connection
 import io.nats.client.JetStreamApiException
-import io.nats.client.JetStreamOptions
 import io.nats.client.KeyValue
-import io.nats.client.KeyValueOptions
 import io.nats.client.api.KeyValueConfiguration
 import io.nats.client.api.StorageType
 import kotlinx.coroutines.*
@@ -15,10 +12,13 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import net.mythicisland.queue.runtime.nats.NatsClient
 import net.mythicisland.queue.shared.logger.Field
 import net.mythicisland.queue.shared.logger.LoggerFactory
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 import kotlin.time.toJavaDuration
@@ -30,10 +30,15 @@ class LeaderElection(private val kv: KeyValue, private val self: Lease, private 
     private val mutex = Mutex()
     private val currentTerm = MutableStateFlow<Term?>(null)
     private val currentLeader = MutableStateFlow<Lease?>(null)
+    private val lastRead = AtomicReference(TimeSource.Monotonic.markNow())
+    private val currentlyHealthy = MutableStateFlow(true)
+    private val failing = AtomicBoolean(false)
 
     val leader: StateFlow<Lease?> get() = currentLeader
 
     val terms: Flow<Long?> get() = currentTerm.map { it?.id }.distinctUntilChanged()
+
+    val healthy: StateFlow<Boolean> get() = currentlyHealthy
 
     fun start() {
         scope.launch {
@@ -62,6 +67,7 @@ class LeaderElection(private val kv: KeyValue, private val self: Lease, private 
     private suspend fun refresh(adopting: Boolean) = mutex.withLock {
         try {
             val entry = kv.get(KEY)
+            lastRead.set(TimeSource.Monotonic.markNow())
             val value = entry?.value
             val lease = if (value == null) null else Lease.decode(value)
 
@@ -70,15 +76,48 @@ class LeaderElection(private val kv: KeyValue, private val self: Lease, private 
                 LeaseAction.RENEW -> renew(currentTerm.value?.revision ?: entry?.revision ?: return@withLock)
                 LeaseAction.FOLLOW -> follow(lease)
             }
+            if (failing.compareAndSet(true, false)) {
+                logger.info("Leader lease refresh recovered")
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            logger.warn("Failed to refresh leader lease", Field.error(e))
+            if (failing.compareAndSet(false, true)) {
+                logger.warn("Failed to refresh leader lease, retrying", Field.error(e))
+            }
         }
+
+        val sinceRead = lastRead.get().elapsedNow()
+        if (isStale(sinceRead, ttl)) {
+            forgetLeader()
+        }
+        updateHealth(sinceRead)
 
         val term = currentTerm.value ?: return@withLock
         if (isExpiring(term.renewedAt.elapsedNow(), ttl)) {
             stepDown("Leader lease could not be renewed in time")
+        }
+    }
+
+    private fun forgetLeader() {
+        val leader = currentLeader.value ?: return
+        if (currentTerm.value != null) {
+            return
+        }
+        currentLeader.value = null
+        logger.warn("Lost track of the leader because the leader lease can't be read", Field("instanceId", leader.holder))
+    }
+
+    private fun updateHealth(sinceRead: Duration) {
+        val healthy = !isUnhealthy(sinceRead)
+        if (currentlyHealthy.value == healthy) {
+            return
+        }
+        currentlyHealthy.value = healthy
+        if (healthy) {
+            logger.info("Leader election is healthy again")
+        } else {
+            logger.error("Leader election is unhealthy", Field("failingSeconds", sinceRead.inWholeSeconds))
         }
     }
 
@@ -133,24 +172,15 @@ class LeaderElection(private val kv: KeyValue, private val self: Lease, private 
 
     companion object {
         private const val KEY = "leader"
+        private val UNHEALTHY_AFTER = 2.minutes
 
-        fun init(nats: Connection, bucket: String, self: Lease, ttl: Duration): LeaderElection {
+        fun init(nats: NatsClient, bucket: String, self: Lease, ttl: Duration): LeaderElection {
             val config = KeyValueConfiguration.builder()
                 .name(bucket)
                 .storageType(StorageType.Memory)
                 .ttl(ttl.toJavaDuration())
                 .build()
-            val management = nats.keyValueManagement()
-            if (bucket in management.bucketNames) {
-                management.update(config)
-            } else {
-                management.create(config)
-            }
-
-            val options = KeyValueOptions.builder()
-                .jetStreamOptions(JetStreamOptions.builder().requestTimeout(500.milliseconds.toJavaDuration()).build())
-                .build()
-            return LeaderElection(nats.keyValue(bucket, options), self, ttl)
+            return LeaderElection(nats.bucket(config), self, ttl)
         }
 
         fun decide(lease: Lease?, self: String, leading: Boolean, adopting: Boolean): LeaseAction = when {
@@ -161,6 +191,10 @@ class LeaderElection(private val kv: KeyValue, private val self: Lease, private 
         }
 
         fun isExpiring(sinceRenewal: Duration, ttl: Duration): Boolean = sinceRenewal >= ttl / 2
+
+        fun isStale(sinceRead: Duration, ttl: Duration): Boolean = sinceRead >= ttl
+
+        fun isUnhealthy(sinceRead: Duration): Boolean = sinceRead >= UNHEALTHY_AFTER
 
     }
 

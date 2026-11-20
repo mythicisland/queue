@@ -1,8 +1,7 @@
 package net.mythicisland.queue.runtime.type
 
-import io.nats.client.Connection
 import io.nats.client.KeyValue
-import net.mythicisland.queue.runtime.state.KeyValueBuckets
+import net.mythicisland.queue.runtime.nats.NatsClient
 import net.mythicisland.queue.shared.type.QueueType
 import build.buf.gen.mythicisland.queue.v1.QueueType as QueueTypeProto
 
@@ -24,7 +23,7 @@ class QueueTypeStore(private val kv: KeyValue) {
     }
 
     companion object {
-        fun init(nats: Connection, bucket: String): QueueTypeStore = QueueTypeStore(KeyValueBuckets.open(nats, bucket))
+        fun init(nats: NatsClient, bucket: String): QueueTypeStore = QueueTypeStore(nats.bucket(bucket))
     }
 
 }
