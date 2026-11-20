@@ -1,0 +1,68 @@
+replicas: 2
+
+image:
+  repository: ghcr.io/mythicisland/queue
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+existingSecret: ""
+
+auth:
+  # Secret that clients like the CLI send to authenticate.
+  secret: ""
+
+nats:
+  # NATS server with JetStream enabled.
+  url: nats://nats.nats.svc.cluster.local:4222
+  user: queue
+  password: ""
+
+simplecloud:
+  controllerUrl: https://controller.simplecloud.app
+  natsUrl: wss://nats.simplecloud.app:443
+  networkId: ""
+  networkSecret: ""
+
+buckets:
+  tickets: queue-tickets
+  matches: queue-matches
+  types: queue-types
+  leader: queue-leader
+
+leader:
+  # Seconds until the leader lease expires when it is not renewed.
+  ttl: 10
+
+telemetry:
+  # OTLP endpoint for metrics, empty disables OpenTelemetry.
+  endpoint: ""
+  protocol: http/protobuf
+  exportIntervalMillis: 30000
+
+service:
+  type: ClusterIP
+  # Cluster IP, empty lets Kubernetes pick one.
+  clusterIP: ""
+  port: 4564
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+
+podAnnotations: {}
+podLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Additional environment variables for the queue container.
+extraEnv: []

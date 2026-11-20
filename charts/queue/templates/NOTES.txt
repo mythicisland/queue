@@ -1,0 +1,9 @@
+Queue {{ .Chart.AppVersion }} is installed as {{ include "queue.fullname" . }} in {{ .Release.Namespace }}.
+
+The gRPC API is reachable inside the cluster at:
+  {{ include "queue.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}
+
+Connect the CLI and create your first queue type:
+  queue context add {{ .Release.Name }} --url <address>:{{ .Values.service.port }}
+  queue status
+  queue types create

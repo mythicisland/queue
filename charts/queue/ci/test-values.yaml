@@ -1,0 +1,16 @@
+auth:
+  secret: test-auth-secret
+
+nats:
+  password: test-nats-password
+
+simplecloud:
+  networkId: test-network
+  networkSecret: test-network-secret
+
+telemetry:
+  endpoint: http://otel-collector:4318
+
+extraEnv:
+  - name: JAVA_TOOL_OPTIONS
+    value: -XX:MaxRAMPercentage=75
