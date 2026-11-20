@@ -64,3 +64,19 @@ jobs:
           workdir: cli
           version: "~> v2"
           args: check
+
+  chart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: azure/setup-helm@v5
+
+      - name: Lint
+        run: helm lint charts/queue -f charts/queue/ci/test-values.yaml
+
+      - name: Render with generated secret
+        run: helm template queue charts/queue -f charts/queue/ci/test-values.yaml
+
+      - name: Render with existing secret
+        run: helm template queue charts/queue --set existingSecret=queue-auth

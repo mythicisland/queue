@@ -1,0 +1,126 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "queue.fullname" . }}
+  labels:
+    {{- include "queue.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      {{- include "queue.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "queue.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: queue
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: grpc
+              containerPort: 4564
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: ADVERTISE_ADDRESS
+              value: $(POD_IP):4564
+            - name: AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "queue.secretName" . }}
+                  key: auth-secret
+            - name: NATS_URL
+              value: {{ .Values.nats.url | quote }}
+            - name: NATS_USER
+              value: {{ .Values.nats.user | quote }}
+            - name: NATS_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "queue.secretName" . }}
+                  key: nats-password
+            - name: CONTROLLER_URL
+              value: {{ .Values.simplecloud.controllerUrl | quote }}
+            - name: CONTROLLER_NATS_URL
+              value: {{ .Values.simplecloud.natsUrl | quote }}
+            - name: NETWORK_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "queue.secretName" . }}
+                  key: network-id
+            - name: NETWORK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "queue.secretName" . }}
+                  key: network-secret
+            - name: TICKETS_BUCKET
+              value: {{ .Values.buckets.tickets | quote }}
+            - name: MATCHES_BUCKET
+              value: {{ .Values.buckets.matches | quote }}
+            - name: TYPES_BUCKET
+              value: {{ .Values.buckets.types | quote }}
+            - name: LEADER_BUCKET
+              value: {{ .Values.buckets.leader | quote }}
+            - name: LEADER_TTL
+              value: {{ .Values.leader.ttl | quote }}
+            {{- with .Values.telemetry.endpoint }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ . | quote }}
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: {{ $.Values.telemetry.protocol | quote }}
+            - name: OTEL_METRIC_EXPORT_INTERVAL
+              value: {{ $.Values.telemetry.exportIntervalMillis | quote }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          readinessProbe:
+            grpc:
+              port: 4564
+              service: ready
+            periodSeconds: 5
+          livenessProbe:
+            grpc:
+              port: 4564
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

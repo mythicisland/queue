@@ -150,3 +150,26 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.release.tag_name }}
         run: gh release upload "$TAG" cli/dist/*.tar.gz cli/dist/*.zip cli/dist/queue-cli_checksums.txt --clobber
+
+  chart:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: azure/setup-helm@v5
+
+      - name: Log in to GHCR
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$TOKEN" | helm registry login ghcr.io --username "${{ github.actor }}" --password-stdin
+
+      - name: Package & push chart
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          helm package charts/queue --version "$VERSION" --app-version "$VERSION"
+          helm push "queue-$VERSION.tgz" oci://ghcr.io/mythicisland/charts
