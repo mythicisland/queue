@@ -50,8 +50,8 @@ func newDiffCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				style := actionStyles[change.Action]
-				lipgloss.Fprintln(cmd.OutOrStdout(), style.Render(actionSymbols[change.Action])+" "+style.Bold(true).Render(change.Name()))
+				look := actions[change.Action]
+				lipgloss.Fprintln(cmd.OutOrStdout(), look.style.Render(look.symbol)+" "+look.style.Bold(true).Render(change.Name()))
 				lipgloss.Fprintln(cmd.OutOrStdout(), colorize(diff))
 			}
 			if !changed {

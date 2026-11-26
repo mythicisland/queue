@@ -28,7 +28,11 @@ func Read(path string) ([]byte, error) {
 }
 
 func Decode(data []byte) (*queuev1.QueueType, error) {
-	jsonData, err := yaml.YAMLToJSON(data)
+	var document any
+	if err := yaml.UnmarshalWithOptions(data, &document, yaml.UseOrderedMap()); err != nil {
+		return nil, err
+	}
+	jsonData, err := yaml.MarshalWithOptions(convertDurations(document, protoDuration), yaml.JSON())
 	if err != nil {
 		return nil, err
 	}
@@ -45,10 +49,15 @@ func Encode(message proto.Message, format string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if format == YAML {
-		return yaml.JSONToYAML(jsonData)
+	if format != YAML {
+		return indent(jsonData)
 	}
-	return indent(jsonData)
+
+	var document any
+	if err := yaml.UnmarshalWithOptions(jsonData, &document, yaml.UseOrderedMap()); err != nil {
+		return nil, err
+	}
+	return yaml.Marshal(convertDurations(document, readableDuration))
 }
 
 func EncodeList[T proto.Message](messages []T, format string) ([]byte, error) {

@@ -1,9 +1,7 @@
 package types
 
 import (
-	"bytes"
 	"fmt"
-	"os"
 
 	queuev1 "buf.build/gen/go/mythicisland/queue/protocolbuffers/go/mythicisland/queue/v1"
 	"github.com/mythicisland/queue/cli/internal/client"
@@ -13,11 +11,58 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const reference = `
+# All options, copy what you need into the config above:
+#
+# server:
+#   group: bedwars
+#   allocation_timeout: 30s      # how long a match waits for a server
+#   exclusive: {}                # one match per server
+#   shared:                      # or several matches per server
+#     capacity: 4
+#     accept_timeout: 10s
+# match:
+#   min_players: 2
+#   max_players: 16
+#   teams:                       # replaces min_players and max_players
+#     count: 4
+#     size: 4
+#     balance_by: elo            # ticket property to balance teams by
+#   parties:
+#     max_size: 4
+#   fill_time: 15s               # wait for more players once min_players is reached
+#   countdown: 10s
+#   max_wait: 5m                 # tickets are removed after searching this long
+#   max_failures: 3
+#   rules:                       # tickets only match when their properties fit
+#     - key: region
+#       equal:
+#         relax_after: 30s
+#     - key: elo
+#       range: { start: 100, widen: 50, every: 10s, max: 500 }
+#   filters:                     # tickets without a fitting property can't join
+#     - key: version
+#       values: { values: ["1.21"] }
+#     - key: elo
+#       number: { min: 0, max: 3000 }
+#     - key: premium
+#       presence: { present: true }
+#   quality:
+#     spread:
+#       - key: elo
+#         window: { start: 100, widen: 50, every: 10s, max: 500 }
+#     team_balance: { start: 50, widen: 25, every: 10s }
+# properties:
+#   mode: ranked
+# active: true
+`
+
 func newEditCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "edit <name>",
-		Short: "Edit a queue type in your editor",
-		Long: `Opens the queue type as YAML in $QUEUE_EDITOR, $VISUAL or $EDITOR and updates it when the editor closes.
+		Short: "Edit a queue type",
+		Long: `Opens the queue type as YAML in the built-in editor and updates it on save.
+Set $QUEUE_EDITOR to use your own editor instead, e.g. QUEUE_EDITOR="code --wait".
 
 Running matches keep going with the old config.`,
 		Args:              cobra.ExactArgs(1),
@@ -39,36 +84,30 @@ Running matches keep going with the old config.`,
 				return err
 			}
 
-			edited, path, err := editor.Edit("queue-"+name+"-*.yaml", original)
+			save := func(edited []byte) error {
+				queueType, err := manifest.Decode(edited)
+				if err != nil {
+					return err
+				}
+				if queueType.GetName() != name {
+					return fmt.Errorf("queue types can't be renamed, create a new one and delete %s", name)
+				}
+				req := queuev1.UpdateQueueTypeRequest_builder{QueueType: queueType}.Build()
+				_, err = c.Types.UpdateQueueType(cmd.Context(), req)
+				return err
+			}
+
+			content := append(original, reference...)
+			saved, err := editor.Edit("Queue type "+name, "queue-"+name+"-*.yaml", content, save)
 			if err != nil {
 				return err
 			}
-			if bytes.Equal(edited, original) {
-				os.Remove(path)
+			if !saved {
 				output.Info(cmd.OutOrStdout(), "No changes")
 				return nil
 			}
-
-			queueType, err := manifest.Decode(edited)
-			if err != nil {
-				return keptAt(err, path)
-			}
-			if queueType.GetName() != name {
-				return keptAt(fmt.Errorf("queue types can't be renamed, create a new one and delete %s", name), path)
-			}
-
-			req := queuev1.UpdateQueueTypeRequest_builder{QueueType: queueType}.Build()
-			if _, err := c.Types.UpdateQueueType(cmd.Context(), req); err != nil {
-				return keptAt(err, path)
-			}
-
-			os.Remove(path)
 			output.Success(cmd.OutOrStdout(), "Updated queue type %s", name)
 			return nil
 		},
 	}
-}
-
-func keptAt(err error, path string) error {
-	return fmt.Errorf("%w\nyour changes are saved in %s", err, path)
 }

@@ -10,8 +10,8 @@ import io.opentelemetry.instrumentation.grpc.v1_6.GrpcTelemetry
 import kotlinx.coroutines.*
 import net.mythicisland.queue.runtime.launcher.QueueStartCommand
 import net.mythicisland.queue.runtime.metrics.QueueGauges
-import net.mythicisland.queue.runtime.nats.NatsClient
 import net.mythicisland.queue.runtime.metrics.QueueMetrics
+import net.mythicisland.queue.runtime.nats.NatsClient
 import net.mythicisland.queue.runtime.leader.LeaderElection
 import net.mythicisland.queue.runtime.leader.LeaderForwarder
 import net.mythicisland.queue.runtime.leader.Lease
@@ -57,7 +57,7 @@ class QueueNode(
             election.terms.collect { term ->
                 follow()
                 if (term != null) {
-                    lead()
+                    lead(term)
                 }
             }
         }
@@ -85,21 +85,38 @@ class QueueNode(
         forwarder.shutdown()
     }
 
-    private suspend fun lead() {
-        try {
-            val started = startServices()
-            services.set(started)
-            registry.lead(started.grpcServices)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            logger.error("Failed to start queue services", Field.error(e))
+    private suspend fun lead(term: Long) {
+        for (attempt in 1..START_ATTEMPTS) {
+            if (election.term != term) {
+                return
+            }
+            try {
+                val started = startServices(term)
+                if (election.term != term) {
+                    stop(started)
+                    return
+                }
+                services.set(started)
+                registry.lead(started.grpcServices)
+                return
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logger.error("Failed to start queue services", Field("attempt", attempt), Field("attempts", START_ATTEMPTS), Field.error(e))
+            }
+            if (attempt < START_ATTEMPTS) {
+                delay(START_RETRY_DELAY * attempt)
+            }
+        }
+
+        if (election.term == term) {
+            logger.error("Releasing leadership because queue services did not start", Field("attempts", START_ATTEMPTS))
             election.release()
         }
     }
 
-    private suspend fun startServices(): QueueServices {
-        val created = QueueServices(args, nats, api, metrics, gauges)
+    private suspend fun startServices(term: Long): QueueServices {
+        val created = QueueServices(args, nats, api, metrics, gauges, election, term)
         try {
             created.start()
             return created
@@ -111,8 +128,12 @@ class QueueNode(
 
     private suspend fun follow() {
         registry.follow()
-        val timeout = 5.seconds
         val stopping = services.getAndSet(null) ?: return
+        stop(stopping)
+    }
+
+    private suspend fun stop(stopping: QueueServices) {
+        val timeout = 5.seconds
         if (withTimeoutOrNull(timeout) { stopping.shutdown() } == null) {
             logger.error("Halting because queue services did not stop in time", Field("timeoutSeconds", timeout.inWholeSeconds))
             Runtime.getRuntime().halt(1)
@@ -126,6 +147,11 @@ class QueueNode(
             logger.warn("gRPC server did not stop in time, forcing shutdown", Field("timeoutSeconds", timeout.inWholeSeconds))
             server.shutdownNow()
         }
+    }
+
+    private companion object {
+        const val START_ATTEMPTS = 3
+        val START_RETRY_DELAY = 2.seconds
     }
 
 }

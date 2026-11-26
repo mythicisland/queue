@@ -9,8 +9,10 @@ import net.mythicisland.queue.runtime.ticket.TicketService
 import net.mythicisland.queue.runtime.ticket.TicketStore
 import net.mythicisland.queue.shared.logger.Field
 import net.mythicisland.queue.shared.logger.LoggerFactory
+import net.mythicisland.queue.shared.ticket.Ticket
 import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.seconds
 
 class PlayerListener(
@@ -22,6 +24,7 @@ class PlayerListener(
     private val logger = LoggerFactory.getLogger(PlayerListener::class)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val subscriptions = mutableListOf<Subscription>()
+    private val missing = AtomicReference<Set<String>>(emptySet())
 
     fun start() {
         subscriptions.add(api.event().player().onDisconnect { event ->
@@ -56,17 +59,38 @@ class PlayerListener(
         try {
             val since = Instant.now()
             val online = api.player().onlinePlayers.await().map { it.uniqueId }.toSet()
+            val result = findDisconnected(store.all(), online, missing.get(), since)
+            missing.set(result.missing)
 
-            for (ticket in store.all()) {
-                if (ticket.createdAt.isBefore(since) && ticket.playerIds.any { it !in online }) {
-                    service.delete(ticket, TicketDeleteReason.TICKET_DELETE_REASON_DISCONNECTED)
-                }
+            for (ticket in result.disconnected) {
+                service.delete(ticket, TicketDeleteReason.TICKET_DELETE_REASON_DISCONNECTED)
             }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             logger.error("Failed to sync tickets with online players", Field.error(e))
         }
+    }
+
+    data class SyncResult(val disconnected: List<Ticket>, val missing: Set<String>)
+
+    companion object {
+
+        // A ticket is only dropped when its players are missing in two syncs in a row, because the
+        // controller can report too few players for a moment, e.g. right after it restarted.
+        fun findDisconnected(tickets: Collection<Ticket>, online: Set<UUID>, missing: Set<String>, since: Instant): SyncResult {
+            if (online.isEmpty()) {
+                return SyncResult(emptyList(), missing)
+            }
+
+            val absent = tickets.filter { ticket ->
+                ticket.createdAt.isBefore(since) && ticket.playerIds.any { it !in online }
+            }
+            val disconnected = absent.filter { it.id in missing }
+            val stillMissing = absent.map { it.id }.toSet() - disconnected.map { it.id }.toSet()
+            return SyncResult(disconnected, stillMissing)
+        }
+
     }
 
 }

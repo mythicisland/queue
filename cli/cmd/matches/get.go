@@ -7,7 +7,6 @@ import (
 
 	queuev1 "buf.build/gen/go/mythicisland/queue/protocolbuffers/go/mythicisland/queue/v1"
 	"github.com/mythicisland/queue/cli/internal/client"
-	"github.com/mythicisland/queue/cli/internal/manifest"
 	"github.com/mythicisland/queue/cli/internal/output"
 	"github.com/spf13/cobra"
 )
@@ -37,12 +36,7 @@ func newGetCommand() *cobra.Command {
 			match := res.GetMatch()
 
 			if format != output.FormatTable {
-				data, err := manifest.Encode(match, format)
-				if err != nil {
-					return err
-				}
-				_, err = cmd.OutOrStdout().Write(data)
-				return err
+				return output.Print(cmd.OutOrStdout(), match, format)
 			}
 
 			fields := [][2]string{

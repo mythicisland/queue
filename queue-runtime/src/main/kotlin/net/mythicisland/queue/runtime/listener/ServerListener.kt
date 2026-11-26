@@ -5,6 +5,7 @@ import app.simplecloud.api.event.Subscription
 import app.simplecloud.api.server.Server
 import kotlinx.coroutines.*
 import net.mythicisland.queue.runtime.match.MatchReconciler
+import net.mythicisland.queue.runtime.match.MatchStore
 import net.mythicisland.queue.runtime.server.GameServer
 import net.mythicisland.queue.runtime.server.ServerRegistry
 import net.mythicisland.queue.shared.logger.Field
@@ -14,6 +15,7 @@ import kotlin.time.Duration.Companion.seconds
 class ServerListener(
     private val api: CloudApi,
     private val registry: ServerRegistry,
+    private val matchStore: MatchStore,
     private val reconciler: MatchReconciler,
 ) {
 
@@ -46,7 +48,8 @@ class ServerListener(
 
     private suspend fun sync() {
         try {
-            for (server in registry.sync()) {
+            val busy = matchStore.all().mapNotNull { it.assignment?.serverId }.toSet()
+            for (server in registry.sync(busy)) {
                 logger.info("Game server vanished", Field("serverId", server.id), Field("server", server.name))
                 reconciler.serverStopped(server)
             }

@@ -3,7 +3,6 @@ package types
 import (
 	queuev1 "buf.build/gen/go/mythicisland/queue/protocolbuffers/go/mythicisland/queue/v1"
 	"github.com/mythicisland/queue/cli/internal/client"
-	"github.com/mythicisland/queue/cli/internal/manifest"
 	"github.com/mythicisland/queue/cli/internal/output"
 	"github.com/spf13/cobra"
 )
@@ -35,12 +34,7 @@ func newGetCommand() *cobra.Command {
 			if format == output.FormatTable {
 				return printTable(cmd, c, []*queuev1.QueueType{res.GetQueueType()})
 			}
-			data, err := manifest.Encode(res.GetQueueType(), format)
-			if err != nil {
-				return err
-			}
-			_, err = cmd.OutOrStdout().Write(data)
-			return err
+			return output.Print(cmd.OutOrStdout(), res.GetQueueType(), format)
 		},
 	}
 }

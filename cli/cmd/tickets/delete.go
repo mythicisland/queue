@@ -1,10 +1,7 @@
 package tickets
 
 import (
-	"errors"
-
 	queuev1 "buf.build/gen/go/mythicisland/queue/protocolbuffers/go/mythicisland/queue/v1"
-	"charm.land/huh/v2"
 	"github.com/mythicisland/queue/cli/internal/client"
 	"github.com/mythicisland/queue/cli/internal/output"
 	"github.com/mythicisland/queue/cli/internal/prompt"
@@ -32,10 +29,7 @@ func newDeleteCommand() *cobra.Command {
 
 			if !yes {
 				confirmed, err := prompt.Confirm("Delete this ticket?", "Delete")
-				if errors.Is(err, huh.ErrUserAborted) || err == nil && !confirmed {
-					return nil
-				}
-				if err != nil {
+				if err != nil || !confirmed {
 					return err
 				}
 			}

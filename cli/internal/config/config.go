@@ -5,9 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 )
 
 type Context struct {
@@ -70,10 +71,5 @@ func (c *Config) Save() error {
 }
 
 func (c *Config) Names() []string {
-	names := make([]string, 0, len(c.Contexts))
-	for name := range c.Contexts {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
+	return slices.Sorted(maps.Keys(c.Contexts))
 }

@@ -2,6 +2,9 @@ package net.mythicisland.queue.runtime
 
 import app.simplecloud.api.CloudApi
 import app.simplecloud.api.CloudApiOptions
+import app.simplecloud.api.cache.CacheConfig
+import app.simplecloud.api.cache.EntityCacheConfig
+import app.simplecloud.api.cache.EntityType
 import kotlinx.coroutines.*
 import net.mythicisland.queue.runtime.launcher.QueueStartCommand
 import net.mythicisland.queue.runtime.metrics.Telemetry
@@ -34,20 +37,14 @@ class QueueRuntime(private val args: QueueStartCommand) {
         }
 
         val stopped = CountDownLatch(1)
-        awaitShutdown(stopped)
+        suspendCancellableCoroutine { continuation ->
+            Runtime.getRuntime().addShutdownHook(Thread {
+                continuation.resume(Unit)
+                stopped.await(30L, TimeUnit.SECONDS)
+            })
+        }
         stop(node, api, nats, telemetry)
         stopped.countDown()
-    }
-
-    private suspend fun awaitShutdown(stopped: CountDownLatch) {
-        suspendCancellableCoroutine { continuation ->
-            Runtime.getRuntime().addShutdownHook(shutdownHook(continuation, stopped))
-        }
-    }
-
-    private fun shutdownHook(continuation: CancellableContinuation<Unit>, stopped: CountDownLatch): Thread = Thread {
-        continuation.resume(Unit)
-        stopped.await(30L, TimeUnit.SECONDS)
     }
 
     private suspend fun stop(node: QueueNode, api: CloudApi, nats: NatsClient, telemetry: Telemetry) {
@@ -70,6 +67,9 @@ class QueueRuntime(private val args: QueueStartCommand) {
                 .natsUrl(args.controllerNatsUrl)
                 .networkId(args.networkId)
                 .networkSecret(args.networkSecret)
+                .cache(CacheConfig.builder()
+                    .entityConfig(EntityType.SERVER, EntityCacheConfig.builder().enabled(false).build())
+                    .build())
                 .build()
         )
     }

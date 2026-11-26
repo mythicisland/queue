@@ -36,7 +36,7 @@ func newUpgradeCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if _, err := release.Replace(binary); err != nil {
+			if err := release.Replace(binary); err != nil {
 				return err
 			}
 			output.Success(w, "Upgraded queue from %s to %s", version, release.Version(tag))

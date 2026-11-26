@@ -9,6 +9,7 @@ import io.nats.client.Options
 import io.nats.client.api.KeyValueConfiguration
 import io.nats.client.api.StorageType
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.collectLatest
 import net.mythicisland.queue.shared.logger.Field
 import net.mythicisland.queue.shared.logger.LoggerFactory
 import java.io.IOException
@@ -23,7 +24,7 @@ class NatsClient(val connection: Connection, private val listener: NatsListener)
 
     fun start() {
         scope.launch {
-            listener.reconnects.collect { restoreBuckets() }
+            listener.reconnects.collectLatest { restoreBuckets() }
         }
     }
 
@@ -45,20 +46,30 @@ class NatsClient(val connection: Connection, private val listener: NatsListener)
         connection.close()
     }
 
-    private fun restoreBuckets() {
+    private suspend fun restoreBuckets() {
+        val error = restore() ?: return
+        logger.warn("Failed to restore NATS buckets, retrying", Field.error(error))
+        do {
+            delay(2.seconds)
+        } while (restore() != null)
+        logger.info("Restored NATS buckets")
+    }
+
+    private fun restore(): Exception? {
         for (config in buckets.values) {
             try {
                 if (ensure(config)) {
                     logger.warn("Recreated missing NATS bucket", Field("bucket", config.bucketName))
                 }
             } catch (e: Exception) {
-                logger.error("Failed to restore NATS bucket", Field("bucket", config.bucketName), Field.error(e))
+                return e
             }
         }
+        return null
     }
 
     private fun ensure(config: KeyValueConfiguration): Boolean {
-        val management = connection.keyValueManagement(bucketOptions)
+        val management = connection.keyValueManagement(managementOptions)
         if (config.bucketName in management.bucketNames) {
             management.update(config)
             return false
@@ -69,8 +80,11 @@ class NatsClient(val connection: Connection, private val listener: NatsListener)
 
     companion object {
         private val logger = LoggerFactory.getLogger(NatsClient::class)
-        private val bucketOptions = KeyValueOptions.builder()
-            .jetStreamOptions(JetStreamOptions.builder().requestTimeout(Duration.ofMillis(500)).build())
+        private val bucketOptions = options(Duration.ofMillis(500))
+        private val managementOptions = options(Duration.ofSeconds(5))
+
+        private fun options(timeout: Duration): KeyValueOptions = KeyValueOptions.builder()
+            .jetStreamOptions(JetStreamOptions.builder().requestTimeout(timeout).build())
             .build()
 
         suspend fun init(url: String, user: String, secret: String): NatsClient {

@@ -38,6 +38,13 @@ class LeaderElection(private val kv: KeyValue, private val self: Lease, private 
 
     val terms: Flow<Long?> get() = currentTerm.map { it?.id }.distinctUntilChanged()
 
+    val term: Long? get() = currentTerm.value?.id
+
+    fun holds(term: Long): Boolean {
+        val current = currentTerm.value ?: return false
+        return current.id == term && !isExpiring(current.renewedAt.elapsedNow(), ttl)
+    }
+
     val healthy: StateFlow<Boolean> get() = currentlyHealthy
 
     fun start() {

@@ -9,52 +9,47 @@ import (
 	"github.com/mythicisland/queue/cli/internal/output"
 )
 
-var theme = huh.ThemeFunc(func(bool) *huh.Styles {
-	t := huh.ThemeBase(false)
-	t.FieldSeparator = lipgloss.NewStyle().SetString("\n")
+var Theme = huh.ThemeFunc(func(isDark bool) *huh.Styles {
+	t := huh.ThemeBase(isDark)
+	button := lipgloss.NewStyle().Padding(0, 2).MarginRight(1)
 
-	t.Focused.Base = lipgloss.NewStyle()
+	t.Focused.Base = t.Focused.Base.BorderForeground(lipgloss.Cyan)
 	t.Focused.Card = t.Focused.Base
-	t.Focused.Title = output.Accent.Bold(true).SetString("?")
+	t.Focused.Title = output.Bold
+	t.Focused.NoteTitle = output.Bold.MarginBottom(1)
 	t.Focused.Description = output.Faint
 	t.Focused.ErrorIndicator = output.Red.SetString(" *")
 	t.Focused.ErrorMessage = output.Red
 	t.Focused.SelectSelector = output.Accent.SetString("› ")
+	t.Focused.NextIndicator = output.Accent.MarginLeft(1).SetString("→")
+	t.Focused.PrevIndicator = output.Accent.MarginRight(1).SetString("←")
 	t.Focused.Option = lipgloss.NewStyle()
 	t.Focused.SelectedOption = output.Accent
-	t.Focused.TextInput.Prompt = output.Faint
+	t.Focused.TextInput.Prompt = output.Accent
 	t.Focused.TextInput.Placeholder = output.Faint
 	t.Focused.TextInput.Cursor = output.Accent
-	t.Focused.FocusedButton = lipgloss.NewStyle().Padding(0, 2).MarginRight(1).Foreground(lipgloss.Black).Background(lipgloss.Cyan)
-	t.Focused.BlurredButton = lipgloss.NewStyle().Padding(0, 2).MarginRight(1).Foreground(lipgloss.BrightBlack)
+	t.Focused.FocusedButton = button.Foreground(lipgloss.Black).Background(lipgloss.Cyan)
+	t.Focused.BlurredButton = button.Foreground(lipgloss.BrightBlack)
+	t.Focused.Next = t.Focused.FocusedButton
 
 	t.Blurred = t.Focused
+	t.Blurred.Base = t.Focused.Base.BorderStyle(lipgloss.HiddenBorder())
+	t.Blurred.Card = t.Blurred.Base
+	t.Blurred.Title = output.Faint
+	t.Blurred.SelectSelector = lipgloss.NewStyle().SetString("  ")
+	t.Blurred.NextIndicator = lipgloss.NewStyle()
+	t.Blurred.PrevIndicator = lipgloss.NewStyle()
+
+	t.Group.Title = output.Accent.Bold(true).MarginBottom(1)
+	t.Group.Description = output.Faint.MarginBottom(1)
 	return t
 })
-
-func Input(title, placeholder string, validate func(string) error) (string, error) {
-	var value string
-	field := huh.NewInput().
-		Title(title).
-		Placeholder(placeholder).
-		Prompt(" ").
-		Inline(true).
-		Value(&value)
-	if validate != nil {
-		field.Validate(validate)
-	}
-	if err := run(field); err != nil {
-		return "", err
-	}
-	answered(title, value)
-	return value, nil
-}
 
 func Password(title string) (string, error) {
 	var value string
 	field := huh.NewInput().
 		Title(title).
-		Prompt(" ").
+		Prompt(" › ").
 		Inline(true).
 		EchoMode(huh.EchoModePassword).
 		Validate(required).
@@ -91,7 +86,11 @@ func Confirm(title, affirmative string) (bool, error) {
 		Negative("Cancel").
 		Inline(true).
 		Value(&value)
-	if err := run(field); err != nil {
+	err := run(field)
+	if errors.Is(err, huh.ErrUserAborted) {
+		return false, nil
+	}
+	if err != nil {
 		return false, err
 	}
 	if value {
@@ -104,13 +103,13 @@ func Confirm(title, affirmative string) (bool, error) {
 
 func run(field huh.Field) error {
 	return huh.NewForm(huh.NewGroup(field)).
-		WithTheme(theme).
+		WithTheme(Theme).
 		WithShowHelp(false).
 		Run()
 }
 
 func answered(title, value string) {
-	lipgloss.Println(output.Accent.Render("?") + " " + output.Bold.Render(title) + " " + output.Accent.Render(value))
+	lipgloss.Println(output.Green.Render("✓") + " " + output.Faint.Render(title) + " " + value)
 }
 
 func required(value string) error {

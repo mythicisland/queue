@@ -66,6 +66,8 @@ class MatchReconciler(
     private val offerDeadlines = ConcurrentHashMap<String, Instant>()
     private val rejections = ConcurrentHashMap<String, Set<String>>()
     private val nextProvisions = ConcurrentHashMap<String, Instant>()
+    private val failing = ConcurrentHashMap.newKeySet<String>()
+    private val failingProvisions = ConcurrentHashMap.newKeySet<String>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     fun start() {
@@ -241,15 +243,22 @@ class MatchReconciler(
     private suspend fun reconcile() {
         val started = TimeSource.Monotonic.markNow()
         val now = Instant.now()
-        for (match in matchStore.all().sortedBy { it.createdAt }) {
+        val matches = matchStore.all().sortedBy { it.createdAt }
+        for (match in matches) {
             try {
                 reconcileMatch(match, now)
+                if (failing.remove(match.id)) {
+                    logger.info("Match reconciles again", Field("matchId", match.id), Field("state", match.state))
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                logger.error("Failed to reconcile match", Field("matchId", match.id), Field("state", match.state), Field.error(e))
+                if (failing.add(match.id)) {
+                    logger.error("Failed to reconcile match, retrying", Field("matchId", match.id), Field("state", match.state), Field.error(e))
+                }
             }
         }
+        failing.retainAll(matches.map { it.id }.toSet())
         provision(now)
         retryFailedWrites()
         metrics.recordReconcilerRun(started.elapsedNow())
@@ -460,12 +469,18 @@ class MatchReconciler(
             nextProvisions[group] = now.plus(Duration.ofSeconds(2))
             try {
                 allocator.provision(group, waitingTypes.size)
+                if (failingProvisions.remove(group)) {
+                    logger.info("Provisioning servers works again", Field("group", group))
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                logger.error("Failed to provision servers", Field("group", group), Field.error(e))
+                if (failingProvisions.add(group)) {
+                    logger.error("Failed to provision servers, retrying", Field("group", group), Field.error(e))
+                }
             }
         }
+        failingProvisions.retainAll(waiting.keys)
     }
 
     private suspend fun retryFailedWrites() {

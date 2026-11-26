@@ -6,7 +6,6 @@ import (
 
 	queuev1 "buf.build/gen/go/mythicisland/queue/protocolbuffers/go/mythicisland/queue/v1"
 	"github.com/mythicisland/queue/cli/internal/client"
-	"github.com/mythicisland/queue/cli/internal/manifest"
 	"github.com/mythicisland/queue/cli/internal/output"
 	"github.com/spf13/cobra"
 )
@@ -39,12 +38,7 @@ func newListCommand() *cobra.Command {
 			})
 
 			if format != output.FormatTable {
-				data, err := manifest.EncodeList(queueTypes, format)
-				if err != nil {
-					return err
-				}
-				_, err = cmd.OutOrStdout().Write(data)
-				return err
+				return output.PrintList(cmd.OutOrStdout(), queueTypes, format)
 			}
 
 			w := cmd.OutOrStdout()
@@ -58,7 +52,7 @@ func newListCommand() *cobra.Command {
 			}
 			output.Next(w,
 				output.Step{Command: "queue types get <name>", Description: "Show the full config"},
-				output.Step{Command: "queue types edit <name>", Description: "Change it in your editor"},
+				output.Step{Command: "queue types edit <name>", Description: "Change it in the editor"},
 			)
 			return nil
 		},

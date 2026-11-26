@@ -8,15 +8,14 @@ import (
 	"path/filepath"
 )
 
-// Replace moves the running binary aside first, because Windows can't overwrite a running exe but can rename it.
-func Replace(binary []byte) (string, error) {
+func Replace(binary []byte) error {
 	path, err := os.Executable()
 	if err != nil {
-		return "", err
+		return err
 	}
 	path, err = filepath.EvalSymlinks(path)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	old := path + ".old"
@@ -24,19 +23,19 @@ func Replace(binary []byte) (string, error) {
 	os.Remove(old)
 
 	if err := os.WriteFile(next, binary, 0o755); err != nil {
-		return "", permission(err, path)
+		return permission(err, path)
 	}
 	if err := os.Rename(path, old); err != nil {
 		os.Remove(next)
-		return "", permission(err, path)
+		return permission(err, path)
 	}
 	if err := os.Rename(next, path); err != nil {
 		os.Rename(old, path)
 		os.Remove(next)
-		return "", permission(err, path)
+		return permission(err, path)
 	}
 	os.Remove(old)
-	return path, nil
+	return nil
 }
 
 func permission(err error, path string) error {

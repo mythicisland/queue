@@ -12,7 +12,6 @@ data class GameServer(
     val hosted: Set<String> = emptySet(),
 ) {
 
-    val freeCapacity: Int
-        get() = (capacity ?: 0) - matches.size
+    fun getFreeCapacity(): Int = (capacity ?: 0) - matches.size
 
 }

@@ -1,11 +1,9 @@
 package types
 
 import (
-	"errors"
 	"fmt"
 
 	queuev1 "buf.build/gen/go/mythicisland/queue/protocolbuffers/go/mythicisland/queue/v1"
-	"charm.land/huh/v2"
 	"github.com/mythicisland/queue/cli/internal/client"
 	"github.com/mythicisland/queue/cli/internal/output"
 	"github.com/mythicisland/queue/cli/internal/prompt"
@@ -28,10 +26,7 @@ To stop a queue type only for a while, deactivate it instead.`,
 			name := args[0]
 			if !yes {
 				confirmed, err := prompt.Confirm(fmt.Sprintf("Delete queue type %s?", name), "Delete")
-				if errors.Is(err, huh.ErrUserAborted) || err == nil && !confirmed {
-					return nil
-				}
-				if err != nil {
+				if err != nil || !confirmed {
 					return err
 				}
 			}

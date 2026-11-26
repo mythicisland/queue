@@ -1,12 +1,11 @@
 package net.mythicisland.queue.shared
 
-import com.google.protobuf.duration
 import java.time.Duration
-import com.google.protobuf.Duration as DurationProto
+import com.google.protobuf.Duration as ProtobufDuration
 
-internal fun Duration.toProto(): DurationProto = duration {
-    seconds = this@toProto.seconds
-    nanos = this@toProto.nano
-}
+fun Duration.toProto(): ProtobufDuration = ProtobufDuration.newBuilder()
+    .setSeconds(seconds)
+    .setNanos(nano)
+    .build()
 
-internal fun DurationProto.toJavaDuration(): Duration = Duration.ofSeconds(seconds, nanos.toLong())
+fun ProtobufDuration.toJavaDuration(): Duration = Duration.ofSeconds(seconds, nanos.toLong())

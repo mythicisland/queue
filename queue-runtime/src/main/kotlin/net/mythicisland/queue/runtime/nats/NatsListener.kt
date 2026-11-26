@@ -18,6 +18,7 @@ class NatsListener : ConnectionListener, ErrorListener {
 
     val reconnects: SharedFlow<Unit> get() = reconnected
 
+    @Deprecated("Deprecated in Java")
     override fun connectionEvent(conn: Connection, type: ConnectionListener.Events) {
         when (type) {
             ConnectionListener.Events.CONNECTED -> {

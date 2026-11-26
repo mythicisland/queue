@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// set by goreleaser through -ldflags.
+// set by goreleaser
 var version = "dev"
 
 func Execute() error {

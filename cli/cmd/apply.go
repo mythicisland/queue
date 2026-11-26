@@ -12,32 +12,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var actionStyles = map[plan.Action]lipgloss.Style{
-	plan.Create:    output.Green,
-	plan.Update:    output.Yellow,
-	plan.Delete:    output.Red,
-	plan.Unchanged: output.Faint,
+type actionLook struct {
+	symbol  string
+	style   lipgloss.Style
+	done    string
+	planned string
 }
 
-var actionSymbols = map[plan.Action]string{
-	plan.Create:    "+",
-	plan.Update:    "~",
-	plan.Delete:    "-",
-	plan.Unchanged: "=",
-}
-
-var pastTense = map[plan.Action]string{
-	plan.Create:    "Created",
-	plan.Update:    "Updated",
-	plan.Delete:    "Deleted",
-	plan.Unchanged: "Unchanged",
-}
-
-var futureTense = map[plan.Action]string{
-	plan.Create:    "Would create",
-	plan.Update:    "Would update",
-	plan.Delete:    "Would delete",
-	plan.Unchanged: "Unchanged",
+var actions = map[plan.Action]actionLook{
+	plan.Create:    {"+", output.Green, "Created", "Would create"},
+	plan.Update:    {"~", output.Yellow, "Updated", "Would update"},
+	plan.Delete:    {"-", output.Red, "Deleted", "Would delete"},
+	plan.Unchanged: {"=", output.Faint, "Unchanged", "Unchanged"},
 }
 
 func newApplyCommand() *cobra.Command {
@@ -72,10 +58,6 @@ With --prune, queue types without a file are deleted, so the files are the only 
 			}
 
 			w := cmd.OutOrStdout()
-			verbs := pastTense
-			if dryRun {
-				verbs = futureTense
-			}
 			counts := map[plan.Action]int{}
 			for _, change := range changes {
 				if !dryRun {
@@ -84,14 +66,18 @@ With --prune, queue types without a file are deleted, so the files are the only 
 					}
 				}
 				counts[change.Action]++
-				style := actionStyles[change.Action]
-				lipgloss.Fprintln(w, style.Render(actionSymbols[change.Action])+" "+verbs[change.Action]+" queue type "+style.Render(change.Name()))
+				look := actions[change.Action]
+				verb := look.done
+				if dryRun {
+					verb = look.planned
+				}
+				lipgloss.Fprintln(w, look.style.Render(look.symbol)+" "+verb+" queue type "+look.style.Render(change.Name()))
 			}
 
 			var summary []string
 			for _, action := range []plan.Action{plan.Create, plan.Update, plan.Delete, plan.Unchanged} {
 				if counts[action] > 0 {
-					summary = append(summary, fmt.Sprintf("%d %s", counts[action], strings.ToLower(pastTense[action])))
+					summary = append(summary, fmt.Sprintf("%d %s", counts[action], strings.ToLower(actions[action].done)))
 				}
 			}
 			if len(summary) == 0 {

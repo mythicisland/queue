@@ -42,7 +42,6 @@ func Version(tag string) string {
 	return strings.TrimPrefix(tag, "v")
 }
 
-// Latest also considers prereleases, GitHub's latest endpoint skips them.
 func Latest(ctx context.Context) (string, error) {
 	data, err := get(ctx, "https://api.github.com/repos/"+repo+"/releases?per_page=20")
 	if err != nil {
@@ -159,7 +158,7 @@ func get(ctx context.Context, url string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "queue-cli")
+	req.Header.Set("User-Agent", "mythicisland/queue")
 
 	res, err := httpClient.Do(req)
 	if err != nil {

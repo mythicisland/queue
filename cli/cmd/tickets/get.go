@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/mythicisland/queue/cli/internal/client"
-	"github.com/mythicisland/queue/cli/internal/manifest"
 	"github.com/mythicisland/queue/cli/internal/output"
 	"github.com/spf13/cobra"
 )
@@ -41,12 +40,7 @@ func newGetCommand() *cobra.Command {
 			}
 
 			if format != output.FormatTable {
-				data, err := manifest.Encode(ticket, format)
-				if err != nil {
-					return err
-				}
-				_, err = cmd.OutOrStdout().Write(data)
-				return err
+				return output.Print(cmd.OutOrStdout(), ticket, format)
 			}
 
 			fields := [][2]string{

@@ -19,7 +19,7 @@ class ServerAllocator(
     private val api: CloudApi,
     private val types: QueueTypeRegistry,
     private val registry: ServerRegistry,
-    private val matchStore: MatchStore,
+    private val store: MatchStore,
 ) {
 
     private val logger = LoggerFactory.getLogger(ServerAllocator::class)
@@ -29,7 +29,7 @@ class ServerAllocator(
     suspend fun recover() {
         removeStaleHostedMatches()
 
-        val busy = matchStore.all().mapNotNull { it.assignment?.serverId }.toSet()
+        val busy = store.all().mapNotNull { it.assignment?.serverId }.toSet()
         for (group in types.groups()) {
             if (types.isShared(group)) {
                 continue
@@ -45,7 +45,7 @@ class ServerAllocator(
     }
 
     suspend fun allocateExclusive(group: String): GameServer? {
-        val busy = matchStore.all().mapNotNull { it.assignment?.serverId }.toSet()
+        val busy = store.all().mapNotNull { it.assignment?.serverId }.toSet()
         val server = chooseExclusive(registry.byGroup(group), busy) ?: return null
 
         return if (setState(server.id, ServerState.AVAILABLE, ServerState.INGAME)) server else null
@@ -66,14 +66,14 @@ class ServerAllocator(
     suspend fun free(match: Match) {
         val assignment = match.assignment ?: return
         registry.removeMatch(assignment.serverId, match.id)
-        makeAvailable(assignment.serverId)
+        setAvailable(assignment.serverId)
     }
 
     suspend fun release(serverId: String, matchId: String): Boolean {
         if (!registry.removeMatch(serverId, matchId)) {
             return false
         }
-        makeAvailable(serverId)
+        setAvailable(serverId)
         return true
     }
 
@@ -83,16 +83,14 @@ class ServerAllocator(
             return
         }
 
-        val matchesPerServer = if (types.isShared(group)) sharedCapacity(group) else 1
+        val matchesPerServer = if (types.isShared(group))
+            types.capacity(group) ?: registry.byGroup(group).mapNotNull { it.capacity }.maxOrNull() else 1
         val provisioner = if (cloudGroup.scaling?.scalingMode == ScalingMode.SLOTS) slotsProvisioner else serversProvisioner
         provisioner.provision(cloudGroup, serversNeeded(waitingMatches, matchesPerServer))
     }
 
-    private fun sharedCapacity(group: String): Int? =
-        types.capacity(group) ?: registry.byGroup(group).mapNotNull { it.capacity }.maxOrNull()
-
     private suspend fun removeStaleHostedMatches() {
-        val completed = matchStore.all().filter { it.state == MatchState.COMPLETED }.map { it.id }.toSet()
+        val completed = store.all().filter { it.state == MatchState.COMPLETED }.map { it.id }.toSet()
         for (group in types.groups()) {
             for (server in registry.byGroup(group)) {
                 for (matchId in server.hosted - completed) {
@@ -103,7 +101,7 @@ class ServerAllocator(
         }
     }
 
-    private suspend fun makeAvailable(serverId: String) {
+    private suspend fun setAvailable(serverId: String) {
         val server = registry.get(serverId) ?: return
         if (!types.isShared(server.group) && server.matches.isEmpty()) {
             setState(serverId, ServerState.INGAME, ServerState.AVAILABLE)
@@ -127,7 +125,7 @@ class ServerAllocator(
             servers.firstOrNull { it.state == ServerState.AVAILABLE && it.id !in busy }
 
         fun chooseShared(servers: List<GameServer>, excluded: Set<String>): GameServer? =
-            servers.filter { it.state in setOf(ServerState.AVAILABLE, ServerState.INGAME) && it.freeCapacity > 0 && it.id !in excluded }
+            servers.filter { it.state in setOf(ServerState.AVAILABLE, ServerState.INGAME) && it.getFreeCapacity() > 0 && it.id !in excluded }
                 .maxByOrNull { it.matches.size }
 
         fun serversNeeded(waitingMatches: Int, matchesPerServer: Int?): Int {

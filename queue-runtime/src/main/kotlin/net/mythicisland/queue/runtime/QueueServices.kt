@@ -5,6 +5,7 @@ import io.grpc.BindableService
 import net.mythicisland.queue.runtime.data.QueueDataService
 import net.mythicisland.queue.runtime.event.EventPublisher
 import net.mythicisland.queue.runtime.launcher.QueueStartCommand
+import net.mythicisland.queue.runtime.leader.LeaderElection
 import net.mythicisland.queue.runtime.listener.PlayerListener
 import net.mythicisland.queue.runtime.listener.ServerListener
 import net.mythicisland.queue.runtime.match.MatchReconciler
@@ -34,14 +35,16 @@ class QueueServices(
     api: CloudApi,
     metrics: QueueMetrics,
     gauges: QueueGauges,
+    election: LeaderElection,
+    term: Long,
 ) {
 
     private val logger = LoggerFactory.getLogger(QueueServices::class)
 
     private val types = QueueTypeRegistry()
     private val events = EventPublisher(nats.connection)
-    private val ticketStore = TicketStore(NatsStore.init(nats, args.ticketsBucket))
-    private val matchStore = MatchStore(NatsStore.init(nats, args.matchesBucket))
+    private val ticketStore = TicketStore(NatsStore.init(nats, args.ticketsBucket, election, term))
+    private val matchStore = MatchStore(NatsStore.init(nats, args.matchesBucket, election, term))
     private val registry = ServerRegistry(api, types)
 
     private val allocator = ServerAllocator(api, types, registry, matchStore)
@@ -58,7 +61,7 @@ class QueueServices(
     private val ticketService = TicketService(types, ticketStore, reconciler, events, metrics)
     private val typeManager = QueueTypeManager(types, QueueTypeStore.init(nats, args.typesBucket), registry, ticketService, events)
 
-    private val serverListener = ServerListener(api, registry, reconciler)
+    private val serverListener = ServerListener(api, registry, matchStore, reconciler)
     private val playerListener = PlayerListener(api, ticketStore, ticketService)
     private val matchmaker = Matchmaker(types, ticketStore, matchStore, events, metrics)
     private val ticketExpirer = TicketExpirer(types, ticketStore, ticketService)

@@ -1,11 +1,17 @@
 package net.mythicisland.queue.runtime.state
 
 import io.nats.client.KeyValue
+import net.mythicisland.queue.runtime.leader.LeaderElection
 import net.mythicisland.queue.runtime.nats.NatsClient
 import net.mythicisland.queue.shared.logger.Field
 import net.mythicisland.queue.shared.logger.LoggerFactory
 
-class NatsStore(private val bucket: String, private val kv: KeyValue) : StateStore {
+class NatsStore(
+    private val bucket: String,
+    private val kv: KeyValue,
+    private val election: LeaderElection,
+    private val term: Long,
+) : StateStore {
 
     private val logger = LoggerFactory.getLogger(NatsStore::class)
     private val failed = mutableMapOf<String, ByteArray?>()
@@ -33,6 +39,7 @@ class NatsStore(private val bucket: String, private val kv: KeyValue) : StateSto
 
     private fun write(key: String, value: ByteArray?): Boolean {
         try {
+            check(election.holds(term)) { "This instance does not hold the leader lease" }
             if (value == null) {
                 kv.delete(key)
             } else {
@@ -56,7 +63,8 @@ class NatsStore(private val bucket: String, private val kv: KeyValue) : StateSto
     }
 
     companion object {
-        fun init(nats: NatsClient, bucket: String): NatsStore = NatsStore(bucket, nats.bucket(bucket))
+        fun init(nats: NatsClient, bucket: String, election: LeaderElection, term: Long): NatsStore =
+            NatsStore(bucket, nats.bucket(bucket), election, term)
     }
 
 }
