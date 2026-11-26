@@ -95,7 +95,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
-	case "ctrl+s":
+	case "ctrl+s", "ctrl+o":
 		value := m.area.Value()
 		if value == m.original {
 			return m, tea.Quit
@@ -194,9 +194,9 @@ func (m model) footer() string {
 	case m.saving:
 		status = output.Accent.Render("Saving…")
 	case m.confirmingQuit:
-		status = output.Yellow.Render("Unsaved changes. Press esc again to discard them or ctrl+s to save.")
+		status = output.Yellow.Render("Unsaved changes. Press esc again to discard them or ctrl+o to save.")
 	default:
-		status = keyHelp("ctrl+s", "save") + "   " + keyHelp("esc", "quit") + "   " + keyHelp("tab", "indent")
+		status = keyHelp("ctrl+o", "save") + "   " + keyHelp("esc", "quit") + "   " + keyHelp("tab", "indent")
 	}
 	gap := max(1, m.width-lipgloss.Width(status)-lipgloss.Width(position)-2)
 	lines = append(lines, " "+status+strings.Repeat(" ", gap)+position)
