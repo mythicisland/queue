@@ -22,13 +22,13 @@ clikt = "5.2.1"
 
 # gRPC & Protobuf
 protobuf = "4.36.2"
-grpc = "1.85.1"
+grpc = "1.86.0"
 grpc-kotlin = "1.5.0"
 queue-protos = "1.5.0.4.20261119194250.946ceb964546"
 
 # Infrastructure
 jnats = "2.27.0"
-simplecloud-api = "0.1.0-platform.61-dev.8.1-9a2bef3"
+simplecloud-api = "0.1.0-platform.62-dev.10.1-bd1dbf3"
 velocity = "4.3.1"
 
 [libraries]
